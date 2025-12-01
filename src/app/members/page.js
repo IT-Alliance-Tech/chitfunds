@@ -75,7 +75,7 @@ const [members, setMembers] = useState([
     name: "Kiran Kumar",
     phone: "9988776655",
     chit: "25,000 Chit",
-    status: "Active",
+    status: "Active", 
     documents: ["Bank Passbook Copy"],
   },
   {
