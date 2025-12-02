@@ -79,7 +79,7 @@ export default function PaymentPage() {
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <Typography variant="h5" fontWeight="600" className="text-black">
-              Payment Tracking & Billing
+            {`  Payment Tracking & Billing`}
             </Typography>
 
             <Button variant="contained" onClick={() => setOpenModal(true)}>
