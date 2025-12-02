@@ -395,8 +395,6 @@ export default function MembersPage() {
     </Button>
   </DialogActions>
 </Dialog>
-
-
         </main>
       </div>
     </div>
