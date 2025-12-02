@@ -414,7 +414,7 @@ setOpenModal(false);
 
               <div>
                 <label className="font-semibold">Status:</label>
-                <p
+                <p 
                   className={`inline-block px-3 py-1 rounded-full text-sm ${
                     selectedMember?.status === "Active"
                       ? "bg-green-100 text-green-700"
