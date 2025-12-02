@@ -112,6 +112,39 @@ export default function ChitsPage() {
     },
   ]);
 
+  // FILTER STATE
+  const [filters, setFilters] = useState({
+    name: "",
+    duration: "",
+    members: "",
+    startDate: "",
+    status: "",
+  });
+
+  // APPLY FILTERS
+  const filteredChits = chits.filter((chit) => {
+    return (
+      (filters.name === "" ||
+        chit.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+      (filters.duration === "" ||
+        chit.durationMonths === Number(filters.duration)) &&
+      (filters.members === "" ||
+        chit.membersCount === Number(filters.members)) &&
+      (filters.startDate === "" || chit.startDate === filters.startDate) &&
+      (filters.status === "" || chit.status === filters.status)
+    );
+  });
+
+  const clearFilters = () => {
+    setFilters({
+      name: "",
+      duration: "",
+      members: "",
+      startDate: "",
+      status: "",
+    });
+  };
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedChit, setSelectedChit] = useState(null);
 
@@ -194,20 +227,23 @@ export default function ChitsPage() {
         <Topbar />
 
         <main className="p-6">
-  {/* HEADER */}
+          {/* HEADER */}
           <div className="flex justify-between items-center mb-6">
             <Typography variant="h5" fontWeight="600" color="text.primary">
-  Chit Management
-</Typography>
+              Chit Management
+            </Typography>
 
-
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openAddModal}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openAddModal}
+            >
               Add Chit
             </Button>
           </div>
+
           {/* TOP CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-6">
-
             <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-full">
                 <GroupsIcon sx={{ fontSize: 35, color: "#1e88e5" }} />
@@ -227,7 +263,10 @@ export default function ChitsPage() {
               <div>
                 <Typography variant="subtitle2">Active</Typography>
                 <Typography variant="h4" color="green" fontWeight="600">
-                  <CountUp end={chits.filter(c => c.status === "Active").length} duration={1.4} />
+                  <CountUp
+                    end={chits.filter((c) => c.status === "Active").length}
+                    duration={1.4}
+                  />
                 </Typography>
               </div>
             </Card>
@@ -239,27 +278,109 @@ export default function ChitsPage() {
               <div>
                 <Typography variant="subtitle2">Closed</Typography>
                 <Typography variant="h4" color="gray" fontWeight="600">
-                  <CountUp end={chits.filter(c => c.status === "Closed").length} duration={1.4} />
+                  <CountUp
+                    end={chits.filter((c) => c.status === "Closed").length}
+                    duration={1.4}
+                  />
                 </Typography>
               </div>
             </Card>
 
             <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
               <div className="p-3 bg-yellow-100 rounded-full">
-                <AccessTimeIcon sx={{ fontSize: 35, color: "#d4a919" }} />
+                <AccessTimeIcon
+                  sx={{ fontSize: 35, color: "#d4a919" }}
+                />
               </div>
               <div>
                 <Typography variant="subtitle2">Upcoming</Typography>
                 <Typography variant="h4" color="#d4a919" fontWeight="600">
-                  <CountUp end={chits.filter(c => c.status === "Upcoming").length} duration={1.4} />
+                  <CountUp
+                    end={chits.filter((c) => c.status === "Upcoming").length}
+                    duration={1.4}
+                  />
                 </Typography>
               </div>
             </Card>
           </div>
 
-        
+          {/* ===================== FILTER SECTION ===================== */}
+          <Card className="p-4 mb-6 bg-white" elevation={2}>
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
 
-          {/* TABLE */}
+              <TextField
+                label="Chit Name"
+                size="small"
+                value={filters.name}
+                onChange={(e) =>
+                  setFilters({ ...filters, name: e.target.value })
+                }
+              />
+
+              <TextField
+                label="Duration"
+                type="number"
+                size="small"
+                value={filters.duration}
+                onChange={(e) =>
+                  setFilters({ ...filters, duration: e.target.value })
+                }
+              />
+
+              <TextField
+                label="Members"
+                type="number"
+                size="small"
+                value={filters.members}
+                onChange={(e) =>
+                  setFilters({ ...filters, members: e.target.value })
+                }
+              />
+
+              <TextField
+                label="Start Date"
+                type="date"
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                value={filters.startDate}
+                onChange={(e) =>
+                  setFilters({ ...filters, startDate: e.target.value })
+                }
+              />
+
+              <FormControl size="small">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filters.status}
+                  onChange={(e) =>
+                    setFilters({ ...filters, status: e.target.value })
+                  }
+                  label="Status"
+                >
+                  <MUIMenuItem value="">
+                    <em>All</em>
+                  </MUIMenuItem>
+                  {STATUS_OPTIONS.map((s) => (
+                    <MUIMenuItem key={s} value={s}>
+                      {s}
+                    </MUIMenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+
+            {/* CLEAR BUTTON (SMALL TEXT) */}
+            <div className="mt-2">
+              <span
+                onClick={clearFilters}
+                className="text-red-500 text-sm cursor-pointer hover:underline"
+              >
+                Clear 
+              </span>
+            </div>
+          </Card>
+
+          {/* ===================== TABLE ===================== */}
           <Card elevation={2}>
             <CardContent className="p-0">
               <Table>
@@ -277,7 +398,7 @@ export default function ChitsPage() {
                 </TableHead>
 
                 <TableBody>
-                  {chits.map((chit) => (
+                  {filteredChits.map((chit) => (
                     <TableRow key={chit.id}>
                       <TableCell>{chit.id}</TableCell>
                       <TableCell>{chit.name}</TableCell>
@@ -286,59 +407,80 @@ export default function ChitsPage() {
                       <TableCell>{chit.membersCount}</TableCell>
                       <TableCell>{chit.startDate}</TableCell>
 
-                      {/* STATUS BADGE */}
                       <TableCell>
-                        <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(chit.status)}`}>
+                        <span
+                          className={`px-3 py-1 rounded-full text-sm ${getStatusColor(
+                            chit.status
+                          )}`}
+                        >
                           {chit.status}
                         </span>
                       </TableCell>
 
                       <TableCell>
-                        <IconButton onClick={(e) => openActions(e, chit)}>
+                        <IconButton
+                          onClick={(e) => openActions(e, chit)}
+                        >
                           <MoreVertIcon />
                         </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
-
               </Table>
             </CardContent>
           </Card>
 
           {/* ACTION MENU */}
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeActions}>
-            <MenuItem onClick={() => { alert("View Chit Coming Soon"); closeActions(); }}>View</MenuItem>
-            <MenuItem onClick={() => openEditModal(selectedChit)}>Edit</MenuItem>
-            <MenuItem onClick={() => handleDelete(selectedChit)}>Delete</MenuItem>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={closeActions}
+          >
+            <MenuItem
+              onClick={() => {
+                alert("View Chit Coming Soon");
+                closeActions();
+              }}
+            >
+              View
+            </MenuItem>
+            <MenuItem onClick={() => openEditModal(selectedChit)}>
+              Edit
+            </MenuItem>
+            <MenuItem onClick={() => handleDelete(selectedChit)}>
+              Delete
+            </MenuItem>
           </Menu>
 
           {/* MODAL */}
           <Dialog
-  open={openModal}
-  onClose={() => setOpenModal(false)}
-  fullWidth
-  maxWidth="sm"
-  sx={{
-    "& .MuiPaper-root": {
-      width: "520px",   // ⬅️ decreases modal width
-      borderRadius: "12px",
-      padding: "10px",
-    },
-  }}
->
-
-            <DialogTitle>{isEditMode ? "Edit Chit" : "Add Chit"}</DialogTitle>
+            open={openModal}
+            onClose={() => setOpenModal(false)}
+            fullWidth
+            maxWidth="sm"
+            sx={{
+              "& .MuiPaper-root": {
+                width: "520px",
+                borderRadius: "12px",
+                padding: "10px",
+              },
+            }}
+          >
+            <DialogTitle>
+              {isEditMode ? "Edit Chit" : "Add Chit"}
+            </DialogTitle>
 
             <DialogContent className="space-y-6 pt-4">
-
               <TextField
                 label="Chit Name"
                 fullWidth
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
               />
 
               <TextField
@@ -348,7 +490,9 @@ export default function ChitsPage() {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: e.target.value })
+                }
               />
 
               <TextField
@@ -358,7 +502,9 @@ export default function ChitsPage() {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.durationMonths}
-                onChange={(e) => setFormData({ ...formData, durationMonths: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, durationMonths: e.target.value })
+                }
               />
 
               <TextField
@@ -368,7 +514,12 @@ export default function ChitsPage() {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.membersLimit}
-                onChange={(e) => setFormData({ ...formData, membersLimit: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    membersLimit: e.target.value,
+                  })
+                }
               />
 
               <TextField
@@ -378,7 +529,9 @@ export default function ChitsPage() {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, startDate: e.target.value })
+                }
               />
 
               <TextField
@@ -388,14 +541,18 @@ export default function ChitsPage() {
                 margin="normal"
                 InputLabelProps={{ shrink: true }}
                 value={formData.cycleDay}
-                onChange={(e) => setFormData({ ...formData, cycleDay: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, cycleDay: e.target.value })
+                }
               />
 
-              <FormControl fullWidth margin="normal">
+              {/* <FormControl fullWidth margin="normal">
                 <InputLabel shrink>Status</InputLabel>
                 <Select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
                   input={<OutlinedInput label="Status" />}
                 >
                   {STATUS_OPTIONS.map((s) => (
@@ -404,8 +561,7 @@ export default function ChitsPage() {
                     </MUIMenuItem>
                   ))}
                 </Select>
-              </FormControl>
-
+              </FormControl> */}
             </DialogContent>
 
             <DialogActions>
@@ -415,7 +571,6 @@ export default function ChitsPage() {
               </Button>
             </DialogActions>
           </Dialog>
-
         </main>
       </div>
     </div>
