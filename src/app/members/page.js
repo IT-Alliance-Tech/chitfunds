@@ -28,7 +28,6 @@ import {
 
 import { Checkbox } from "@mui/material";
 
-
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
 
@@ -59,6 +58,8 @@ export default function MembersPage() {
       phone: "9876501234",
       chit: "1,00,000 Chit",
       status: "Active",
+      email: "gireeshma@gmail.com",
+      address: "Hyderabad",
       documents: ["Aadhaar Card", "PAN Card"],
     },
     {
@@ -67,15 +68,47 @@ export default function MembersPage() {
       phone: "9900123456",
       chit: "50,000 Chit",
       status: "Inactive",
+      email: "sahana@gmail.com",
+      address: "Bangalore",
       documents: ["Electricity Bill"],
     },
   ]);
 
+  /* ---------------- FILTER STATES ---------------- */
+  const [filters, setFilters] = useState({
+    name: "",
+    phone: "",
+    chit: "",
+    status: "",
+  });
+
+  const filteredMembers = members.filter((m) => {
+    return (
+      (filters.name === "" ||
+        m.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+      (filters.phone === "" || m.phone.includes(filters.phone)) &&
+      (filters.chit === "" || m.chit === filters.chit) &&
+      (filters.status === "" || m.status === filters.status)
+    );
+  });
+
+  const clearFilters = () => {
+    setFilters({
+      name: "",
+      phone: "",
+      chit: "",
+      status: "",
+    });
+  };
+
+  /* ---------------- MENU & DIALOG ---------------- */
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [isEdit, setIsEdit] = useState(false);
-
   const [openModal, setOpenModal] = useState(false);
+
+  // NEW VIEW MODAL STATE
+  const [viewModal, setViewModal] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -96,7 +129,6 @@ export default function MembersPage() {
     setAnchorEl(null);
   };
 
-  // ADD MEMBER
   const handleAddMember = () => {
     setIsEdit(false);
     setFormData({
@@ -111,7 +143,6 @@ export default function MembersPage() {
     setOpenModal(true);
   };
 
-  // EDIT MEMBER
   const handleEditMember = () => {
     setIsEdit(true);
     setFormData(selectedMember);
@@ -119,22 +150,16 @@ export default function MembersPage() {
     handleMenuClose();
   };
 
-  // SAVE MEMBER (ADD or UPDATE)
   const handleSaveMember = () => {
-    if (isEdit) {
-      // UPDATE MEMBER
-      setMembers((prev) =>
-        prev.map((m) => (m.id === selectedMember.id ? formData : m))
-      );
-    } else {
-      // ADD NEW MEMBER
-      setMembers((prev) => [
-        ...prev,
-        { ...formData, id: prev.length + 1 },
-      ]);
-    }
+   if (isEdit) {
+  setMembers((prev) =>
+    prev.map((m) => (m.id === selectedMember.id ? formData : m))
+  );
+} else {
+  setMembers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
+}
+setOpenModal(false);
 
-    setOpenModal(false);
   };
 
   return (
@@ -150,7 +175,6 @@ export default function MembersPage() {
             <Typography variant="h5" fontWeight="600" color="black">
               Member Management
             </Typography>
-
             <Button variant="contained" onClick={handleAddMember}>
               Add Member
             </Button>
@@ -158,7 +182,6 @@ export default function MembersPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-            {/* Total */}
             <Card className="p-4 flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-full">
                 <Group sx={{ fontSize: 35, color: "#1e88e5" }} />
@@ -171,7 +194,6 @@ export default function MembersPage() {
               </div>
             </Card>
 
-            {/* Active */}
             <Card className="p-4 flex items-center gap-4">
               <div className="p-3 bg-green-100 rounded-full">
                 <CheckCircle sx={{ fontSize: 35, color: "green" }} />
@@ -187,7 +209,6 @@ export default function MembersPage() {
               </div>
             </Card>
 
-            {/* Inactive */}
             <Card className="p-4 flex items-center gap-4">
               <div className="p-3 bg-red-100 rounded-full">
                 <Cancel sx={{ fontSize: 35, color: "red" }} />
@@ -203,6 +224,87 @@ export default function MembersPage() {
               </div>
             </Card>
           </div>
+
+          {/* ---------------- FILTER BAR ---------------- */}
+          <Card className="p-5 mb-6 shadow-sm border border-gray-200 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-500 mb-1">Search Name</label>
+                <TextField
+                  size="small"
+                  placeholder="Enter name"
+                  value={filters.name}
+                  onChange={(e) =>
+                    setFilters({ ...filters, name: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-500 mb-1">Search Phone</label>
+                <TextField
+                  size="small"
+                  placeholder="Enter phone"
+                  value={filters.phone}
+                  onChange={(e) =>
+                    setFilters({ ...filters, phone: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-500 mb-1">Chit</label>
+                <FormControl size="small">
+                  <Select
+                    displayEmpty
+                    value={filters.chit}
+                    onChange={(e) =>
+                      setFilters({ ...filters, chit: e.target.value })
+                    }
+                  >
+                    <MenuItem value="">
+                      <span className="text-gray-400">All Chits</span>
+                    </MenuItem>
+                    {chitOptions.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-xs text-gray-500 mb-1">Status</label>
+                <FormControl size="small">
+                  <Select
+                    displayEmpty
+                    value={filters.status}
+                    onChange={(e) =>
+                      setFilters({ ...filters, status: e.target.value })
+                    }
+                  >
+                    <MenuItem value="">
+                      <span className="text-gray-400">All Status</span>
+                    </MenuItem>
+                    <MenuItem value="Active">Active</MenuItem>
+                    <MenuItem value="Inactive">Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+              </div>
+
+              <div className="flex items-end pb-1">
+                <span
+                  className="text-[16px] text-red-500 cursor-pointer hover:underline"
+                  onClick={clearFilters}
+                >
+                  Clear
+                </span>
+              </div>
+
+            </div>
+          </Card>
 
           {/* Table */}
           <Card>
@@ -220,22 +322,20 @@ export default function MembersPage() {
                 </TableHead>
 
                 <TableBody>
-                  {members.map((member, index) => (
+                  {filteredMembers.map((member, index) => (
                     <TableRow key={member.id}>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{member.name}</TableCell>
                       <TableCell>{member.phone}</TableCell>
                       <TableCell>{member.chit}</TableCell>
 
-                      {/* STATUS BADGE */}
                       <TableCell>
                         <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold
-                            ${
-                              member.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
+                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                            member.status === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
                         >
                           {member.status}
                         </span>
@@ -259,142 +359,228 @@ export default function MembersPage() {
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
           >
+            <MenuItem
+              onClick={() => {
+                setViewModal(true);
+                handleMenuClose();
+              }}
+            >
+              View Member Details
+            </MenuItem>
+
             <MenuItem onClick={handleEditMember}>Edit</MenuItem>
+
             <MenuItem onClick={() => alert("Delete Coming Soon")}>
               Delete
             </MenuItem>
           </Menu>
 
-          {/* MODAL */}
-<Dialog
-  open={openModal}
-  onClose={() => setOpenModal(false)}
-  fullWidth
-  maxWidth="sm"
->
-  <DialogTitle className="text-xl font-semibold">
-    {isEdit ? "Edit Member" : "Add Member"}
-  </DialogTitle>
+          {/* VIEW MEMBER DETAILS MODAL */}
+          <Dialog
+            open={viewModal}
+            onClose={() => setViewModal(false)}
+            fullWidth
+            maxWidth="sm"
+          >
+            <DialogTitle className="text-xl font-semibold">
+              Member Details
+            </DialogTitle>
 
-  <DialogContent className="space-y-4 py-4">
+            <DialogContent className="space-y-4 py-4">
+              <div>
+                <label className="font-semibold">Name:</label>
+                <p className="text-gray-700">{selectedMember?.name}</p>
+              </div>
 
-    {/* NAME */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Name</label>
-      <TextField
-        fullWidth
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-      />
-    </div>
+              <div>
+                <label className="font-semibold">Phone:</label>
+                <p className="text-gray-700">{selectedMember?.phone}</p>
+              </div>
 
-    {/* PHONE */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Phone Number</label>
-      <TextField
-        fullWidth
-        value={formData.phone}
-        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-      />
-    </div>
+              <div>
+                <label className="font-semibold">Email:</label>
+                <p className="text-gray-700">{selectedMember?.email || "—"}</p>
+              </div>
 
-    {/* EMAIL */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Email ID</label>
-      <TextField
-        fullWidth
-        value={formData.email}
-        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-      />
-    </div>
+              <div>
+                <label className="font-semibold">Address:</label>
+                <p className="text-gray-700">{selectedMember?.address || "—"}</p>
+              </div>
 
-    {/* ADDRESS */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Address</label>
-      <TextField
-        fullWidth
-        multiline
-        rows={2}
-        value={formData.address}
-        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-      />
-    </div>
+              <div>
+                <label className="font-semibold">Assigned Chit:</label>
+                <p className="text-gray-700">{selectedMember?.chit}</p>
+              </div>
 
-    {/* ASSIGNED CHIT (ONLY ONE) */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Assigned Chit</label>
-      <FormControl fullWidth>
-        <Select
-          value={formData.chit}
-          onChange={(e) =>
-            setFormData({ ...formData, chit: e.target.value })
-          }
-          input={<OutlinedInput />}
-        >
-          {chitOptions.map((chit) => (
-            <MenuItem key={chit} value={chit}>
-              {chit}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </div>
+              <div>
+                <label className="font-semibold">Status:</label>
+                <p
+                  className={`inline-block px-3 py-1 rounded-full text-sm ${
+                    selectedMember?.status === "Active"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {selectedMember?.status}
+                </p>
+              </div>
 
-    {/* SECURITY DOCUMENTS */}
-    <div className="flex flex-col gap-1">
-      <label className="text-gray-700 font-medium">Security Documents</label>
+              <div>
+                <label className="font-semibold">Security Documents:</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {selectedMember?.documents?.length ? (
+                    selectedMember.documents.map((doc) => (
+                      <span
+                        key={doc}
+                        className="px-3 py-1 bg-gray-200 rounded-full text-sm"
+                      >
+                        {doc}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-gray-500">No documents added</p>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
 
-      <FormControl fullWidth>
-        <Select
-          multiple
-          value={formData.documents}
-          onChange={(e) =>
-            setFormData({ ...formData, documents: e.target.value })
-          }
-          input={<OutlinedInput />}
-          renderValue={(selected) => (
-            <div className="flex flex-wrap gap-2">
-              {selected.map((doc) => (
-                <Chip
-                  key={doc}
-                  label={doc}
-                  onDelete={() =>
-                    setFormData({
-                      ...formData,
-                      documents: formData.documents.filter(
-                        (item) => item !== doc
-                      ),
-                    })
+            <DialogActions>
+              <Button onClick={() => setViewModal(false)}>Close</Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* ADD / EDIT MODAL */}
+          <Dialog
+            open={openModal}
+            onClose={() => setOpenModal(false)}
+            fullWidth
+            maxWidth="sm"
+          >
+            <DialogTitle className="text-xl font-semibold">
+              {isEdit ? "Edit Member" : "Add Member"}
+            </DialogTitle>
+
+            <DialogContent className="space-y-4 py-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">Name</label>
+                <TextField
+                  fullWidth
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
                   }
                 />
-              ))}
-            </div>
-          )}
-          MenuProps={{
-            PaperProps: {
-              style: { maxHeight: 250 },
-            },
-          }}
-        >
-          {securityDocumentOptions.map((doc) => (
-            <MenuItem key={doc} value={doc}>
-              <Checkbox checked={formData.documents.includes(doc)} />
-              {doc}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </div>
+              </div>
 
-  </DialogContent>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">Phone Number</label>
+                <TextField
+                  fullWidth
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                />
+              </div>
 
-  <DialogActions>
-    <Button onClick={() => setOpenModal(false)}>Cancel</Button>
-    <Button variant="contained" onClick={handleSaveMember}>
-      Save
-    </Button>
-  </DialogActions>
-</Dialog>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">Email ID</label>
+                <TextField
+                  fullWidth
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">Address</label>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">Assigned Chit</label>
+                <FormControl fullWidth>
+                  <Select
+                    value={formData.chit}
+                    onChange={(e) =>
+                      setFormData({ ...formData, chit: e.target.value })
+                    }
+                    input={<OutlinedInput />}
+                  >
+                    {chitOptions.map((chit) => (
+                      <MenuItem key={chit} value={chit}>
+                        {chit}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-700 font-medium">
+                  Security Documents
+                </label>
+
+                <FormControl fullWidth>
+                  <Select
+                    multiple
+                    value={formData.documents}
+                    onChange={(e) =>
+                      setFormData({ ...formData, documents: e.target.value })
+                    }
+                    input={<OutlinedInput />}
+                    renderValue={(selected) => (
+                      <div className="flex flex-wrap gap-2">
+                        {selected.map((doc) => (
+                          <Chip
+                            key={doc}
+                            label={doc}
+                            onDelete={() =>
+                              setFormData({
+                                ...formData,
+                                documents: formData.documents.filter(
+                                  (d) => d !== doc
+                                ),
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                    MenuProps={{
+                      PaperProps: {
+                        style: { maxHeight: 250 },
+                      },
+                    }}
+                  >
+                    {securityDocumentOptions.map((doc) => (
+                      <MenuItem key={doc} value={doc}>
+                        <Checkbox checked={formData.documents.includes(doc)} />
+                        {doc}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </div>
+            </DialogContent>
+
+            <DialogActions>
+              <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+              <Button variant="contained" onClick={handleSaveMember}>
+                Save
+              </Button>
+            </DialogActions>
+          </Dialog>
         </main>
       </div>
     </div>
