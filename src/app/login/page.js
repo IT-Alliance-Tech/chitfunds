@@ -80,7 +80,7 @@ export default function LoginPage() {
               className="text-sm text-blue-600 cursor-pointer hover:underline"
               onClick={() => router.push("/forgot-password")}
             >
-              Forgot Password?
+             {` Forgot Password?`}
             </span>
           </div>
 
