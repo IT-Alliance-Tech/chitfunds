@@ -51,57 +51,88 @@ const securityDocumentOptions = [
 const chitOptions = ["1,00,000 Chit", "50,000 Chit", "25,000 Chit"];
 
 export default function MembersPage() {
-const [members, setMembers] = useState([
-  {
-    id: 1,
-    name: "Gireeshma Reddy",
-    phone: "9876501234",
-    chit: "1,00,000 Chit",
-    status: "Active",
-    documents: ["Aadhaar Card", "PAN Card"],
-  },
-  {
-    id: 2,
-    name: "Sahana R",
-    phone: "9900123456",
-    chit: "50,000 Chit",
-    status: "Inactive",
-    documents: ["Electricity Bill"],
-  },
-  {
-    id: 3,
-    name: "Kiran Kumar",
-    phone: "9988776655",
-    chit: "25,000 Chit",
-    status: "Active",
-    documents: ["Bank Passbook Copy"],
-  },
-  {
-    id: 4,
-    name: "Lavanya P",
-    phone: "9123987654",
-    chit: "1,00,000 Chit",
-    status: "Active",
-    documents: ["Aadhaar Card", "Cheque Leaf"],
-  },
-  {
-    id: 5,
-    name: "Manoj Shetty",
-    phone: "9001237890",
-    chit: "50,000 Chit",
-    status: "Inactive",
-    documents: ["Ration Card"],
-  },
-]);
+  // ---------- MEMBER DATA ----------
+  const [members, setMembers] = useState([
+    {
+      id: 1,
+      name: "Gireeshma Reddy",
+      phone: "9876501234",
+      chit: "1,00,000 Chit",
+      status: "Active",
+      documents: ["Aadhaar Card", "PAN Card"],
+    },
+    {
+      id: 2,
+      name: "Sahana R",
+      phone: "9900123456",
+      chit: "50,000 Chit",
+      status: "Inactive",
+      documents: ["Electricity Bill"],
+    },
+    {
+      id: 3,
+      name: "Kiran Kumar",
+      phone: "9988776655",
+      chit: "25,000 Chit",
+      status: "Active",
+      documents: ["Bank Passbook Copy"],
+    },
+    {
+      id: 4,
+      name: "Lavanya P",
+      phone: "9123987654",
+      chit: "1,00,000 Chit",
+      status: "Active",
+      documents: ["Aadhaar Card", "Cheque Leaf"],
+    },
+    {
+      id: 5,
+      name: "Manoj Shetty",
+      phone: "9001237890",
+      chit: "50,000 Chit",
+      status: "Inactive",
+      documents: ["Ration Card"],
+    },
+  ]);
 
+  // ---------- STATES ----------
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+
   const [isEdit, setIsEdit] = useState(false);
   const [openModal, setOpenModal] = useState(false);
-
-  // NEW VIEW MODAL STATE
   const [viewModal, setViewModal] = useState(false);
 
+  // ---------- FILTER STATE (FIXED ERROR) ----------
+  const [filters, setFilters] = useState({
+    name: "",
+    phone: "",
+    chit: "",
+    status: "",
+  });
+
+  const clearFilters = () => {
+    setFilters({
+      name: "",
+      phone: "",
+      chit: "",
+      status: "",
+    });
+  };
+
+  // ---------- FILTER LOGIC ----------
+  const filteredMembers = members.filter((m) => {
+    return (
+      (filters.name
+        ? m.name.toLowerCase().includes(filters.name.toLowerCase())
+        : true) &&
+      (filters.phone ? m.phone.includes(filters.phone) : true) &&
+      (filters.chit ? m.chit === filters.chit : true) &&
+      (filters.status ? m.status === filters.status : true)
+    );
+  });
+
+  // ---------- FORM DATA ----------
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -112,15 +143,14 @@ const [members, setMembers] = useState([
     status: "Active",
   });
 
+  // ---------- MENU ----------
   const handleMenuOpen = (event, member) => {
     setAnchorEl(event.currentTarget);
     setSelectedMember(member);
   };
+  const handleMenuClose = () => setAnchorEl(null);
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
+  // ---------- ADD MEMBER ----------
   const handleAddMember = () => {
     setIsEdit(false);
     setFormData({
@@ -135,6 +165,7 @@ const [members, setMembers] = useState([
     setOpenModal(true);
   };
 
+  // ---------- EDIT MEMBER ----------
   const handleEditMember = () => {
     setIsEdit(true);
     setFormData(selectedMember);
@@ -143,15 +174,15 @@ const [members, setMembers] = useState([
   };
 
   const handleSaveMember = () => {
-   if (isEdit) {
-  setMembers((prev) =>
-    prev.map((m) => (m.id === selectedMember.id ? formData : m))
-  );
-} else {
-  setMembers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
-}
-setOpenModal(false);
+    if (isEdit) {
+      setMembers((prev) =>
+        prev.map((m) => (m.id === selectedMember.id ? formData : m))
+      );
+    } else {
+      setMembers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
+    }
 
+    setOpenModal(false);
   };
 
   return (
@@ -162,7 +193,7 @@ setOpenModal(false);
         <Topbar />
 
         <main className="p-6">
-          {/* Header */}
+          {/* HEADER */}
           <div className="flex justify-between items-center mb-6">
             <Typography variant="h5" fontWeight="600" color="black">
               Member Management
@@ -172,7 +203,7 @@ setOpenModal(false);
             </Button>
           </div>
 
-          {/* Stats Cards */}
+          {/* -------- STATS CARDS -------- */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
             <Card className="p-4 flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-full">
@@ -217,10 +248,9 @@ setOpenModal(false);
             </Card>
           </div>
 
-          {/* ---------------- FILTER BAR ---------------- */}
+          {/* -------- FILTERS (FIXED STATE) -------- */}
           <Card className="p-5 mb-6 shadow-sm border border-gray-200 rounded-lg">
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-
               <div className="flex flex-col">
                 <label className="text-xs text-gray-500 mb-1">Search Name</label>
                 <TextField
@@ -234,7 +264,9 @@ setOpenModal(false);
               </div>
 
               <div className="flex flex-col">
-                <label className="text-xs text-gray-500 mb-1">Search Phone</label>
+                <label className="text-xs text-gray-500 mb-1">
+                  Search Phone
+                </label>
                 <TextField
                   size="small"
                   placeholder="Enter phone"
@@ -294,22 +326,33 @@ setOpenModal(false);
                   Clear
                 </span>
               </div>
-
             </div>
           </Card>
 
-          {/* Table */}
+          {/* -------- TABLE -------- */}
           <Card>
             <CardContent>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>S.No</strong></TableCell>
-                    <TableCell><strong>Name</strong></TableCell>
-                    <TableCell><strong>Phone</strong></TableCell>
-                    <TableCell><strong>Assigned Chit</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Actions</strong></TableCell>
+                    <TableCell>
+                      <strong>S.No</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Phone</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Assigned Chit</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Status</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Actions</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -345,12 +388,8 @@ setOpenModal(false);
             </CardContent>
           </Card>
 
-          {/* MENU */}
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
+          {/* -------- MENU -------- */}
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
             <MenuItem
               onClick={() => {
                 setViewModal(true);
@@ -367,7 +406,7 @@ setOpenModal(false);
             </MenuItem>
           </Menu>
 
-          {/* VIEW MEMBER DETAILS MODAL */}
+          {/* -------- VIEW DETAILS MODAL -------- */}
           <Dialog
             open={viewModal}
             onClose={() => setViewModal(false)}
@@ -406,7 +445,7 @@ setOpenModal(false);
 
               <div>
                 <label className="font-semibold">Status:</label>
-                <p 
+                <p
                   className={`inline-block px-3 py-1 rounded-full text-sm ${
                     selectedMember?.status === "Active"
                       ? "bg-green-100 text-green-700"
@@ -441,7 +480,7 @@ setOpenModal(false);
             </DialogActions>
           </Dialog>
 
-          {/* ADD / EDIT MODAL */}
+          {/* -------- ADD / EDIT MODAL -------- */}
           <Dialog
             open={openModal}
             onClose={() => setOpenModal(false)}
@@ -465,7 +504,9 @@ setOpenModal(false);
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-gray-700 font-medium">Phone Number</label>
+                <label className="text-gray-700 font-medium">
+                  Phone Number
+                </label>
                 <TextField
                   fullWidth
                   value={formData.phone}
@@ -500,14 +541,15 @@ setOpenModal(false);
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-gray-700 font-medium">Assigned Chit</label>
+                <label className="text-gray-700 font-medium">
+                  Assigned Chit
+                </label>
                 <FormControl fullWidth>
                   <Select
                     value={formData.chit}
                     onChange={(e) =>
                       setFormData({ ...formData, chit: e.target.value })
                     }
-                    input={<OutlinedInput />}
                   >
                     {chitOptions.map((chit) => (
                       <MenuItem key={chit} value={chit}>
@@ -550,9 +592,7 @@ setOpenModal(false);
                       </div>
                     )}
                     MenuProps={{
-                      PaperProps: {
-                        style: { maxHeight: 250 },
-                      },
+                      PaperProps: { style: { maxHeight: 250 } },
                     }}
                   >
                     {securityDocumentOptions.map((doc) => (
