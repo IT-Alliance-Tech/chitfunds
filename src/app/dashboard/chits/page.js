@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 import {
   Card,
   CardContent,
@@ -54,6 +56,8 @@ const getStatusColor = (status) => {
 };
 
 export default function ChitsPage() {
+  const router = useRouter();
+
   const [chits, setChits] = useState([
     {
       id: "CHT-001",
@@ -163,9 +167,10 @@ export default function ChitsPage() {
     status: "Active",
   });
 
+  // ✅ set selectedChit FIRST, then anchorEl
   const openActions = (event, chit) => {
-    setAnchorEl(event.currentTarget);
     setSelectedChit(chit);
+    setAnchorEl(event.currentTarget);
   };
 
   const closeActions = () => {
@@ -189,6 +194,7 @@ export default function ChitsPage() {
   };
 
   const openEditModal = (chit) => {
+    if (!chit) return;
     setIsEditMode(true);
     setFormData({ ...chit });
     setOpenModal(true);
@@ -214,6 +220,7 @@ export default function ChitsPage() {
   };
 
   const handleDelete = (chit) => {
+    if (!chit) return;
     if (!confirm(`Delete chit "${chit.name}"?`)) return;
     setChits((prev) => prev.filter((c) => c.id !== chit.id));
     closeActions();
@@ -288,9 +295,7 @@ export default function ChitsPage() {
 
             <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
               <div className="p-3 bg-yellow-100 rounded-full">
-                <AccessTimeIcon
-                  sx={{ fontSize: 35, color: "#d4a919" }}
-                />
+                <AccessTimeIcon sx={{ fontSize: 35, color: "#d4a919" }} />
               </div>
               <div>
                 <Typography variant="subtitle2">Upcoming</Typography>
@@ -307,7 +312,6 @@ export default function ChitsPage() {
           {/* ===================== FILTER SECTION ===================== */}
           <Card className="p-4 mb-6 bg-white" elevation={2}>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
-
               <TextField
                 label="Chit Name"
                 size="small"
@@ -369,13 +373,13 @@ export default function ChitsPage() {
               </FormControl>
             </div>
 
-            {/* CLEAR BUTTON (SMALL TEXT) */}
+            {/* CLEAR BUTTON */}
             <div className="mt-2">
               <span
                 onClick={clearFilters}
                 className="text-red-500 text-sm cursor-pointer hover:underline"
               >
-                Clear 
+                Clear
               </span>
             </div>
           </Card>
@@ -386,14 +390,30 @@ export default function ChitsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Name</strong></TableCell>
-                    <TableCell><strong>Amount</strong></TableCell>
-                    <TableCell><strong>Duration</strong></TableCell>
-                    <TableCell><strong>Members</strong></TableCell>
-                    <TableCell><strong>Start Date</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Actions</strong></TableCell>
+                    <TableCell>
+                      <strong>ID</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Amount</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Duration</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Members</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Start Date</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Status</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Actions</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -418,9 +438,7 @@ export default function ChitsPage() {
                       </TableCell>
 
                       <TableCell>
-                        <IconButton
-                          onClick={(e) => openActions(e, chit)}
-                        >
+                        <IconButton onClick={(e) => openActions(e, chit)}>
                           <MoreVertIcon />
                         </IconButton>
                       </TableCell>
@@ -438,13 +456,16 @@ export default function ChitsPage() {
             onClose={closeActions}
           >
             <MenuItem
+              disabled={!selectedChit}
               onClick={() => {
-                alert("View Chit Coming Soon");
+                if (!selectedChit) return;
+                router.push(`/dashboard/chits/${selectedChit.id}`);
                 closeActions();
               }}
             >
               View
             </MenuItem>
+
             <MenuItem onClick={() => openEditModal(selectedChit)}>
               Edit
             </MenuItem>
@@ -503,7 +524,10 @@ export default function ChitsPage() {
                 InputLabelProps={{ shrink: true }}
                 value={formData.durationMonths}
                 onChange={(e) =>
-                  setFormData({ ...formData, durationMonths: e.target.value })
+                  setFormData({
+                    ...formData,
+                    durationMonths: e.target.value,
+                  })
                 }
               />
 
@@ -546,7 +570,9 @@ export default function ChitsPage() {
                 }
               />
 
-              {/* <FormControl fullWidth margin="normal">
+              {/* If you want status in modal, just uncomment this: */}
+              {/*
+              <FormControl fullWidth margin="normal">
                 <InputLabel shrink>Status</InputLabel>
                 <Select
                   value={formData.status}
@@ -561,7 +587,8 @@ export default function ChitsPage() {
                     </MUIMenuItem>
                   ))}
                 </Select>
-              </FormControl> */}
+              </FormControl>
+              */}
             </DialogContent>
 
             <DialogActions>
