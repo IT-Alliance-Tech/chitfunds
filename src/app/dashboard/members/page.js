@@ -37,12 +37,17 @@ import CountUp from "react-countup";
 
 /* ===================== CHITS ====================== */
 const MOCK_CHITS = [
-  { id: "CHT-001", name: "Silver Chit" },
-  { id: "CHT-002", name: "Gold Chit" },
-  { id: "CHT-003", name: "Starter Chit" },
-  { id: "CHT-004", name: "Bronze Chit" },
-  { id: "CHT-005", name: "Premium Chit" },
+  { id: "CHT-001", name: "Silver Chit", location: "Hyderabad" },
+  { id: "CHT-002", name: "Gold Chit", location: "Bangalore" },
+  { id: "CHT-003", name: "Starter Chit", location: "Chennai" },
+  { id: "CHT-004", name: "Bronze Chit", location: "Hyderabad" },
+  { id: "CHT-005", name: "Premium Chit", location: "Mumbai" },
 ];
+
+const LOCATIONS = [
+  ...new Set(MOCK_CHITS.map((chit) => chit.location)),
+];
+
 
 /* ===================== DOCUMENT OPTIONS ====================== */
 const securityDocumentOptions = [
@@ -60,58 +65,64 @@ const securityDocumentOptions = [
 
 export default function MembersPage() {
   /* ===================== MEMBERS ====================== */
-  const [members, setMembers] = useState([
-    {
-      id: 1,
-      name: "Gireeshma Reddy",
-      email: "gireeshma@gmail.com",
-      address: "Banjara Hills, Hyderabad",
-      phone: "9876501234",
-      chit: "Silver Chit",
-      status: "Active",
-      documents: ["Aadhaar Card", "PAN Card"],
-    },
-    {
-      id: 2,
-      name: "Sahana R",
-      email: "sahana@gmail.com",
-      address: "Whitefield, Bangalore",
-      phone: "9900123456",
-      chit: "Gold Chit",
-      status: "Inactive",
-      documents: ["Electricity Bill"],
-    },
-    {
-      id: 3,
-      name: "Kiran Kumar",
-      email: "kiran@gmail.com",
-      address: "Gachibowli, Hyderabad",
-      phone: "9988776655",
-      chit: "Starter Chit",
-      status: "Active",
-      documents: ["Bank Passbook Copy"],
-    },
-    {
-      id: 4,
-      name: "Lavanya P",
-      email: "lavanya@gmail.com",
-      address: "Yelahanka, Bangalore",
-      phone: "9123987654",
-      chit: "Silver Chit",
-      status: "Active",
-      documents: ["Aadhaar Card", "Cheque Leaf"],
-    },
-    {
-      id: 5,
-      name: "Manoj Shetty",
-      email: "manoj@gmail.com",
-      address: "Udupi, Karnataka",
-      phone: "9001237890",
-      chit: "Gold Chit",
-      status: "Inactive",
-      documents: ["Ration Card"],
-    },
-  ]);
+ const [members, setMembers] = useState([
+  {
+    id: 1,
+    name: "Gireeshma Reddy",
+    email: "gireeshma@gmail.com",
+    address: "Banjara Hills, Hyderabad",
+    phone: "9876501234",
+    chit: "Silver Chit",
+    location: "Hyderabad",
+    status: "Active",
+    documents: ["Aadhaar Card", "PAN Card"],
+  },
+  {
+    id: 2,
+    name: "Sahana R",
+    email: "sahana@gmail.com",
+    address: "Whitefield, Bangalore",
+    phone: "9900123456",
+    chit: "Gold Chit",
+    location: "Bangalore",
+    status: "Inactive",
+    documents: ["Electricity Bill"],
+  },
+  {
+    id: 3,
+    name: "Kiran Kumar",
+    email: "kiran@gmail.com",
+    address: "Gachibowli, Hyderabad",
+    phone: "9988776655",
+    chit: "Starter Chit",
+    location: "Chennai",
+    status: "Active",
+    documents: ["Bank Passbook Copy"],
+  },
+  {
+    id: 4,
+    name: "Lavanya P",
+    email: "lavanya@gmail.com",
+    address: "Yelahanka, Bangalore",
+    phone: "9123987654",
+    chit: "Silver Chit",
+    location: "Hyderabad",
+    status: "Active",
+    documents: ["Aadhaar Card", "Cheque Leaf"],
+  },
+  {
+    id: 5,
+    name: "Manoj Shetty",
+    email: "manoj@gmail.com",
+    address: "Udupi, Karnataka",
+    phone: "9001237890",
+    chit: "Gold Chit",
+    location: "Bangalore",
+    status: "Inactive",
+    documents: ["Ration Card"],
+  },
+]);
+
 
   /* ===================== STATE ====================== */
   const [anchorEl, setAnchorEl] = useState(null);
@@ -125,18 +136,21 @@ const [searchName, setSearchName] = useState("");
 const [searchPhone, setSearchPhone] = useState("");
 const [filterChit, setFilterChit] = useState("");
 const [filterStatus, setFilterStatus] = useState("");
+const [filterLocation, setFilterLocation] = useState("");
 
 
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    chit: "",
-    documents: [],
-    status: "Active",
-  });
+ const [formData, setFormData] = useState({
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  chit: "",
+  location: "",
+  documents: [],
+  status: "Active",
+});
+
 
 /* ===================== MENU ====================== */
   const handleMenuOpen = (e, member) => {
@@ -150,14 +164,16 @@ const [filterStatus, setFilterStatus] = useState("");
   const handleAddMember = () => {
     setIsEdit(false);
     setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      chit: "",
-      documents: [],
-      status: "Active",
-    });
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  chit: "",
+  location: "",
+  documents: [],
+  status: "Active",
+});
+
     setOpenModal(true);
   };
 
@@ -210,9 +226,11 @@ const filteredMembers = members.filter((m) => {
     m.name.toLowerCase().includes(searchName.toLowerCase()) &&
     m.phone.includes(searchPhone) &&
     (filterChit === "" || m.chit === filterChit) &&
-    (filterStatus === "" || m.status === filterStatus)
+    (filterStatus === "" || m.status === filterStatus) &&
+    (filterLocation === "" || m.location === filterLocation)
   );
 });
+
 
 
 
@@ -334,6 +352,24 @@ const filteredMembers = members.filter((m) => {
       </Select>
     </FormControl>
 
+    {/* LOCATION FILTER */}
+<FormControl size="small" sx={{ minWidth: 180 }}>
+  <InputLabel>Location</InputLabel>
+  <Select
+    label="Location"
+    value={filterLocation}
+    onChange={(e) => setFilterLocation(e.target.value)}
+  >
+    <MenuItem value="">All</MenuItem>
+    {LOCATIONS.map((loc) => (
+      <MenuItem key={loc} value={loc}>
+        {loc}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+
+
     {/* STATUS FILTER */}
     <FormControl size="small" sx={{ minWidth: 160 }}>
       <InputLabel>Status</InputLabel>
@@ -347,6 +383,7 @@ const filteredMembers = members.filter((m) => {
         <MenuItem value="Inactive">Inactive</MenuItem>
       </Select>
     </FormControl>
+
 
     {/* CLEAR TEXT LINK */}
     <Typography
@@ -364,6 +401,7 @@ const filteredMembers = members.filter((m) => {
         setSearchPhone("");
         setFilterChit("");
         setFilterStatus("");
+         setFilterLocation("");
       }}
     >
       Clear Filters
@@ -384,6 +422,7 @@ const filteredMembers = members.filter((m) => {
                     <TableCell>Name</TableCell>
                     <TableCell>Phone</TableCell>
                     <TableCell>Assigned Chit</TableCell>
+                    <TableCell>Location</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell align="center">Actions</TableCell>
                   </TableRow>
@@ -396,6 +435,8 @@ const filteredMembers = members.filter((m) => {
                       <TableCell>{m.name}</TableCell>
                       <TableCell>{m.phone}</TableCell>
                       <TableCell>{m.chit}</TableCell>
+                      <TableCell>{m.location}</TableCell>
+
                       <TableCell>
                         <span
                           className={`px-3 py-1 rounded-full text-sm ${
@@ -492,6 +533,26 @@ const filteredMembers = members.filter((m) => {
                   setFormData({ ...formData, address: e.target.value })
                 }
               />
+
+              
+              {/* LOCATION */}
+<FormControl fullWidth sx={{ mb: 3 }}>
+  <InputLabel>Location</InputLabel>
+  <Select
+    label="Location"
+    value={formData.location}
+    onChange={(e) =>
+      setFormData({ ...formData, location: e.target.value })
+    }
+  >
+    {LOCATIONS.map((loc) => (
+      <MenuItem key={loc} value={loc}>
+        {loc}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
+
 
               {/* ASSIGN CHIT */}
               <FormControl fullWidth sx={{ mb: 3 }}>

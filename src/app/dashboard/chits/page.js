@@ -41,7 +41,7 @@ import Topbar from "@/components/dashboard/topbar";
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
 
-// ******** BADGE COLORS ********
+/* ******** BADGE COLORS ******** */
 const getStatusColor = (status) => {
   switch (status) {
     case "Active":
@@ -69,6 +69,7 @@ export default function ChitsPage() {
       startDate: "2025-01-10",
       cycleDay: 10,
       status: "Active",
+      location: "Hyderabad",
     },
     {
       id: "CHT-002",
@@ -80,6 +81,7 @@ export default function ChitsPage() {
       startDate: "2025-06-01",
       cycleDay: 1,
       status: "Upcoming",
+      location: "Bangalore",
     },
     {
       id: "CHT-003",
@@ -91,6 +93,7 @@ export default function ChitsPage() {
       startDate: "2024-08-15",
       cycleDay: 15,
       status: "Closed",
+      location: "Chennai",
     },
     {
       id: "CHT-004",
@@ -102,6 +105,7 @@ export default function ChitsPage() {
       startDate: "2025-03-01",
       cycleDay: 5,
       status: "Active",
+      location: "Hyderabad",
     },
     {
       id: "CHT-005",
@@ -113,29 +117,37 @@ export default function ChitsPage() {
       startDate: "2025-09-01",
       cycleDay: 1,
       status: "Upcoming",
+      location: "Mumbai",
     },
   ]);
 
-  // FILTER STATE
+  /* FILTER STATE */
   const [filters, setFilters] = useState({
     name: "",
     duration: "",
     members: "",
     startDate: "",
     status: "",
+    location: "",
   });
 
-  // APPLY FILTERS
+  /* APPLY FILTERS - SAFE VERSION (NO CRASH) */
   const filteredChits = chits.filter((chit) => {
     return (
       (filters.name === "" ||
-        chit.name.toLowerCase().includes(filters.name.toLowerCase())) &&
+        (chit.name || "")
+          .toLowerCase()
+          .includes(filters.name.toLowerCase())) &&
       (filters.duration === "" ||
         chit.durationMonths === Number(filters.duration)) &&
       (filters.members === "" ||
         chit.membersCount === Number(filters.members)) &&
       (filters.startDate === "" || chit.startDate === filters.startDate) &&
-      (filters.status === "" || chit.status === filters.status)
+      (filters.status === "" || chit.status === filters.status) &&
+      (filters.location === "" ||
+        (chit.location || "")
+          .toLowerCase()
+          .includes(filters.location.toLowerCase()))
     );
   });
 
@@ -146,6 +158,7 @@ export default function ChitsPage() {
       members: "",
       startDate: "",
       status: "",
+      location: "",
     });
   };
 
@@ -165,17 +178,16 @@ export default function ChitsPage() {
     startDate: "",
     cycleDay: "",
     status: "Active",
+    location: "",
   });
 
-  // ✅ set selectedChit FIRST, then anchorEl
+  /* ACTION HANDLERS */
   const openActions = (event, chit) => {
     setSelectedChit(chit);
     setAnchorEl(event.currentTarget);
   };
 
-  const closeActions = () => {
-    setAnchorEl(null);
-  };
+  const closeActions = () => setAnchorEl(null);
 
   const openAddModal = () => {
     setIsEditMode(false);
@@ -189,6 +201,7 @@ export default function ChitsPage() {
       startDate: "",
       cycleDay: "",
       status: "Active",
+      location: "",
     });
     setOpenModal(true);
   };
@@ -234,6 +247,7 @@ export default function ChitsPage() {
         <Topbar />
 
         <main className="p-6">
+
           {/* HEADER */}
           <div className="flex justify-between items-center mb-6">
             <Typography variant="h5" fontWeight="600" color="text.primary">
@@ -309,9 +323,10 @@ export default function ChitsPage() {
             </Card>
           </div>
 
-          {/* ===================== FILTER SECTION ===================== */}
+          {/* FILTERS */}
           <Card className="p-4 mb-6 bg-white" elevation={2}>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 items-end">
+
               <TextField
                 label="Chit Name"
                 size="small"
@@ -352,6 +367,15 @@ export default function ChitsPage() {
                 }
               />
 
+              <TextField
+                label="Location"
+                size="small"
+                value={filters.location}
+                onChange={(e) =>
+                  setFilters({ ...filters, location: e.target.value })
+                }
+              />
+
               <FormControl size="small">
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -371,9 +395,9 @@ export default function ChitsPage() {
                   ))}
                 </Select>
               </FormControl>
+
             </div>
 
-            {/* CLEAR BUTTON */}
             <div className="mt-2">
               <span
                 onClick={clearFilters}
@@ -384,48 +408,35 @@ export default function ChitsPage() {
             </div>
           </Card>
 
-          {/* ===================== TABLE ===================== */}
+          {/* TABLE */}
           <Card elevation={2}>
             <CardContent className="p-0">
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>
-                      <strong>ID</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Name</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Amount</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Duration</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Members</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Start Date</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Status</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Actions</strong>
-                    </TableCell>
+                    <TableCell><strong>ID</strong></TableCell>
+                    <TableCell><strong>Name</strong></TableCell>
+                    <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Duration</strong></TableCell>
+                    <TableCell><strong>Members</strong></TableCell>
+                    <TableCell><strong>Start Date</strong></TableCell>
+                    <TableCell><strong>Location</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {filteredChits.map((chit) => (
                     <TableRow key={chit.id}>
+
                       <TableCell>{chit.id}</TableCell>
                       <TableCell>{chit.name}</TableCell>
                       <TableCell>₹{chit.amount}</TableCell>
                       <TableCell>{chit.durationMonths}</TableCell>
                       <TableCell>{chit.membersCount}</TableCell>
                       <TableCell>{chit.startDate}</TableCell>
+                      <TableCell>{chit.location}</TableCell>
 
                       <TableCell>
                         <span
@@ -442,6 +453,7 @@ export default function ChitsPage() {
                           <MoreVertIcon />
                         </IconButton>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
@@ -465,13 +477,8 @@ export default function ChitsPage() {
             >
               View
             </MenuItem>
-
-            <MenuItem onClick={() => openEditModal(selectedChit)}>
-              Edit
-            </MenuItem>
-            <MenuItem onClick={() => handleDelete(selectedChit)}>
-              Delete
-            </MenuItem>
+            <MenuItem onClick={() => openEditModal(selectedChit)}>Edit</MenuItem>
+            <MenuItem onClick={() => handleDelete(selectedChit)}>Delete</MenuItem>
           </Menu>
 
           {/* MODAL */}
@@ -493,14 +500,24 @@ export default function ChitsPage() {
             </DialogTitle>
 
             <DialogContent className="space-y-6 pt-4">
+
               <TextField
                 label="Chit Name"
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
+                }
+              />
+
+              <TextField
+                label="Location"
+                fullWidth
+                margin="normal"
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
                 }
               />
 
@@ -509,7 +526,6 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
                 value={formData.amount}
                 onChange={(e) =>
                   setFormData({ ...formData, amount: e.target.value })
@@ -521,7 +537,6 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
                 value={formData.durationMonths}
                 onChange={(e) =>
                   setFormData({
@@ -536,7 +551,6 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
                 value={formData.membersLimit}
                 onChange={(e) =>
                   setFormData({
@@ -563,32 +577,14 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                InputLabelProps={{ shrink: true }}
                 value={formData.cycleDay}
                 onChange={(e) =>
                   setFormData({ ...formData, cycleDay: e.target.value })
                 }
               />
 
-              {/* If you want status in modal, just uncomment this: */}
-              {/*
-              <FormControl fullWidth margin="normal">
-                <InputLabel shrink>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                  input={<OutlinedInput label="Status" />}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <MUIMenuItem key={s} value={s}>
-                      {s}
-                    </MUIMenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              */}
+              
+
             </DialogContent>
 
             <DialogActions>
@@ -598,6 +594,7 @@ export default function ChitsPage() {
               </Button>
             </DialogActions>
           </Dialog>
+
         </main>
       </div>
     </div>
