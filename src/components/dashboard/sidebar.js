@@ -29,7 +29,7 @@ export default function Sidebar() {
         <SidebarItem href="/dashboard/members" icon={<Users size={20} />} label="Members" />
         <SidebarItem href="/dashboard/chits" icon={<Layers size={20} />} label="Chit Management" />
         <SidebarItem href="/dashboard/payments" icon={<CreditCard size={20} />} label="Payments" />
-        <SidebarItem href="/reports" icon={<FileText size={20} />} label="Reports" />
+        {/* <SidebarItem href="/reports" icon={<FileText size={20} />} label="Reports" /> */}
       </Box>
     </Box>
   );

@@ -188,7 +188,7 @@ export default function PaymentsPage() {
           </Card>
 
           {/* PAYMENT HISTORY */}
-          {filteredPayments.length > 0 && (
+          {/* {filteredPayments.length > 0 && (
             <Card>
               <CardContent>
 
@@ -248,7 +248,7 @@ export default function PaymentsPage() {
 
               </CardContent>
             </Card>
-          )}
+          )} */}
 
         </main>
       </div>
