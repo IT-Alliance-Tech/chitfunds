@@ -8,7 +8,6 @@ import {
   CardContent,
   Typography,
   Button,
-  Grid,
   Chip,
   Table,
   TableHead,
@@ -61,19 +60,84 @@ const CHITS = [
 /* ================= PAYMENT DETAILS BY CHIT ================= */
 const MONTHLY_PAYMENTS = {
   "Silver Chit": [
-    { month: "Jan 2025", amount: "₹4,150", status: "Paid" },
-    { month: "Feb 2025", amount: "₹4,150", status: "Paid" },
-    { month: "Mar 2025", amount: "₹4,150", status: "Paid" },
-    { month: "Apr 2025", amount: "₹4,150", status: "Unpaid" },
+    {
+      month: "Jan 2025",
+      paidDate: "05-Jan-2025",
+      method: "UPI",
+      interest: "₹0",
+      amount: "₹4,150",
+      status: "Paid",
+    },
+    {
+      month: "Feb 2025",
+      paidDate: "05-Feb-2025",
+      method: "UPI",
+      interest: "₹0",
+      amount: "₹4,150",
+      status: "Paid",
+    },
+    {
+      month: "Mar 2025",
+      paidDate: "04-Mar-2025",
+      method: "Cash",
+      interest: "₹0",
+      amount: "₹4,150",
+      status: "Paid",
+    },
+    {
+      month: "Apr 2025",
+      paidDate: "—",
+      method: "—",
+      interest: "₹150",
+      amount: "₹4,150",
+      status: "Unpaid",
+    },
   ],
+
   "Gold Chit": [
-    { month: "Jan 2025", amount: "₹4,200", status: "Paid" },
-    { month: "Feb 2025", amount: "₹4,200", status: "Unpaid" },
-    { month: "Mar 2025", amount: "₹4,200", status: "Unpaid" },
+    {
+      month: "Jan 2025",
+      paidDate: "06-Jan-2025",
+      method: "Bank Transfer",
+      interest: "₹0",
+      amount: "₹4,200",
+      status: "Paid",
+    },
+    {
+      month: "Feb 2025",
+      paidDate: "—",
+      method: "—",
+      interest: "₹200",
+      amount: "₹4,200",
+      status: "Unpaid",
+    },
+    {
+      month: "Mar 2025",
+      paidDate: "—",
+      method: "—",
+      interest: "₹200",
+      amount: "₹4,200",
+      status: "Unpaid",
+    },
   ],
+
   "Starter Chit": [
-    { month: "Jan 2025", amount: "₹4,000", status: "Paid" },
-    { month: "Feb 2025", amount: "₹4,000", status: "Paid" },
+    {
+      month: "Jan 2025",
+      paidDate: "02-Jan-2025",
+      method: "UPI",
+      interest: "₹0",
+      amount: "₹4,000",
+      status: "Paid",
+    },
+    {
+      month: "Feb 2025",
+      paidDate: "01-Feb-2025",
+      method: "Cash",
+      interest: "₹0",
+      amount: "₹4,000",
+      status: "Paid",
+    },
   ],
 };
 
@@ -114,13 +178,10 @@ export default function MemberDetailsPage() {
 
           {/* ================= HEADER ================= */}
           <div className="relative flex items-center mb-4">
-
-            {/* Back Button */}
             <Button variant="outlined" onClick={() => router.back()}>
               Back
             </Button>
 
-            {/* Center Title */}
             <Typography
               variant="h4"
               fontWeight={600}
@@ -129,12 +190,12 @@ export default function MemberDetailsPage() {
             >
               Member Details
             </Typography>
-
           </div>
 
           {/* ================= PERSONAL DETAILS ================= */}
           <Card>
             <CardContent>
+
               <div className="space-y-3">
 
                 <div>
@@ -180,6 +241,7 @@ export default function MemberDetailsPage() {
             </CardContent>
           </Card>
 
+
           {/* ================= ASSIGNED CHITS + ACTION ================= */}
           <Card>
             <CardContent>
@@ -189,7 +251,6 @@ export default function MemberDetailsPage() {
               </Typography>
 
               <Table>
-
                 <TableHead>
                   <TableRow>
                     <TableCell>Chit Name</TableCell>
@@ -222,7 +283,6 @@ export default function MemberDetailsPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-
               </Table>
 
             </CardContent>
@@ -231,13 +291,9 @@ export default function MemberDetailsPage() {
         </main>
       </div>
 
+
       {/* ================= PAYMENT DETAILS POPUP ================= */}
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
 
         <DialogTitle className="flex justify-between items-center">
           <Typography fontWeight={600}>
@@ -255,9 +311,12 @@ export default function MemberDetailsPage() {
 
             <TableHead>
               <TableRow>
-                <TableCell>Month</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell><b>Month</b></TableCell>
+                <TableCell><b>Paid Date</b></TableCell>
+                <TableCell><b>Method</b></TableCell>
+                <TableCell><b>Interest</b></TableCell>
+                <TableCell><b>Amount</b></TableCell>
+                <TableCell><b>Status</b></TableCell>
               </TableRow>
             </TableHead>
 
@@ -265,6 +324,9 @@ export default function MemberDetailsPage() {
               {MONTHLY_PAYMENTS[selectedChit]?.map((pay, index) => (
                 <TableRow key={index}>
                   <TableCell>{pay.month}</TableCell>
+                  <TableCell>{pay.paidDate}</TableCell>
+                  <TableCell>{pay.method}</TableCell>
+                  <TableCell>{pay.interest}</TableCell>
                   <TableCell>{pay.amount}</TableCell>
                   <TableCell>
                     <Chip
