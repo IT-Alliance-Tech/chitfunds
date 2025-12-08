@@ -262,7 +262,7 @@ export default function PaymentsPage() {
       <Dialog open={openModal} fullWidth maxWidth="sm">
 
         <DialogTitle>
-          Add Payment — {selectedMember?.name}
+         {` Add Payment — `}{selectedMember?.name}
         </DialogTitle>
 
         <DialogContent>
