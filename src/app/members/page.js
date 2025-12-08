@@ -471,7 +471,7 @@ const filteredMembers = members.filter((m) => {
     disabled={!selectedMember}
     onClick={() => {
       if (!selectedMember) return;
-      window.location.href = `/dashboard/members/${selectedMember.id}`;
+      window.location.href = `/members/${selectedMember.id}`;
       handleMenuClose();
     }}
   >

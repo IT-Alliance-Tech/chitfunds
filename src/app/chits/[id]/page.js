@@ -289,7 +289,7 @@ export default function ChitDetailsPage() {
     size="small"
     sx={{ textTransform: "none", borderRadius: "8px" }}
     onClick={() =>
-      router.push(`/dashboard/members/${m.id}`)
+      router.push(`/members/${m.id}`)
     }
   >
     View Details

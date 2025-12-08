@@ -471,7 +471,7 @@ export default function ChitsPage() {
               disabled={!selectedChit}
               onClick={() => {
                 if (!selectedChit) return;
-                router.push(`/dashboard/chits/${selectedChit.id}`);
+                router.push(`/chits/${selectedChit.id}`);
                 closeActions();
               }}
             >
