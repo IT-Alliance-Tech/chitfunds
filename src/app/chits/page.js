@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -63,6 +63,7 @@ export default function ChitsPage() {
       id: "CHT-001",
       name: "Silver Chit",
       amount: 50000,
+       monthlyAmount: 4150,
       durationMonths: 12,
       membersLimit: 50,
       membersCount: 24,
@@ -75,6 +76,7 @@ export default function ChitsPage() {
       id: "CHT-002",
       name: "Gold Chit",
       amount: 100000,
+      monthlyAmount: 8200,
       durationMonths: 24,
       membersLimit: 30,
       membersCount: 5,
@@ -87,6 +89,7 @@ export default function ChitsPage() {
       id: "CHT-003",
       name: "Starter Chit",
       amount: 25000,
+      monthlyAmount: 2500,
       durationMonths: 6,
       membersLimit: 40,
       membersCount: 40,
@@ -99,6 +102,7 @@ export default function ChitsPage() {
       id: "CHT-004",
       name: "Bronze Chit",
       amount: 45000,
+      monthlyAmount: 4500,
       durationMonths: 10,
       membersLimit: 45,
       membersCount: 20,
@@ -111,6 +115,7 @@ export default function ChitsPage() {
       id: "CHT-005",
       name: "Premium Chit",
       amount: 150000,
+      monthlyAmount: 12500,
       durationMonths: 36,
       membersLimit: 25,
       membersCount: 8,
@@ -120,6 +125,10 @@ export default function ChitsPage() {
       location: "Mumbai",
     },
   ]);
+
+  useEffect(() => {
+  localStorage.setItem("chits", JSON.stringify(chits));
+}, [chits]);
 
   /* FILTER STATE */
   const [filters, setFilters] = useState({
@@ -172,6 +181,7 @@ export default function ChitsPage() {
     id: "",
     name: "",
     amount: "",
+    monthlyAmount: "", 
     durationMonths: "",
     membersLimit: "",
     membersCount: 0,
@@ -417,6 +427,7 @@ export default function ChitsPage() {
                     <TableCell><strong>ID</strong></TableCell>
                     <TableCell><strong>Name</strong></TableCell>
                     <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Monthly</strong></TableCell>
                     <TableCell><strong>Duration</strong></TableCell>
                     <TableCell><strong>Members</strong></TableCell>
                     <TableCell><strong>Start Date</strong></TableCell>
@@ -433,6 +444,7 @@ export default function ChitsPage() {
                       <TableCell>{chit.id}</TableCell>
                       <TableCell>{chit.name}</TableCell>
                       <TableCell>₹{chit.amount}</TableCell>
+                      <TableCell>₹{chit.monthlyAmount}</TableCell>
                       <TableCell>{chit.durationMonths}</TableCell>
                       <TableCell>{chit.membersCount}</TableCell>
                       <TableCell>{chit.startDate}</TableCell>
@@ -468,15 +480,23 @@ export default function ChitsPage() {
             onClose={closeActions}
           >
             <MenuItem
-              disabled={!selectedChit}
-              onClick={() => {
-                if (!selectedChit) return;
-                router.push(`/chits/${selectedChit.id}`);
-                closeActions();
-              }}
-            >
-              View
-            </MenuItem>
+  disabled={!selectedChit}
+  onClick={() => {
+    if (!selectedChit) return;
+
+    // ✅ Store selected chit
+    localStorage.setItem(
+      "selectedChit",
+      JSON.stringify(selectedChit)
+    );
+
+    router.push(`/chits/${selectedChit.id}`);
+    closeActions();
+  }}
+>
+  View
+</MenuItem>
+
             <MenuItem onClick={() => openEditModal(selectedChit)}>Edit</MenuItem>
             <MenuItem onClick={() => handleDelete(selectedChit)}>Delete</MenuItem>
           </Menu>
@@ -521,16 +541,32 @@ export default function ChitsPage() {
                 }
               />
 
-              <TextField
-                label="Amount"
-                type="number"
-                fullWidth
-                margin="normal"
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
-                }
-              />
+             <TextField
+  label="Amount"
+  type="number"
+  fullWidth
+  margin="normal"
+  value={formData.amount}
+  onChange={(e) =>
+    setFormData({ ...formData, amount: Number(e.target.value) })
+  }
+/>
+
+  <TextField
+  label="Monthly Payable Amount"
+  type="number"
+  fullWidth
+  margin="normal"
+  value={formData.monthlyAmount}
+  onChange={(e) =>
+    setFormData({
+      ...formData,
+      monthlyAmount: Number(e.target.value),
+    })
+  }
+/>
+
+
 
               <TextField
                 label="Duration (Months)"

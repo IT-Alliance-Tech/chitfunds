@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -27,34 +27,33 @@ import {
 import Sidebar from "@/components/dashboard/sidebar";
 import Topbar from "@/components/dashboard/topbar";
 
-/* ================= CHITS ================= */
-const CHITS = [
-  { id: "CHT-001", name: "Silver Chit", amount: 4150, location: "Hyderabad" },
-  { id: "CHT-002", name: "Gold Chit", amount: 8200, location: "Bangalore" },
-  { id: "CHT-003", name: "Starter Chit", amount: 2500, location: "Chennai" },
-];
-
-const LOCATIONS = [...new Set(CHITS.map((c) => c.location))];
-
-/* ================= MEMBERS ================= */
-const MEMBERS = [
-  { id: 1, name: "Gireeshma Reddy", phone: "9876501234", chit: "Silver Chit", location: "Hyderabad" },
-  { id: 2, name: "Lavanya P", phone: "9123987654", chit: "Silver Chit", location: "Hyderabad" },
-  { id: 3, name: "Sahana R", phone: "9900123456", chit: "Gold Chit", location: "Bangalore" },
-  { id: 4, name: "Manoj Shetty", phone: "9001237890", chit: "Gold Chit", location: "Bangalore" },
-  { id: 5, name: "Kiran Kumar", phone: "9988776655", chit: "Starter Chit", location: "Chennai" },
-];
-
 export default function PaymentsPage() {
   const router = useRouter();
 
-  /* ===== FILTER STATES ===== */
+  /* ================= LOAD DATA FROM STORAGE ================= */
+
+  const [chits, setChits] = useState([]);
+  const [membersAll, setMembersAll] = useState([]);
+
+  useEffect(() => {
+    const storedChits = localStorage.getItem("chits");
+    const storedMembers = localStorage.getItem("members");
+
+    if (storedChits) setChits(JSON.parse(storedChits));
+    if (storedMembers) setMembersAll(JSON.parse(storedMembers));
+  }, []);
+
+  const LOCATIONS = [...new Set(chits.map((c) => c.location))];
+
+  /* ================= FILTER STATES ================= */
+
   const [selectedChit, setSelectedChit] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [searchName, setSearchName] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
 
-  /* ===== PAYMENTS ===== */
+  /* ================= PAYMENTS MODAL ================= */
+
   const [openModal, setOpenModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
 
@@ -66,8 +65,9 @@ export default function PaymentsPage() {
     status: "Paid",
   });
 
-  /* ================= MEMBERS FILTER ================= */
-  const members = MEMBERS.filter((m) => {
+  /* ================= FILTER MEMBERS ================= */
+
+  const members = membersAll.filter((m) => {
     return (
       (selectedChit === "" || m.chit === selectedChit) &&
       (selectedLocation === "" || m.location === selectedLocation) &&
@@ -76,17 +76,19 @@ export default function PaymentsPage() {
     );
   });
 
-  /* ================= GET CHIT AMOUNT ================= */
+  /* ================= GET MONTHLY AMOUNT FROM CHITS ================= */
+
   const selectedChitAmount = selectedMember
-    ? CHITS.find((c) => c.name === selectedMember.chit)?.amount
+    ? chits.find((c) => c.name === selectedMember.chit)?.monthlyAmount
     : null;
 
-  /* ================= OPEN FORM ================= */
+  /* ================= OPEN PAYMENT MODAL ================= */
+
   const openPaymentForm = (member) => {
     setSelectedMember(member);
     setForm({
       month: "",
-      amount: "",
+      amount: selectedChitAmount || "",
       interest: "",
       method: "",
       status: "Paid",
@@ -94,13 +96,18 @@ export default function PaymentsPage() {
     setOpenModal(true);
   };
 
-  /* ================= SAVE ================= */
+  /* ================= SAVE PAYMENT ================= */
+
   const savePayment = () => {
     if (!selectedMember || !form.month || !form.amount || !form.method) return;
+
+    // ✅ You can store payments in localStorage later if needed
+
     setOpenModal(false);
   };
 
-  /* ================= CLEAR ALL FILTERS ================= */
+  /* ================= CLEAR FILTERS ================= */
+
   const clearAllFilters = () => {
     setSelectedChit("");
     setSelectedLocation("");
@@ -130,6 +137,7 @@ export default function PaymentsPage() {
           </Typography>
 
           {/* ================= FILTER BAR ================= */}
+
           <Card>
             <CardContent className="flex gap-4 flex-wrap items-center">
 
@@ -141,11 +149,13 @@ export default function PaymentsPage() {
                   onChange={(e) => setSelectedChit(e.target.value)}
                 >
                   <MenuItem value="">All Chits</MenuItem>
-                  {CHITS.map((c) => (
+
+                  {chits.map((c) => (
                     <MenuItem key={c.id} value={c.name}>
                       {c.name}
                     </MenuItem>
                   ))}
+
                 </Select>
               </FormControl>
 
@@ -157,11 +167,13 @@ export default function PaymentsPage() {
                   onChange={(e) => setSelectedLocation(e.target.value)}
                 >
                   <MenuItem value="">All Locations</MenuItem>
+
                   {LOCATIONS.map((loc) => (
                     <MenuItem key={loc} value={loc}>
                       {loc}
                     </MenuItem>
                   ))}
+
                 </Select>
               </FormControl>
 
@@ -190,10 +202,12 @@ export default function PaymentsPage() {
               >
                 Clear Filters
               </Typography>
+
             </CardContent>
           </Card>
 
           {/* ================= MEMBERS TABLE ================= */}
+
           <Card>
             <CardContent>
 
@@ -204,6 +218,7 @@ export default function PaymentsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
+                    <TableCell><b>ID</b></TableCell>
                     <TableCell><b>Name</b></TableCell>
                     <TableCell><b>Phone</b></TableCell>
                     <TableCell><b>Chit</b></TableCell>
@@ -215,10 +230,12 @@ export default function PaymentsPage() {
                 <TableBody>
                   {members.map((m) => (
                     <TableRow key={m.id}>
+                      <TableCell>{m.id}</TableCell>
                       <TableCell>{m.name}</TableCell>
                       <TableCell>{m.phone}</TableCell>
                       <TableCell>{m.chit}</TableCell>
                       <TableCell>{m.location}</TableCell>
+
                       <TableCell align="center">
                         <Button
                           size="small"
@@ -228,6 +245,7 @@ export default function PaymentsPage() {
                           Add Payment
                         </Button>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
@@ -239,31 +257,22 @@ export default function PaymentsPage() {
         </main>
       </div>
 
-      {/* ================= ADD PAYMENT MODAL ================= */}
-      <Dialog
-        open={openModal}
-        fullWidth
-        maxWidth="sm"
-        onClose={() => setOpenModal(false)}
-        sx={{
-          "& .MuiDialog-paper": {
-            minHeight: "540px",
-          },
-        }}
-      >
+      {/* ================= PAYMENT MODAL ================= */}
+
+      <Dialog open={openModal} fullWidth maxWidth="sm">
+
         <DialogTitle>
           Add Payment — {selectedMember?.name}
         </DialogTitle>
 
         <DialogContent>
 
-          {/* ===== DEFAULT CHIT AMOUNT (PER MEMBER) ===== */}
           <Card sx={{ mb: 3, p: 2, background: "#f3f4f6" }}>
             <Typography variant="subtitle2" color="text.secondary">
               Monthly Chit Amount
             </Typography>
 
-            <Typography color="black" variant="h6" fontWeight={600}>
+            <Typography variant="h6" fontWeight={600}>
               ₹ {selectedChitAmount ?? "--"}
             </Typography>
           </Card>
@@ -343,6 +352,7 @@ export default function PaymentsPage() {
             Save Payment
           </Button>
         </DialogActions>
+
       </Dialog>
 
     </div>
