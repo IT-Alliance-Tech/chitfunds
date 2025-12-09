@@ -297,7 +297,7 @@ export default function MemberDetailsPage() {
 
         <DialogTitle className="flex justify-between">
           <Typography fontWeight={600}>
-            {selectedChit?.name} – Payment Details
+            {selectedChit?.name} {`– Payment Details`}
           </Typography>
 
           <IconButton onClick={handleClose}>
