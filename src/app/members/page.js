@@ -51,9 +51,8 @@ const securityDocumentOptions = [
 
 export default function MembersPage() {
 
-  /* ===================== LOAD CHITS FROM CHIT PAGE ====================== */
+  /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
-
   useEffect(() => {
     const savedChits = localStorage.getItem("chits");
     if (savedChits) {
@@ -103,18 +102,17 @@ export default function MembersPage() {
     },
   ]);
 
-  /* ✅ SAVE MEMBERS FOR PAYMENT PAGE */
+  /* SAVE MEMBERS IN LOCAL STORAGE */
   useEffect(() => {
     localStorage.setItem("members", JSON.stringify(members));
   }, [members]);
 
-  /* ===================== STATE ====================== */
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [openModal, setOpenModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
 
-  /* ===================== FILTER STATES ====================== */
+  /* FILTER STATES */
   const [searchName, setSearchName] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
   const [filterChit, setFilterChit] = useState("");
@@ -133,7 +131,7 @@ export default function MembersPage() {
     status: "Active",
   });
 
-  /* ===================== MENU ====================== */
+  /* MENU ACTIONS */
   const handleMenuOpen = (e, member) => {
     setAnchorEl(e.currentTarget);
     setSelectedMember(member);
@@ -141,7 +139,7 @@ export default function MembersPage() {
 
   const handleMenuClose = () => setAnchorEl(null);
 
-  /* ===================== ADD ====================== */
+  /* ADD */
   const handleAddMember = () => {
     setIsEdit(false);
     setFormData({
@@ -158,7 +156,7 @@ export default function MembersPage() {
     setOpenModal(true);
   };
 
-  /* ===================== EDIT ====================== */
+  /* EDIT */
   const handleEditMember = () => {
     setIsEdit(true);
     setFormData(selectedMember);
@@ -166,28 +164,25 @@ export default function MembersPage() {
     handleMenuClose();
   };
 
-  /* ===================== DELETE ====================== */
+  /* DELETE */
   const handleDelete = () => {
-    setMembers(prev =>
-      prev.filter(m => m.id !== selectedMember.id)
-    );
+    setMembers(prev => prev.filter(m => m.id !== selectedMember.id));
     handleMenuClose();
   };
 
-  /* ===================== AUTO CHIT MAP ====================== */
- const handleChitChange = (value) => {
-  const selectedChit = chits.find((c) => c.name === value);
-  if (!selectedChit) return;
+  /* MAP CHIT CHANGE */
+  const handleChitChange = (value) => {
+    const selectedChit = chits.find((c) => c.name === value);
+    if (!selectedChit) return;
 
-  setFormData(prev => ({
-    ...prev,
-    chit: value,
-    monthlyAmount: String(selectedChit.monthlyAmount), // ✅ convert to string so it shows
-  }));
-};
+    setFormData(prev => ({
+      ...prev,
+      chit: value,
+      monthlyAmount: String(selectedChit.monthlyAmount),
+    }));
+  };
 
-
-  /* ===================== SAVE ====================== */
+  /* SAVE MEMBER */
   const handleSaveMember = () => {
     if (!formData.name || !formData.phone || !formData.chit) {
       alert("Name, Phone & Chit required");
@@ -195,22 +190,15 @@ export default function MembersPage() {
     }
 
     if (isEdit) {
-      setMembers(prev =>
-        prev.map(m =>
-          m.id === selectedMember.id ? { ...formData, id: m.id } : m
-        )
-      );
+      setMembers(prev => prev.map(m => m.id === selectedMember.id ? { ...formData, id: m.id } : m));
     } else {
-      setMembers(prev => [
-        ...prev,
-        { ...formData, id: prev.length + 1 }
-      ]);
+      setMembers(prev => [...prev, { ...formData, id: prev.length + 1 }]);
     }
 
     setOpenModal(false);
   };
 
-  /* ===================== FILTERING ====================== */
+  /* FILTERED MEMBERS */
   const filteredMembers = members.filter(m => {
     return (
       m.name.toLowerCase().includes(searchName.toLowerCase()) &&
@@ -226,134 +214,103 @@ export default function MembersPage() {
 
       <Sidebar />
 
-      <div className="flex-1">
+       <div className="flex-1 w-full min-w-0">
         <Topbar />
 
         <main className="p-6">
 
-         {/* HEADER */}
-<div className="relative flex items-center mb-6">
+          {/* HEADER */}
+          <div className="relative flex items-center mb-6">
 
-  {/* CENTERED TITLE */}
-  <Typography
-    variant="h5"
-    fontWeight={600}
-    sx={{
-      position: "absolute",
-      left: "50%",
-      transform: "translateX(-50%)",
-      color: "black",
-      textAlign: "center",
-      whiteSpace: "nowrap",
-    }}
-  >
-    Member Management
-  </Typography>
+            <Typography
+              variant="h5"
+              fontWeight={600}
+              sx={{
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+                color: "black",
+                textAlign: "center",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Member Management
+            </Typography>
 
-  {/* RIGHT ALIGNED BUTTON */}
-  <div className="ml-auto">
-    <Button variant="contained" onClick={handleAddMember}>
-      Add Member
-    </Button>
-  </div>
+            <div className="ml-auto">
+              <Button variant="contained" onClick={handleAddMember}>
+                Add Member
+              </Button>
+            </div>
 
-</div>
-
+          </div>
 
           {/* STATS */}
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6 max-w-[780px]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6 max-w-[780px]">
 
-  <Card className="p-3 flex items-center gap-3">
-    <Group sx={{ fontSize: 28, color: "#1e88e5" }} />
-    <div>
-      <Typography variant="h5" fontWeight={600}>
-        <CountUp end={members.length} />
-      </Typography>
-      <Typography variant="body2">Total Members</Typography>
-    </div>
-  </Card>
+            <Card className="p-3 flex items-center gap-3">
+              <Group sx={{ fontSize: 28, color: "#1e88e5" }} />
+              <div>
+                <Typography variant="h5" fontWeight={600}>
+                  <CountUp end={members.length} />
+                </Typography>
+                <Typography variant="body2">Total Members</Typography>
+              </div>
+            </Card>
 
-  <Card className="p-3 flex items-center gap-3">
-    <CheckCircle sx={{ fontSize: 28, color: "green" }} />
-    <div>
-      <Typography variant="h5" color="green" fontWeight={600}>
-        <CountUp end={members.filter(m => m.status === "Active").length} />
-      </Typography>
-      <Typography variant="body2">Active</Typography>
-    </div>
-  </Card>
+            <Card className="p-3 flex items-center gap-3">
+              <CheckCircle sx={{ fontSize: 28, color: "green" }} />
+              <div>
+                <Typography variant="h5" color="green" fontWeight={600}>
+                  <CountUp end={members.filter(m => m.status === "Active").length} />
+                </Typography>
+                <Typography variant="body2">Active</Typography>
+              </div>
+            </Card>
 
-  <Card className="p-3 flex items-center gap-3">
-    <Cancel sx={{ fontSize: 28, color: "red" }} />
-    <div>
-      <Typography variant="h5" color="red" fontWeight={600}>
-        <CountUp end={members.filter(m => m.status === "Inactive").length} />
-      </Typography>
-      <Typography variant="body2">Inactive</Typography>
-    </div>
-  </Card>
+            <Card className="p-3 flex items-center gap-3">
+              <Cancel sx={{ fontSize: 28, color: "red" }} />
+              <div>
+                <Typography variant="h5" color="red" fontWeight={600}>
+                  <CountUp end={members.filter(m => m.status === "Inactive").length} />
+                </Typography>
+                <Typography variant="body2">Inactive</Typography>
+              </div>
+            </Card>
 
-</div>
+          </div>
 
-
-
-          {/* ================= FILTER BAR ================= */}
+          {/* FILTERS */}
           <Card sx={{ p: 2, mb: 3 }}>
             <div className="flex flex-wrap gap-4 items-center">
 
-              <TextField
-                size="small"
-                label="Search Name"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
+              <TextField size="small" label="Search Name" value={searchName} onChange={e => setSearchName(e.target.value)} />
 
-              <TextField
-                size="small"
-                label="Phone"
-                value={searchPhone}
-                onChange={(e) => setSearchPhone(e.target.value)}
-              />
+              <TextField size="small" label="Phone" value={searchPhone} onChange={e => setSearchPhone(e.target.value)} />
 
               <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel>Chit</InputLabel>
-                <Select
-                  label="Chit"
-                  value={filterChit}
-                  onChange={(e) => setFilterChit(e.target.value)}
-                >
+                <Select value={filterChit} label="Chit" onChange={e => setFilterChit(e.target.value)}>
                   <MenuItem value="">All</MenuItem>
                   {chits.map(c => (
-                    <MenuItem key={c.id} value={c.name}>
-                      {c.name}
-                    </MenuItem>
+                    <MenuItem key={c.id} value={c.name}>{c.name}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel>Location</InputLabel>
-                <Select
-                  label="Location"
-                  value={filterLocation}
-                  onChange={(e) => setFilterLocation(e.target.value)}
-                >
+                <Select value={filterLocation} label="Location" onChange={e => setFilterLocation(e.target.value)}>
                   <MenuItem value="">All</MenuItem>
                   {LOCATIONS.map(loc => (
-                    <MenuItem key={loc} value={loc}>
-                      {loc}
-                    </MenuItem>
+                    <MenuItem key={loc} value={loc}>{loc}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 150 }}>
                 <InputLabel>Status</InputLabel>
-                <Select
-                  label="Status"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
+                <Select value={filterStatus} label="Status" onChange={e => setFilterStatus(e.target.value)}>
                   <MenuItem value="">All</MenuItem>
                   <MenuItem value="Active">Active</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
@@ -376,134 +333,101 @@ export default function MembersPage() {
             </div>
           </Card>
 
-          {/* TABLE */}
+          {/* ===================== TABLE WITH MOBILE SCROLL ===================== */}
           <Card>
             <CardContent>
 
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Phone</TableCell>
-                    <TableCell>Chit</TableCell>
-                    <TableCell>Monthly</TableCell>
-                    <TableCell>Location</TableCell>
-                    <TableCell>Status</TableCell>
-                    
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {filteredMembers.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>{m.id}</TableCell>
-                      <TableCell>{m.name}</TableCell>
-                      <TableCell>{m.phone}</TableCell>
-                      <TableCell>{m.chit}</TableCell>
-                       <TableCell>₹{m.monthlyAmount}</TableCell>
-                      <TableCell>{m.location}</TableCell>
-                      <TableCell>
-  <span
-    className={`px-3 py-1 rounded-full text-sm font-semibold
-      ${m.status === "Active"
-        ? "bg-green-100 text-green-700"
-        : "bg-red-100 text-red-700"}
-    `}
-  >
-    {m.status}
-  </span>
-</TableCell>
-
-                     
-
-                      <TableCell align="center">
-                        <IconButton onClick={(e) => handleMenuOpen(e, m)}>
-                          <MoreVertIcon />
-                        </IconButton>
-                      </TableCell>
+              <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+                <Table className="min-w-max">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>ID</TableCell>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Phone</TableCell>
+                      <TableCell>Chit</TableCell>
+                      <TableCell>Monthly</TableCell>
+                      <TableCell>Location</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="center">Actions</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHead>
+
+                  <TableBody>
+                    {filteredMembers.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell>{m.id}</TableCell>
+                        <TableCell>{m.name}</TableCell>
+                        <TableCell>{m.phone}</TableCell>
+                        <TableCell>{m.chit}</TableCell>
+                        <TableCell>₹{m.monthlyAmount}</TableCell>
+                        <TableCell>{m.location}</TableCell>
+
+                        <TableCell>
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm font-semibold
+                              ${m.status === "Active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"}`}
+                          >
+                            {m.status}
+                          </span>
+                        </TableCell>
+
+                        <TableCell align="center">
+                          <IconButton onClick={(e) => handleMenuOpen(e, m)}>
+                            <MoreVertIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
             </CardContent>
           </Card>
 
           {/* ACTION MENU */}
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-
-            <MenuItem
-              onClick={() =>
-                window.location.href = `/members/${selectedMember?.id}`
-              }
-            >
+            <MenuItem onClick={() => window.location.href = `/members/${selectedMember?.id}`} >
               View Details
             </MenuItem>
 
-            <MenuItem onClick={handleEditMember}>
-              Edit
-            </MenuItem>
+            <MenuItem onClick={handleEditMember}>Edit</MenuItem>
 
-            <MenuItem sx={{ color: "red" }} onClick={handleDelete}>
-              Delete
-            </MenuItem>
-
+            <MenuItem sx={{ color: "red" }} onClick={handleDelete}>Delete</MenuItem>
           </Menu>
 
           {/* ADD / EDIT MODAL */}
           <Dialog open={openModal} onClose={() => setOpenModal(false)} fullWidth>
-
-            <DialogTitle>
-              {isEdit ? "Edit Member" : "Add Member"}
-            </DialogTitle>
+            <DialogTitle>{isEdit ? "Edit Member" : "Add Member"}</DialogTitle>
 
             <DialogContent>
 
               <TextField
-                fullWidth
-                sx={{ mb: 3 }}
-                label="Name"
+                fullWidth sx={{ mb: 3 }} label="Name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
               />
 
               <TextField
-                fullWidth
-                sx={{ mb: 3 }}
-                label="Phone"
+                fullWidth sx={{ mb: 3 }} label="Phone"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, phone: e.target.value })}
               />
 
               <TextField
-                fullWidth
-                sx={{ mb: 3 }}
-                label="Email"
+                fullWidth sx={{ mb: 3 }} label="Email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
               />
 
               <TextField
-                fullWidth
-                multiline
-                rows={2}
-                sx={{ mb: 3 }}
-                label="Address"
+                fullWidth multiline rows={2} sx={{ mb: 3 }} label="Address"
                 value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
               />
 
-              {/* ASSIGN CHIT */}
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel>Assigned Chit</InputLabel>
 
@@ -521,41 +445,28 @@ export default function MembersPage() {
 
               </FormControl>
 
-              {/* MONTHLY (AUTO) */}
-             <TextField
-  fullWidth
-  sx={{ mb: 3 }}
-  label="Monthly Payable"
-  value={formData.monthlyAmount || ""}
-  InputProps={{
-    readOnly: true,               // ✅ makes it non-editable
-  }}
-/>
+              <TextField
+                fullWidth sx={{ mb: 3 }}
+                label="Monthly Payable"
+                value={formData.monthlyAmount || ""}
+                InputProps={{ readOnly: true }}
+              />
 
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel>Location</InputLabel>
+                <Select
+                  value={formData.location || ""}
+                  label="Location"
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                >
+                  {LOCATIONS.map((loc) => (
+                    <MenuItem key={loc} value={loc}>
+                      {loc}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-
-              {/* LOCATION (AUTO) */}
-             <FormControl fullWidth sx={{ mb: 3 }}>
-  <InputLabel>Location</InputLabel>
-
-  <Select
-    value={formData.location || ""}
-    label="Location"
-    onChange={(e) =>
-      setFormData({ ...formData, location: e.target.value })
-    }
-  >
-    {LOCATIONS.map((loc) => (
-      <MenuItem key={loc} value={loc}>
-        {loc}
-      </MenuItem>
-    ))}
-  </Select>
-
-</FormControl>
-
-
-              {/* DOCUMENTS */}
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel>Security Documents</InputLabel>
 
@@ -563,12 +474,7 @@ export default function MembersPage() {
                   multiple
                   value={formData.documents}
                   input={<OutlinedInput label="Security Documents" />}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      documents: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setFormData({ ...formData, documents: e.target.value })}
                   renderValue={(selected) => (
                     <div className="flex flex-wrap gap-2">
                       {selected.map((d) => (
@@ -590,13 +496,8 @@ export default function MembersPage() {
             </DialogContent>
 
             <DialogActions>
-              <Button onClick={() => setOpenModal(false)}>
-                Cancel
-              </Button>
-
-              <Button variant="contained" onClick={handleSaveMember}>
-                Save
-              </Button>
+              <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+              <Button variant="contained" onClick={handleSaveMember}>Save</Button>
             </DialogActions>
 
           </Dialog>
