@@ -1,8 +1,4 @@
 "use client";
-
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
-
 import {
   Grid,
   Card,
@@ -13,7 +9,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Paper
+  Paper,
 } from "@mui/material";
 
 // Icons
@@ -32,30 +28,30 @@ export default function Dashboard() {
 
   const recentActivities = [
     { action: "Added new member", detail: "Rohit Sharma", time: "2 hours ago" },
-    { action: "Created chit", detail: "₹1,00,000 - 20 Months", time: "5 hours ago" },
+    {
+      action: "Created chit",
+      detail: "₹1,00,000 - 20 Months",
+      time: "5 hours ago",
+    },
     { action: "Updated payment", detail: "Member ID #102", time: "1 day ago" },
-    { action: "Deleted chit", detail: "Old 50K chit", time: "2 days ago" }
+    { action: "Deleted chit", detail: "Old 50K chit", time: "2 days ago" },
   ];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
-
       <div className="flex-1">
-        <Topbar />
-
         {/* Main Area */}
         <main className="p-6">
-
           {/* Stats Cards */}
           <Grid container spacing={3}>
-
             {/* Total Chits */}
             <Grid item xs={12} md={3}>
               <Card elevation={2}>
                 <CardContent>
                   <div className="flex items-center gap-3">
-                    <AccountBalanceIcon sx={{ fontSize: 40, color: "#0ea5e9" }} />
+                    <AccountBalanceIcon
+                      sx={{ fontSize: 40, color: "#0ea5e9" }}
+                    />
                     <div>
                       <Typography variant="subtitle2" color="text.secondary">
                         Total Chits
@@ -112,7 +108,9 @@ export default function Dashboard() {
               <Card elevation={2}>
                 <CardContent>
                   <div className="flex items-center gap-3">
-                    <PendingActionsIcon sx={{ fontSize: 40, color: "#d97706" }} />
+                    <PendingActionsIcon
+                      sx={{ fontSize: 40, color: "#d97706" }}
+                    />
                     <div>
                       <Typography variant="subtitle2" color="text.secondary">
                         Pending Chits
@@ -144,7 +142,6 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </Grid>
-
           </Grid>
 
           {/* Recent Activities Table */}
@@ -156,9 +153,15 @@ export default function Dashboard() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Activity</strong></TableCell>
-                  <TableCell><strong>Details</strong></TableCell>
-                  <TableCell><strong>Time</strong></TableCell>
+                  <TableCell>
+                    <strong>Activity</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Details</strong>
+                  </TableCell>
+                  <TableCell>
+                    <strong>Time</strong>
+                  </TableCell>
                 </TableRow>
               </TableHead>
 
@@ -173,7 +176,6 @@ export default function Dashboard() {
               </TableBody>
             </Table>
           </Paper>
-
         </main>
       </div>
     </div>

@@ -16,7 +16,7 @@ export default function Sidebar() {
           width: 260,
           backgroundColor: "#1E1E2F",
           color: "white",
-          height: "100vh",
+          height: "full",
           padding: "24px",
           display: { xs: "none", md: "flex" },
           flexDirection: "column",
@@ -28,10 +28,26 @@ export default function Sidebar() {
         <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <SidebarItem href="/dashboard" icon={<Home size={20} />} label="Dashboard" />
-          <SidebarItem href="/members" icon={<Users size={20} />} label="Members" />
-          <SidebarItem href="/chits" icon={<Layers size={20} />} label="Chit Management" />
-          <SidebarItem href="/payments" icon={<CreditCard size={20} />} label="Payments" />
+          <SidebarItem
+            href="/dashboard"
+            icon={<Home size={20} />}
+            label="Dashboard"
+          />
+          <SidebarItem
+            href="/members"
+            icon={<Users size={20} />}
+            label="Members"
+          />
+          <SidebarItem
+            href="/chits"
+            icon={<Layers size={20} />}
+            label="Chit Management"
+          />
+          <SidebarItem
+            href="/payments"
+            icon={<CreditCard size={20} />}
+            label="Payments"
+          />
         </Box>
       </Box>
 
@@ -46,13 +62,13 @@ export default function Sidebar() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          display: { xs: "flex", md: "none" },
         }}
       >
-        {/* Three-line hamburger icon */}
         <div className="flex flex-col gap-1.5">
-          <span className="w-5 h-0.5 bg-white rounded"></span>
-          <span className="w-5 h-0.5 bg-white rounded"></span>
-          <span className="w-5 h-0.5 bg-white rounded"></span>
+          <span className="w-5 h-0.5 rounded bg_1E1E2F"></span>
+          <span className="w-5 h-0.5 rounded bg_1E1E2F"></span>
+          <span className="w-5 h-0.5 rounded bg_1E1E2F"></span>
         </div>
       </IconButton>
 
@@ -75,15 +91,37 @@ export default function Sidebar() {
           gap: 4,
         }}
       >
-        <Box sx={{ fontSize: "24px", fontWeight: "700" }}>Chit Fund</Box>
-
+        <div className="flex justify-between items-center">
+          <Box sx={{ fontSize: "24px", fontWeight: "700" }}>Chit Fund</Box>
+          <span onClick={() => setOpen(false)}>Close</span>
+        </div>
         <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <SidebarItem href="/dashboard" icon={<Home size={20} />} label="Dashboard" />
-          <SidebarItem href="/members" icon={<Users size={20} />} label="Members" />
-          <SidebarItem href="/chits" icon={<Layers size={20} />} label="Chit Management" />
-          <SidebarItem href="/payments" icon={<CreditCard size={20} />} label="Payments" />
+          <SidebarItem
+            href="/dashboard"
+            onClick={() => setOpen(false)}
+            icon={<Home size={20} />}
+            label="Dashboard"
+          />
+          <SidebarItem
+            href="/members"
+            onClick={() => setOpen(false)}
+            icon={<Users size={20} />}
+            label="Members"
+          />
+          <SidebarItem
+            href="/chits"
+            onClick={() => setOpen(false)}
+            icon={<Layers size={20} />}
+            label="Chit Management"
+          />
+          <SidebarItem
+            href="/payments"
+            onClick={() => setOpen(false)}
+            icon={<CreditCard size={20} />}
+            label="Payments"
+          />
         </Box>
       </Box>
 
@@ -98,10 +136,11 @@ export default function Sidebar() {
   );
 }
 
-function SidebarItem({ href, icon, label }) {
+function SidebarItem({ href, icon, label, onClick }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className="flex items-center gap-3 px-3 py-2 rounded-lg transition-all hover:bg-gray-700/40 hover:pl-4"
       style={{
         color: "white",

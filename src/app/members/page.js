@@ -1,7 +1,5 @@
 "use client";
-
 import { useState, useEffect } from "react";
-
 import {
   Card,
   CardContent,
@@ -27,12 +25,8 @@ import {
   Chip,
   Checkbox,
 } from "@mui/material";
-
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
-
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
 import CountUp from "react-countup";
 
 /* ===================== DOCUMENT OPTIONS ====================== */
@@ -50,7 +44,6 @@ const securityDocumentOptions = [
 ];
 
 export default function MembersPage() {
-
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
   useEffect(() => {
@@ -166,7 +159,7 @@ export default function MembersPage() {
 
   /* DELETE */
   const handleDelete = () => {
-    setMembers(prev => prev.filter(m => m.id !== selectedMember.id));
+    setMembers((prev) => prev.filter((m) => m.id !== selectedMember.id));
     handleMenuClose();
   };
 
@@ -175,7 +168,7 @@ export default function MembersPage() {
     const selectedChit = chits.find((c) => c.name === value);
     if (!selectedChit) return;
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       chit: value,
       monthlyAmount: String(selectedChit.monthlyAmount),
@@ -190,16 +183,20 @@ export default function MembersPage() {
     }
 
     if (isEdit) {
-      setMembers(prev => prev.map(m => m.id === selectedMember.id ? { ...formData, id: m.id } : m));
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === selectedMember.id ? { ...formData, id: m.id } : m
+        )
+      );
     } else {
-      setMembers(prev => [...prev, { ...formData, id: prev.length + 1 }]);
+      setMembers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
     }
 
     setOpenModal(false);
   };
 
   /* FILTERED MEMBERS */
-  const filteredMembers = members.filter(m => {
+  const filteredMembers = members.filter((m) => {
     return (
       m.name.toLowerCase().includes(searchName.toLowerCase()) &&
       m.phone.includes(searchPhone) &&
@@ -211,17 +208,10 @@ export default function MembersPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-
-      <Sidebar />
-
-       <div className="flex-1 w-full min-w-0">
-        <Topbar />
-
+      <div className="flex-1 w-full min-w-0">
         <main className="p-6">
-
           {/* HEADER */}
           <div className="relative flex items-center mb-6">
-
             <Typography
               variant="h5"
               fontWeight={600}
@@ -242,12 +232,10 @@ export default function MembersPage() {
                 Add Member
               </Button>
             </div>
-
           </div>
 
           {/* STATS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6 max-w-[780px]">
-
             <Card className="p-3 flex items-center gap-3">
               <Group sx={{ fontSize: 28, color: "#1e88e5" }} />
               <div>
@@ -262,7 +250,9 @@ export default function MembersPage() {
               <CheckCircle sx={{ fontSize: 28, color: "green" }} />
               <div>
                 <Typography variant="h5" color="green" fontWeight={600}>
-                  <CountUp end={members.filter(m => m.status === "Active").length} />
+                  <CountUp
+                    end={members.filter((m) => m.status === "Active").length}
+                  />
                 </Typography>
                 <Typography variant="body2">Active</Typography>
               </div>
@@ -272,45 +262,71 @@ export default function MembersPage() {
               <Cancel sx={{ fontSize: 28, color: "red" }} />
               <div>
                 <Typography variant="h5" color="red" fontWeight={600}>
-                  <CountUp end={members.filter(m => m.status === "Inactive").length} />
+                  <CountUp
+                    end={members.filter((m) => m.status === "Inactive").length}
+                  />
                 </Typography>
                 <Typography variant="body2">Inactive</Typography>
               </div>
             </Card>
-
           </div>
 
           {/* FILTERS */}
           <Card sx={{ p: 2, mb: 3 }}>
             <div className="flex flex-wrap gap-4 items-center">
+              <TextField
+                size="small"
+                label="Search Name"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+              />
 
-              <TextField size="small" label="Search Name" value={searchName} onChange={e => setSearchName(e.target.value)} />
-
-              <TextField size="small" label="Phone" value={searchPhone} onChange={e => setSearchPhone(e.target.value)} />
+              <TextField
+                size="small"
+                label="Phone"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+              />
 
               <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel>Chit</InputLabel>
-                <Select value={filterChit} label="Chit" onChange={e => setFilterChit(e.target.value)}>
+                <Select
+                  value={filterChit}
+                  label="Chit"
+                  onChange={(e) => setFilterChit(e.target.value)}
+                >
                   <MenuItem value="">All</MenuItem>
-                  {chits.map(c => (
-                    <MenuItem key={c.id} value={c.name}>{c.name}</MenuItem>
+                  {chits.map((c) => (
+                    <MenuItem key={c.id} value={c.name}>
+                      {c.name}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 170 }}>
                 <InputLabel>Location</InputLabel>
-                <Select value={filterLocation} label="Location" onChange={e => setFilterLocation(e.target.value)}>
+                <Select
+                  value={filterLocation}
+                  label="Location"
+                  onChange={(e) => setFilterLocation(e.target.value)}
+                >
                   <MenuItem value="">All</MenuItem>
-                  {LOCATIONS.map(loc => (
-                    <MenuItem key={loc} value={loc}>{loc}</MenuItem>
+                  {LOCATIONS.map((loc) => (
+                    <MenuItem key={loc} value={loc}>
+                      {loc}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 150 }}>
                 <InputLabel>Status</InputLabel>
-                <Select value={filterStatus} label="Status" onChange={e => setFilterStatus(e.target.value)}>
+                <Select
+                  value={filterStatus}
+                  label="Status"
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
                   <MenuItem value="">All</MenuItem>
                   <MenuItem value="Active">Active</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
@@ -318,7 +334,12 @@ export default function MembersPage() {
               </FormControl>
 
               <Typography
-                sx={{ ml: "auto", cursor: "pointer", color: "#2563eb", fontWeight: 600 }}
+                sx={{
+                  ml: "auto",
+                  cursor: "pointer",
+                  color: "#2563eb",
+                  fontWeight: 600,
+                }}
                 onClick={() => {
                   setSearchName("");
                   setSearchPhone("");
@@ -329,14 +350,12 @@ export default function MembersPage() {
               >
                 Clear Filters
               </Typography>
-
             </div>
           </Card>
 
           {/* ===================== TABLE WITH MOBILE SCROLL ===================== */}
           <Card>
             <CardContent>
-
               <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
                 <Table className="min-w-max">
                   <TableHead>
@@ -365,9 +384,11 @@ export default function MembersPage() {
                         <TableCell>
                           <span
                             className={`px-3 py-1 rounded-full text-sm font-semibold
-                              ${m.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"}`}
+                              ${
+                                m.status === "Active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
                           >
                             {m.status}
                           </span>
@@ -383,49 +404,79 @@ export default function MembersPage() {
                   </TableBody>
                 </Table>
               </div>
-
             </CardContent>
           </Card>
 
           {/* ACTION MENU */}
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-            <MenuItem onClick={() => window.location.href = `/members/${selectedMember?.id}`} >
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+          >
+            <MenuItem
+              onClick={() =>
+                (window.location.href = `/members/${selectedMember?.id}`)
+              }
+            >
               View Details
             </MenuItem>
 
             <MenuItem onClick={handleEditMember}>Edit</MenuItem>
 
-            <MenuItem sx={{ color: "red" }} onClick={handleDelete}>Delete</MenuItem>
+            <MenuItem sx={{ color: "red" }} onClick={handleDelete}>
+              Delete
+            </MenuItem>
           </Menu>
 
           {/* ADD / EDIT MODAL */}
-          <Dialog open={openModal} onClose={() => setOpenModal(false)} fullWidth>
+          <Dialog
+            open={openModal}
+            onClose={() => setOpenModal(false)}
+            fullWidth
+          >
             <DialogTitle>{isEdit ? "Edit Member" : "Add Member"}</DialogTitle>
 
             <DialogContent>
-
               <TextField
-                fullWidth sx={{ mb: 3 }} label="Name"
+                fullWidth
+                sx={{ mb: 3 }}
+                label="Name"
                 value={formData.name}
-                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
               />
 
               <TextField
-                fullWidth sx={{ mb: 3 }} label="Phone"
+                fullWidth
+                sx={{ mb: 3 }}
+                label="Phone"
                 value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
               />
 
               <TextField
-                fullWidth sx={{ mb: 3 }} label="Email"
+                fullWidth
+                sx={{ mb: 3 }}
+                label="Email"
                 value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
               />
 
               <TextField
-                fullWidth multiline rows={2} sx={{ mb: 3 }} label="Address"
+                fullWidth
+                multiline
+                rows={2}
+                sx={{ mb: 3 }}
+                label="Address"
                 value={formData.address}
-                onChange={e => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
               />
 
               <FormControl fullWidth sx={{ mb: 3 }}>
@@ -442,11 +493,11 @@ export default function MembersPage() {
                     </MenuItem>
                   ))}
                 </Select>
-
               </FormControl>
 
               <TextField
-                fullWidth sx={{ mb: 3 }}
+                fullWidth
+                sx={{ mb: 3 }}
                 label="Monthly Payable"
                 value={formData.monthlyAmount || ""}
                 InputProps={{ readOnly: true }}
@@ -457,7 +508,9 @@ export default function MembersPage() {
                 <Select
                   value={formData.location || ""}
                   label="Location"
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                 >
                   {LOCATIONS.map((loc) => (
                     <MenuItem key={loc} value={loc}>
@@ -474,7 +527,9 @@ export default function MembersPage() {
                   multiple
                   value={formData.documents}
                   input={<OutlinedInput label="Security Documents" />}
-                  onChange={(e) => setFormData({ ...formData, documents: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, documents: e.target.value })
+                  }
                   renderValue={(selected) => (
                     <div className="flex flex-wrap gap-2">
                       {selected.map((d) => (
@@ -490,18 +545,16 @@ export default function MembersPage() {
                     </MenuItem>
                   ))}
                 </Select>
-
               </FormControl>
-
             </DialogContent>
 
             <DialogActions>
               <Button onClick={() => setOpenModal(false)}>Cancel</Button>
-              <Button variant="contained" onClick={handleSaveMember}>Save</Button>
+              <Button variant="contained" onClick={handleSaveMember}>
+                Save
+              </Button>
             </DialogActions>
-
           </Dialog>
-
         </main>
       </div>
     </div>
