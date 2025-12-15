@@ -233,7 +233,7 @@ export default function MembersPage() {
   {/* TABLET & DESKTOP VIEW */}
   <div className="hidden sm:flex items-center justify-center px-16">
     <Typography
-      variant="h5"
+      variant="h4"
       fontWeight={600}
       sx={{
         textAlign: "center",
@@ -256,41 +256,53 @@ export default function MembersPage() {
 
 
           {/* STATS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 max-w-[700px] mx-auto sm:mx-0 justify-items-center sm:justify-items-stretch">
-           <Card className="p-3 flex items-center gap-3 w-full max-w-[200px] sm:max-w-none">
-              <Group sx={{ fontSize: 28, color: "#1e88e5" }} />
-              <div>
-                <Typography variant="h5" fontWeight={600}>
-                  <CountUp end={members.length} />
-                </Typography>
-                <Typography variant="body2">Total Members</Typography>
-              </div>
-            </Card>
+{/* ===================== STATS CARDS ===================== */}
+<div className="max-w-[820px] mx-auto sm:mx-0">
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
 
-           <Card className="p-3 flex items-center gap-3 w-full max-w-[200px] sm:max-w-none">
-              <CheckCircle sx={{ fontSize: 28, color: "green" }} />
-              <div>
-                <Typography variant="h5" color="green" fontWeight={600}>
-                  <CountUp
-                    end={members.filter((m) => m.status === "Active").length}
-                  />
-                </Typography>
-                <Typography variant="body2">Active</Typography>
-              </div>
-            </Card>
+    {/* TOTAL MEMBERS */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <Group sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>
+            <CountUp end={members.length} />
+          </Typography>
+          <Typography variant="body2">Total Members</Typography>
+        </div>
+      </div>
+    </Card>
 
-           <Card className="p-3 flex items-center gap-3 w-full max-w-[200px] sm:max-w-none">
-              <Cancel sx={{ fontSize: 28, color: "red" }} />
-              <div>
-                <Typography variant="h5" color="red" fontWeight={600}>
-                  <CountUp
-                    end={members.filter((m) => m.status === "Inactive").length}
-                  />
-                </Typography>
-                <Typography variant="body2">Inactive</Typography>
-              </div>
-            </Card>
-          </div>
+    {/* ACTIVE */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <CheckCircle sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }} />
+        <div>
+          <Typography variant="h6" color="green" fontWeight={600}>
+            <CountUp end={members.filter((m) => m.status === "Active").length} />
+          </Typography>
+          <Typography variant="body2">Active</Typography>
+        </div>
+      </div>
+    </Card>
+
+    {/* INACTIVE */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <Cancel sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }} />
+        <div>
+          <Typography variant="h6" color="red" fontWeight={600}>
+            <CountUp end={members.filter((m) => m.status === "Inactive").length} />
+          </Typography>
+          <Typography variant="body2">Inactive</Typography>
+        </div>
+      </div>
+    </Card>
+
+  </div>
+</div>
+
+
 
           {/* FILTERS */}
 <Card sx={{ p: 2, mb: 3 }}>
