@@ -21,17 +21,21 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Topbar />
-        <div className="flex">
-          <div style={{ width: "15%", minWidth: "260px" }}>
-            <Sidebar />
-          </div>
-          <div style={{ width: "85%" }}>{children}</div>
-        </div>
+
+        {/* Sidebar is OVERLAY / self-controlled */}
+        <Sidebar />
+
+        {/* Content always FULL WIDTH */}
+   <main className="w-full xl:pl-[300px]">
+  {children}
+</main>
+
+
       </body>
     </html>
   );
 }
+
+
