@@ -64,11 +64,11 @@ export default function Sidebar() {
     onClick={() => setOpen(true)}
     sx={{
       position: "fixed",
-      top: 90,
-      left: 10,
+      top: 100,
+      left: 5,
       zIndex: 60,
-      width: 50,
-      height: 50,
+      width: 45,
+      height: 45,
       borderRadius: "50%",
       backgroundColor: "#ffffff",
       border: "1px solid #e5e7eb",
