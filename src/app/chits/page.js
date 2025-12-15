@@ -35,6 +35,11 @@ import CountUp from "react-countup";
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
 
+const statCardClass =
+  "p-3 bg-white flex items-center gap-3 w-full max-w-[250px] mx-auto sm:max-w-none h-[96px]";
+
+
+
 /* ******** BADGE COLORS ******** */
 const getStatusColor = (status) => {
   switch (status) {
@@ -243,99 +248,116 @@ export default function ChitsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <div className="flex-1">
-        <main className="p-6">
-          {/* HEADER */}
-          <div className="flex justify-between items-center mb-6">
-            <Typography variant="h5" fontWeight="600" color="text.primary">
-              Chit Management
-            </Typography>
+  <div className="flex-1 w-full min-w-0">
+    <main className="p-6">
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openAddModal}
-            >
-              Add Chit
-            </Button>
-          </div>
+          {/* HEADER */}
+<div className="relative mb-6">
+  {/* MOBILE VIEW */}
+  <div className="flex flex-col items-center gap-3 sm:hidden">
+    <Typography variant="h5" fontWeight={600} textAlign="center">
+      Chit Management
+    </Typography>
+
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={openAddModal}
+    >
+      Add Chit
+    </Button>
+  </div>
+
+  {/* TABLET & DESKTOP VIEW */}
+  <div className="hidden sm:flex items-center justify-center px-16">
+    <Typography
+      variant="h4"
+      fontWeight={600}
+      sx={{ whiteSpace: "nowrap", textAlign: "center" }}
+    >
+      Chit Management
+    </Typography>
+
+    <div className="absolute right-0">
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={openAddModal}
+      >
+        Add Chit
+      </Button>
+    </div>
+  </div>
+</div>
+
 
           {/* TOP CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-6">
-            <Card
-              elevation={3}
-              className="p-4 bg-white flex items-center gap-4"
-            >
-              <div className="p-3 bg-blue-100 rounded-full">
-                <GroupsIcon sx={{ fontSize: 35, color: "#1e88e5" }} />
-              </div>
-              <div>
-                <Typography variant="subtitle2">Total Chits</Typography>
-                <Typography variant="h4" fontWeight="600">
-                  <CountUp end={chits.length} duration={1.4} />
-                </Typography>
-              </div>
-            </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 justify-items-center">
 
-            <Card
-              elevation={3}
-              className="p-4 bg-white flex items-center gap-4"
-            >
-              <div className="p-3 bg-green-100 rounded-full">
-                <CheckCircleIcon sx={{ fontSize: 35, color: "green" }} />
-              </div>
-              <div>
-                <Typography variant="subtitle2">Active</Typography>
-                <Typography variant="h4" color="green" fontWeight="600">
-                  <CountUp
-                    end={chits.filter((c) => c.status === "Active").length}
-                    duration={1.4}
-                  />
-                </Typography>
-              </div>
-            </Card>
+  <Card elevation={3} className={statCardClass}>
+    <div className="p-3 bg-blue-100 rounded-full">
+      <GroupsIcon sx={{ fontSize: 26, color: "#1e88e5" }} />
+    </div>
+    <div>
+      <Typography variant="subtitle2">Total Chits</Typography>
+      <Typography variant="h4" fontWeight="600">
+        <CountUp end={chits.length} duration={1.4} />
+      </Typography>
+    </div>
+  </Card>
 
-            <Card
-              elevation={3}
-              className="p-4 bg-white flex items-center gap-4"
-            >
-              <div className="p-3 bg-gray-300 rounded-full">
-                <CancelIcon sx={{ fontSize: 35, color: "gray" }} />
-              </div>
-              <div>
-                <Typography variant="subtitle2">Closed</Typography>
-                <Typography variant="h4" color="gray" fontWeight="600">
-                  <CountUp
-                    end={chits.filter((c) => c.status === "Closed").length}
-                    duration={1.4}
-                  />
-                </Typography>
-              </div>
-            </Card>
+  <Card elevation={3} className={statCardClass}>
+    <div className="p-3 bg-green-100 rounded-full">
+      <CheckCircleIcon sx={{ fontSize: 26, color: "green" }} />
+    </div>
+    <div>
+      <Typography variant="subtitle2">Active</Typography>
+      <Typography variant="h4" color="green" fontWeight="600">
+        <CountUp
+          end={chits.filter((c) => c.status === "Active").length}
+          duration={1.4}
+        />
+      </Typography>
+    </div>
+  </Card>
 
-            <Card
-              elevation={3}
-              className="p-4 bg-white flex items-center gap-4"
-            >
-              <div className="p-3 bg-yellow-100 rounded-full">
-                <AccessTimeIcon sx={{ fontSize: 35, color: "#d4a919" }} />
-              </div>
-              <div>
-                <Typography variant="subtitle2">Upcoming</Typography>
-                <Typography variant="h4" color="#d4a919" fontWeight="600">
-                  <CountUp
-                    end={chits.filter((c) => c.status === "Upcoming").length}
-                    duration={1.4}
-                  />
-                </Typography>
-              </div>
-            </Card>
-          </div>
+  <Card elevation={3} className={statCardClass}>
+    <div className="p-3 bg-gray-300 rounded-full">
+      <CancelIcon sx={{ fontSize: 26, color: "gray" }} />
+    </div>
+    <div>
+      <Typography variant="subtitle2">Closed</Typography>
+      <Typography variant="h4" color="gray" fontWeight="600">
+        <CountUp
+          end={chits.filter((c) => c.status === "Closed").length}
+          duration={1.4}
+        />
+      </Typography>
+    </div>
+  </Card>
+
+  <Card elevation={3} className={statCardClass}>
+    <div className="p-3 bg-yellow-100 rounded-full">
+      <AccessTimeIcon sx={{ fontSize: 26, color: "#d4a919" }} />
+    </div>
+    <div>
+      <Typography variant="subtitle2">Upcoming</Typography>
+      <Typography variant="h4" color="#d4a919" fontWeight="600">
+        <CountUp
+          end={chits.filter((c) => c.status === "Upcoming").length}
+          duration={1.4}
+        />
+      </Typography>
+    </div>
+  </Card>
+</div>
+
 
           {/* FILTERS */}
           <Card className="p-4 mb-6 bg-white" elevation={2}>
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
               <TextField
+               fullWidth
                 label="Chit Name"
                 size="small"
                 value={filters.name}
@@ -345,6 +367,7 @@ export default function ChitsPage() {
               />
 
               <TextField
+               fullWidth
                 label="Duration"
                 type="number"
                 size="small"
@@ -355,6 +378,7 @@ export default function ChitsPage() {
               />
 
               <TextField
+               fullWidth
                 label="Members"
                 type="number"
                 size="small"
@@ -365,6 +389,7 @@ export default function ChitsPage() {
               />
 
               <TextField
+               fullWidth
                 label="Start Date"
                 type="date"
                 size="small"
@@ -376,6 +401,7 @@ export default function ChitsPage() {
               />
 
               <TextField
+               fullWidth
                 label="Location"
                 size="small"
                 value={filters.location}
@@ -384,7 +410,7 @@ export default function ChitsPage() {
                 }
               />
 
-              <FormControl size="small">
+              <FormControl fullWidth size="small">
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={filters.status}
@@ -405,7 +431,7 @@ export default function ChitsPage() {
               </FormControl>
             </div>
 
-            <div className="mt-2">
+           <div className="mt-3 text-right">
               <span
                 onClick={clearFilters}
                 className="text-red-500 text-sm cursor-pointer hover:underline"
@@ -417,76 +443,60 @@ export default function ChitsPage() {
 
           {/* TABLE */}
           <Card elevation={2}>
-            <CardContent className="p-0">
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>ID</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Name</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Amount</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Monthly</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Duration</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Members</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Start Date</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Location</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Status</strong>
-                    </TableCell>
-                    <TableCell>
-                      <strong>Actions</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
+  <CardContent className="p-0">
+    {/* SCROLL CONTAINER */}
+    <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+      <Table className="min-w-max">
+        <TableHead>
+          <TableRow>
+            <TableCell><strong>ID</strong></TableCell>
+            <TableCell><strong>Name</strong></TableCell>
+            <TableCell><strong>Amount</strong></TableCell>
+            <TableCell><strong>Monthly</strong></TableCell>
+            <TableCell><strong>Duration</strong></TableCell>
+            <TableCell><strong>Members</strong></TableCell>
+            <TableCell><strong>Start Date</strong></TableCell>
+            <TableCell><strong>Location</strong></TableCell>
+            <TableCell><strong>Status</strong></TableCell>
+            <TableCell><strong>Actions</strong></TableCell>
+          </TableRow>
+        </TableHead>
 
-                <TableBody>
-                  {filteredChits.map((chit) => (
-                    <TableRow key={chit.id}>
-                      <TableCell>{chit.id}</TableCell>
-                      <TableCell>{chit.name}</TableCell>
-                      <TableCell>₹{chit.amount}</TableCell>
-                      <TableCell>₹{chit.monthlyAmount}</TableCell>
-                      <TableCell>{chit.durationMonths}</TableCell>
-                      <TableCell>{chit.membersCount}</TableCell>
-                      <TableCell>{chit.startDate}</TableCell>
-                      <TableCell>{chit.location}</TableCell>
+        <TableBody>
+          {filteredChits.map((chit) => (
+            <TableRow key={chit.id}>
+              <TableCell>{chit.id}</TableCell>
+              <TableCell>{chit.name}</TableCell>
+              <TableCell>₹{chit.amount}</TableCell>
+              <TableCell>₹{chit.monthlyAmount}</TableCell>
+              <TableCell>{chit.durationMonths}</TableCell>
+              <TableCell>{chit.membersCount}</TableCell>
+              <TableCell>{chit.startDate}</TableCell>
+              <TableCell>{chit.location}</TableCell>
 
-                      <TableCell>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm ${getStatusColor(
-                            chit.status
-                          )}`}
-                        >
-                          {chit.status}
-                        </span>
-                      </TableCell>
+              <TableCell>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm ${getStatusColor(
+                    chit.status
+                  )}`}
+                >
+                  {chit.status}
+                </span>
+              </TableCell>
 
-                      <TableCell>
-                        <IconButton onClick={(e) => openActions(e, chit)}>
-                          <MoreVertIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+              <TableCell>
+                <IconButton onClick={(e) => openActions(e, chit)}>
+                  <MoreVertIcon />
+                </IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  </CardContent>
+</Card>
+
 
           {/* ACTION MENU */}
           <Menu
