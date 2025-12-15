@@ -434,9 +434,9 @@ export default function ChitsPage() {
            <div className="mt-3 text-right">
               <span
                 onClick={clearFilters}
-                className="text-red-500 text-sm cursor-pointer hover:underline"
+                className="text-[#2563eb] text-[16px] cursor-pointer hover:underline"
               >
-                Clear
+                Clear filters
               </span>
             </div>
           </Card>
