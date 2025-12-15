@@ -1,8 +1,6 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
 import {
   Card,
   CardContent,
@@ -27,7 +25,6 @@ import {
   OutlinedInput,
   MenuItem as MUIMenuItem,
 } from "@mui/material";
-
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -35,9 +32,6 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CountUp from "react-countup";
-
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
 
@@ -63,7 +57,7 @@ export default function ChitsPage() {
       id: "CHT-001",
       name: "Silver Chit",
       amount: 50000,
-       monthlyAmount: 4150,
+      monthlyAmount: 4150,
       durationMonths: 12,
       membersLimit: 50,
       membersCount: 24,
@@ -127,8 +121,8 @@ export default function ChitsPage() {
   ]);
 
   useEffect(() => {
-  localStorage.setItem("chits", JSON.stringify(chits));
-}, [chits]);
+    localStorage.setItem("chits", JSON.stringify(chits));
+  }, [chits]);
 
   /* FILTER STATE */
   const [filters, setFilters] = useState({
@@ -144,9 +138,7 @@ export default function ChitsPage() {
   const filteredChits = chits.filter((chit) => {
     return (
       (filters.name === "" ||
-        (chit.name || "")
-          .toLowerCase()
-          .includes(filters.name.toLowerCase())) &&
+        (chit.name || "").toLowerCase().includes(filters.name.toLowerCase())) &&
       (filters.duration === "" ||
         chit.durationMonths === Number(filters.duration)) &&
       (filters.members === "" ||
@@ -181,7 +173,7 @@ export default function ChitsPage() {
     id: "",
     name: "",
     amount: "",
-    monthlyAmount: "", 
+    monthlyAmount: "",
     durationMonths: "",
     membersLimit: "",
     membersCount: 0,
@@ -251,13 +243,8 @@ export default function ChitsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
-
       <div className="flex-1">
-        <Topbar />
-
         <main className="p-6">
-
           {/* HEADER */}
           <div className="flex justify-between items-center mb-6">
             <Typography variant="h5" fontWeight="600" color="text.primary">
@@ -275,7 +262,10 @@ export default function ChitsPage() {
 
           {/* TOP CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-6">
-            <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
+            <Card
+              elevation={3}
+              className="p-4 bg-white flex items-center gap-4"
+            >
               <div className="p-3 bg-blue-100 rounded-full">
                 <GroupsIcon sx={{ fontSize: 35, color: "#1e88e5" }} />
               </div>
@@ -287,7 +277,10 @@ export default function ChitsPage() {
               </div>
             </Card>
 
-            <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
+            <Card
+              elevation={3}
+              className="p-4 bg-white flex items-center gap-4"
+            >
               <div className="p-3 bg-green-100 rounded-full">
                 <CheckCircleIcon sx={{ fontSize: 35, color: "green" }} />
               </div>
@@ -302,7 +295,10 @@ export default function ChitsPage() {
               </div>
             </Card>
 
-            <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
+            <Card
+              elevation={3}
+              className="p-4 bg-white flex items-center gap-4"
+            >
               <div className="p-3 bg-gray-300 rounded-full">
                 <CancelIcon sx={{ fontSize: 35, color: "gray" }} />
               </div>
@@ -317,7 +313,10 @@ export default function ChitsPage() {
               </div>
             </Card>
 
-            <Card elevation={3} className="p-4 bg-white flex items-center gap-4">
+            <Card
+              elevation={3}
+              className="p-4 bg-white flex items-center gap-4"
+            >
               <div className="p-3 bg-yellow-100 rounded-full">
                 <AccessTimeIcon sx={{ fontSize: 35, color: "#d4a919" }} />
               </div>
@@ -336,7 +335,6 @@ export default function ChitsPage() {
           {/* FILTERS */}
           <Card className="p-4 mb-6 bg-white" elevation={2}>
             <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 items-end">
-
               <TextField
                 label="Chit Name"
                 size="small"
@@ -405,7 +403,6 @@ export default function ChitsPage() {
                   ))}
                 </Select>
               </FormControl>
-
             </div>
 
             <div className="mt-2">
@@ -424,23 +421,42 @@ export default function ChitsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Name</strong></TableCell>
-                    <TableCell><strong>Amount</strong></TableCell>
-                    <TableCell><strong>Monthly</strong></TableCell>
-                    <TableCell><strong>Duration</strong></TableCell>
-                    <TableCell><strong>Members</strong></TableCell>
-                    <TableCell><strong>Start Date</strong></TableCell>
-                    <TableCell><strong>Location</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Actions</strong></TableCell>
+                    <TableCell>
+                      <strong>ID</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Name</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Amount</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Monthly</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Duration</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Members</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Start Date</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Location</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Status</strong>
+                    </TableCell>
+                    <TableCell>
+                      <strong>Actions</strong>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {filteredChits.map((chit) => (
                     <TableRow key={chit.id}>
-
                       <TableCell>{chit.id}</TableCell>
                       <TableCell>{chit.name}</TableCell>
                       <TableCell>₹{chit.amount}</TableCell>
@@ -465,7 +481,6 @@ export default function ChitsPage() {
                           <MoreVertIcon />
                         </IconButton>
                       </TableCell>
-
                     </TableRow>
                   ))}
                 </TableBody>
@@ -480,25 +495,29 @@ export default function ChitsPage() {
             onClose={closeActions}
           >
             <MenuItem
-  disabled={!selectedChit}
-  onClick={() => {
-    if (!selectedChit) return;
+              disabled={!selectedChit}
+              onClick={() => {
+                if (!selectedChit) return;
 
-    // ✅ Store selected chit
-    localStorage.setItem(
-      "selectedChit",
-      JSON.stringify(selectedChit)
-    );
+                // ✅ Store selected chit
+                localStorage.setItem(
+                  "selectedChit",
+                  JSON.stringify(selectedChit)
+                );
 
-    router.push(`/chits/${selectedChit.id}`);
-    closeActions();
-  }}
->
-  View
-</MenuItem>
+                router.push(`/chits/${selectedChit.id}`);
+                closeActions();
+              }}
+            >
+              View
+            </MenuItem>
 
-            <MenuItem onClick={() => openEditModal(selectedChit)}>Edit</MenuItem>
-            <MenuItem onClick={() => handleDelete(selectedChit)}>Delete</MenuItem>
+            <MenuItem onClick={() => openEditModal(selectedChit)}>
+              Edit
+            </MenuItem>
+            <MenuItem onClick={() => handleDelete(selectedChit)}>
+              Delete
+            </MenuItem>
           </Menu>
 
           {/* MODAL */}
@@ -515,12 +534,9 @@ export default function ChitsPage() {
               },
             }}
           >
-            <DialogTitle>
-              {isEditMode ? "Edit Chit" : "Add Chit"}
-            </DialogTitle>
+            <DialogTitle>{isEditMode ? "Edit Chit" : "Add Chit"}</DialogTitle>
 
             <DialogContent className="space-y-6 pt-4">
-
               <TextField
                 label="Chit Name"
                 fullWidth
@@ -541,32 +557,30 @@ export default function ChitsPage() {
                 }
               />
 
-             <TextField
-  label="Amount"
-  type="number"
-  fullWidth
-  margin="normal"
-  value={formData.amount}
-  onChange={(e) =>
-    setFormData({ ...formData, amount: Number(e.target.value) })
-  }
-/>
+              <TextField
+                label="Amount"
+                type="number"
+                fullWidth
+                margin="normal"
+                value={formData.amount}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: Number(e.target.value) })
+                }
+              />
 
-  <TextField
-  label="Monthly Payable Amount"
-  type="number"
-  fullWidth
-  margin="normal"
-  value={formData.monthlyAmount}
-  onChange={(e) =>
-    setFormData({
-      ...formData,
-      monthlyAmount: Number(e.target.value),
-    })
-  }
-/>
-
-
+              <TextField
+                label="Monthly Payable Amount"
+                type="number"
+                fullWidth
+                margin="normal"
+                value={formData.monthlyAmount}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    monthlyAmount: Number(e.target.value),
+                  })
+                }
+              />
 
               <TextField
                 label="Duration (Months)"
@@ -618,9 +632,6 @@ export default function ChitsPage() {
                   setFormData({ ...formData, cycleDay: e.target.value })
                 }
               />
-
-              
-
             </DialogContent>
 
             <DialogActions>
@@ -630,7 +641,6 @@ export default function ChitsPage() {
               </Button>
             </DialogActions>
           </Dialog>
-
         </main>
       </div>
     </div>

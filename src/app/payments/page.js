@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
 import {
   Card,
   CardContent,
@@ -23,9 +22,6 @@ import {
   FormControl,
   Select,
 } from "@mui/material";
-
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
 
 export default function PaymentsPage() {
   const router = useRouter();
@@ -117,14 +113,8 @@ export default function PaymentsPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-
-      <Sidebar />
-
       <div className="flex-1">
-        <Topbar />
-
         <main className="p-6 space-y-6">
-
           {/* ================= HEADER ================= */}
           <Typography
             variant="h4"
@@ -140,7 +130,6 @@ export default function PaymentsPage() {
 
           <Card>
             <CardContent className="flex gap-4 flex-wrap items-center">
-
               <FormControl sx={{ minWidth: 200 }} size="small">
                 <InputLabel>Select Chit</InputLabel>
                 <Select
@@ -155,7 +144,6 @@ export default function PaymentsPage() {
                       {c.name}
                     </MenuItem>
                   ))}
-
                 </Select>
               </FormControl>
 
@@ -173,7 +161,6 @@ export default function PaymentsPage() {
                       {loc}
                     </MenuItem>
                   ))}
-
                 </Select>
               </FormControl>
 
@@ -202,7 +189,6 @@ export default function PaymentsPage() {
               >
                 Clear Filters
               </Typography>
-
             </CardContent>
           </Card>
 
@@ -210,7 +196,6 @@ export default function PaymentsPage() {
 
           <Card>
             <CardContent>
-
               <Typography mb={2} fontWeight={600}>
                 Members ({members.length})
               </Typography>
@@ -218,12 +203,24 @@ export default function PaymentsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><b>ID</b></TableCell>
-                    <TableCell><b>Name</b></TableCell>
-                    <TableCell><b>Phone</b></TableCell>
-                    <TableCell><b>Chit</b></TableCell>
-                    <TableCell><b>Location</b></TableCell>
-                    <TableCell align="center"><b>Action</b></TableCell>
+                    <TableCell>
+                      <b>ID</b>
+                    </TableCell>
+                    <TableCell>
+                      <b>Name</b>
+                    </TableCell>
+                    <TableCell>
+                      <b>Phone</b>
+                    </TableCell>
+                    <TableCell>
+                      <b>Chit</b>
+                    </TableCell>
+                    <TableCell>
+                      <b>Location</b>
+                    </TableCell>
+                    <TableCell align="center">
+                      <b>Action</b>
+                    </TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -245,28 +242,24 @@ export default function PaymentsPage() {
                           Add Payment
                         </Button>
                       </TableCell>
-
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-
             </CardContent>
           </Card>
-
         </main>
       </div>
 
       {/* ================= PAYMENT MODAL ================= */}
 
       <Dialog open={openModal} fullWidth maxWidth="sm">
-
         <DialogTitle>
-         {` Add Payment — `}{selectedMember?.name}
+          {` Add Payment — `}
+          {selectedMember?.name}
         </DialogTitle>
 
         <DialogContent>
-
           <Card sx={{ mb: 3, p: 2, background: "#f3f4f6" }}>
             <Typography variant="subtitle2" color="text.secondary">
               Monthly Chit Amount
@@ -284,9 +277,7 @@ export default function PaymentsPage() {
             label="Payment Month"
             InputLabelProps={{ shrink: true }}
             value={form.month}
-            onChange={(e) =>
-              setForm({ ...form, month: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, month: e.target.value })}
           />
 
           <TextField
@@ -295,9 +286,7 @@ export default function PaymentsPage() {
             sx={{ mb: 3 }}
             label="Amount Paid"
             value={form.amount}
-            onChange={(e) =>
-              setForm({ ...form, amount: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, amount: e.target.value })}
           />
 
           <TextField
@@ -306,9 +295,7 @@ export default function PaymentsPage() {
             sx={{ mb: 3 }}
             label="Interest"
             value={form.interest}
-            onChange={(e) =>
-              setForm({ ...form, interest: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, interest: e.target.value })}
           />
 
           <FormControl fullWidth sx={{ mb: 3 }}>
@@ -316,9 +303,7 @@ export default function PaymentsPage() {
             <Select
               label="Payment Method"
               value={form.method}
-              onChange={(e) =>
-                setForm({ ...form, method: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, method: e.target.value })}
             >
               <MenuItem value="Cash">Cash</MenuItem>
               <MenuItem value="UPI">UPI</MenuItem>
@@ -332,29 +317,22 @@ export default function PaymentsPage() {
             <Select
               value={form.status}
               label="Status"
-              onChange={(e) =>
-                setForm({ ...form, status: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
             >
               <MenuItem value="Paid">Paid</MenuItem>
               <MenuItem value="Pending">Pending</MenuItem>
             </Select>
           </FormControl>
-
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setOpenModal(false)}>
-            Cancel
-          </Button>
+          <Button onClick={() => setOpenModal(false)}>Cancel</Button>
 
           <Button variant="contained" onClick={savePayment}>
             Save Payment
           </Button>
         </DialogActions>
-
       </Dialog>
-
     </div>
   );
 }

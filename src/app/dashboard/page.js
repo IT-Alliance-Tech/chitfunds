@@ -1,8 +1,5 @@
 "use client";
 
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
-
 import {
   Grid,
   Card,
@@ -13,7 +10,7 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Paper
+  Paper,
 } from "@mui/material";
 
 // Icons
@@ -23,7 +20,6 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
 
 export default function Dashboard() {
-  // Dummy values (replace with API later)
   const totalChits = 12;
   const totalMembers = 56;
   const activeChits = 9;
@@ -32,122 +28,99 @@ export default function Dashboard() {
 
   const recentActivities = [
     { action: "Added new member", detail: "Rohit Sharma", time: "2 hours ago" },
-    { action: "Created chit", detail: "₹1,00,000 - 20 Months", time: "5 hours ago" },
+    {
+      action: "Created chit",
+      detail: "₹1,00,000 - 20 Months",
+      time: "5 hours ago",
+    },
     { action: "Updated payment", detail: "Member ID #102", time: "1 day ago" },
-    { action: "Deleted chit", detail: "Old 50K chit", time: "2 days ago" }
+    { action: "Deleted chit", detail: "Old 50K chit", time: "2 days ago" },
   ];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
-
       <div className="flex-1">
-        <Topbar />
-
-        {/* Main Area */}
         <main className="p-6">
+          {/* ================= STATS CARDS ================= */}
+         <Grid container spacing={2}  justifyContent="center">
+  {/* Total Chits */}
+ <Grid
+  item
+  xs={6}
+  sm={6}
+  md={3}
+  sx={{ display: "flex", justifyContent: "center" }}
+>
 
-          {/* Stats Cards */}
-          <Grid container spacing={3}>
+    <Card sx={cardStyle}>
+      <CardContent sx={cardContentStyle}>
+        <AccountBalanceIcon sx={{ fontSize: 36, color: "#0ea5e9" }} />
+        <div>
+          <Typography variant="subtitle2" color="text.secondary">
+            Total Chits
+          </Typography>
+          <Typography variant="h5" fontWeight="bold">
+            {totalChits}
+          </Typography>
+        </div>
+      </CardContent>
+    </Card>
+  </Grid>
 
-            {/* Total Chits */}
-            <Grid item xs={12} md={3}>
-              <Card elevation={2}>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <AccountBalanceIcon sx={{ fontSize: 40, color: "#0ea5e9" }} />
-                    <div>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Total Chits
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {totalChits}
-                      </Typography>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
+  {/* Total Members */}
+  <Grid item xs={6} sm={6} md={3}>
+    <Card sx={cardStyle}>
+      <CardContent sx={cardContentStyle}>
+        <GroupsIcon sx={{ fontSize: 36, color: "#8b5cf6" }} />
+        <div>
+          <Typography variant="subtitle2" color="text.secondary">
+            Total Members
+          </Typography>
+          <Typography variant="h5" fontWeight="bold">
+            {totalMembers}
+          </Typography>
+        </div>
+      </CardContent>
+    </Card>
+  </Grid>
 
-            {/* Total Members */}
-            <Grid item xs={12} md={3}>
-              <Card elevation={2}>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <GroupsIcon sx={{ fontSize: 40, color: "#8b5cf6" }} />
-                    <div>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Total Members
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {totalMembers}
-                      </Typography>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
+  {/* Active Chits */}
+  <Grid item xs={6} sm={6} md={3}>
+    <Card sx={cardStyle}>
+      <CardContent sx={cardContentStyle}>
+        <CheckCircleIcon sx={{ fontSize: 36, color: "green" }} />
+        <div>
+          <Typography variant="subtitle2" color="text.secondary">
+            Active Chits
+          </Typography>
+          <Typography variant="h5" fontWeight="bold">
+            {activeChits}
+          </Typography>
+        </div>
+      </CardContent>
+    </Card>
+  </Grid>
 
-            {/* Active Chits */}
-            <Grid item xs={12} md={3}>
-              <Card elevation={2}>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <CheckCircleIcon sx={{ fontSize: 40, color: "green" }} />
-                    <div>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Active Chits
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {activeChits}
-                      </Typography>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
+  {/* Pending Chits */}
+  <Grid item xs={6} sm={6} md={3}>
+    <Card sx={cardStyle}>
+      <CardContent sx={cardContentStyle}>
+        <PendingActionsIcon sx={{ fontSize: 36, color: "#d97706" }} />
+        <div>
+          <Typography variant="subtitle2" color="text.secondary">
+            Pending Chits
+          </Typography>
+          <Typography variant="h5" fontWeight="bold">
+            {pendingChits}
+          </Typography>
+        </div>
+      </CardContent>
+    </Card>
+  </Grid>
+</Grid>
 
-            {/* Pending Chits */}
-            <Grid item xs={12} md={3}>
-              <Card elevation={2}>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <PendingActionsIcon sx={{ fontSize: 40, color: "#d97706" }} />
-                    <div>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Pending Chits
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {pendingChits}
-                      </Typography>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
 
-            {/* Closed Chits (NEW) */}
-            <Grid item xs={12} md={3}>
-              <Card elevation={2}>
-                <CardContent>
-                  <div className="flex items-center gap-3">
-                    <CheckCircleIcon sx={{ fontSize: 40, color: "#64748b" }} />
-                    <div>
-                      <Typography variant="subtitle2" color="text.secondary">
-                        Closed Chits
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold">
-                        {closedChits}
-                      </Typography>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-          </Grid>
-
-          {/* Recent Activities Table */}
+          {/* ================= RECENT ACTIVITIES ================= */}
           <Paper elevation={2} className="mt-10 p-4">
             <Typography variant="h6" fontWeight="600" className="mb-4">
               Recent Activities
@@ -173,9 +146,24 @@ export default function Dashboard() {
               </TableBody>
             </Table>
           </Paper>
-
         </main>
       </div>
     </div>
   );
 }
+
+const cardStyle = {
+  width: 260,        // ⭐ FIXED WIDTH (same for all)
+  height: 110,       // ⭐ FIXED HEIGHT
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+
+const cardContentStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1.5,
+};
+
