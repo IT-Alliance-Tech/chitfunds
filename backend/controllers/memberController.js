@@ -80,7 +80,7 @@ const getMembers = asyncHandler(async (req, res) => {
     const enrichedMembers = await Promise.all(members.map(async (m) => {
         let c = null;
         if (mongoose.Types.ObjectId.isValid(m.chitId)) {
-            c = await Chit.findById(m.chitId).select("chitName location amount duration membersLimit");
+            c = await Chit.findById(m.chitId).select("chitName location amount duration membersLimit monthlyPayableAmount");
         }
         const mObj = m.toObject();
         return {
