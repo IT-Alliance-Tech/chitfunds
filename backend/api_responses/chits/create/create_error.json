@@ -1,0 +1,8 @@
+{
+    "success": false,
+    "message": "Validation Error",
+    "errors": [
+        "Chit name is required",
+        "Amount must be a positive number"
+    ]
+}
