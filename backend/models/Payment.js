@@ -1,40 +1,101 @@
 const mongoose = require("mongoose");
 
 const paymentSchema = new mongoose.Schema(
-    {
-        member: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Member",
-            required: true,
-        },
-        chit: {
-            type: mongoose.Schema.Types.ObjectId, // Or String chitId if that's what we use, but ref implies ObjectId. 
-            // Controller uses populate("member chit"), so these MUST be ObjectIds with refs.
-            ref: "Chit",
-            required: true,
-        },
-        amount: {
-            type: Number,
-            required: true,
-            min: 0,
-        },
-        paymentDate: {
-            type: Date,
-            default: Date.now,
-        },
-        method: {
-            type: String,
-            enum: ["Cash", "Bank Transfer", "UPI", "Other"],
-            default: "Cash",
-        },
-        remarks: {
-            type: String,
-            trim: true,
-        },
+  {
+    chitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Chit",
+      required: true,
+      index: true,
     },
-    {
-        timestamps: true,
-    }
+
+    memberId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Member",
+      required: true,
+      index: true,
+    },
+
+  
+    paymentMonth: {
+      // Example: 2025-01 (YYYY-MM)
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    paymentYear: {
+      type: Number,
+      required: true,
+      index: true,
+    },
+
+ 
+    monthlyPayableAmount: {
+      type: Number,
+      required: true,
+    },
+
+    paidAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    penaltyAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+   
+    balanceAmount: {
+      
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    totalPaid: {
+     
+      type: Number,
+      required: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["paid", "partial", "unpaid"],
+      required: true,
+      index: true,
+    },
+
+    paymentDate: {
+      type: Date,
+      default: Date.now,
+    },
+
+    dueDate: {
+      type: Date,
+      required: true,
+    },
+
+    paymentMode: {
+      type: String,
+      enum: ["cash", "online"],
+      required: true,
+    },
+
+    invoiceNumber: {
+      type: String,
+      unique: true,
+    },
+  },
+  { timestamps: true }
+);
+
+paymentSchema.index(
+  { chitId: 1, memberId: 1, paymentMonth: 1 },
+  { unique: true }
 );
 
 module.exports = mongoose.model("Payment", paymentSchema);

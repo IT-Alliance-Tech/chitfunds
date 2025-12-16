@@ -1,11 +1,21 @@
 ﻿const router = require("express").Router();
-const ctrl = require("../controllers/paymentsController");
-const auth = require("../middleware/auth");
 
-router.use(auth);
+const {
+  createPayment,
+  getPayments,        
+  getPaymentById,
+  exportInvoicePdf,
+} = require("../controllers/paymentsController");
 
-router.post("/", ctrl.createPayment);
-router.get("/", ctrl.getPayments);
-router.get("/:id", ctrl.getPayment);
+const authMiddleware = require("../middleware/auth");
+const validate = require("../middleware/validate");
+const { createPaymentSchema } = require("../validators/paymentValidator");
+
+router.use(authMiddleware);
+
+router.post("/create", validate(createPaymentSchema), createPayment);
+router.get("/list", getPayments);         
+router.get("/details/:id", getPaymentById);
+router.get("/invoice/:id", exportInvoicePdf);
 
 module.exports = router;
