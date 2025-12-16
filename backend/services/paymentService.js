@@ -1,51 +1,41 @@
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
-exports.createPayment = async (payload) => {
+
+const calculateStatus = (monthlyAmount, paidAmount) => {
+  if (paidAmount === 0) return "unpaid";
+  if (paidAmount >= monthlyAmount) return "paid";
+  return "partial";
+};
+
+const upsertMonthlyPayment = async (payload) => {
   const chit = await Chit.findById(payload.chitId);
   if (!chit) throw new Error("Chit not found");
 
   const monthlyPayableAmount = chit.monthlyPayableAmount;
+  const paidAmount = Number(payload.paidAmount);
+  const penaltyAmount = Number(payload.penaltyAmount || 0);
 
-  // 🔍 Check if payment for this month already exists
   const existingPayment = await Payment.findOne({
     chitId: payload.chitId,
     memberId: payload.memberId,
     paymentMonth: payload.paymentMonth,
   });
 
-  // Convert numbers safely
-  const newPaidAmount = Number(payload.paidAmount);
-  const newPenalty = Number(payload.penaltyAmount || 0);
-
   if (existingPayment) {
-    // 🟢 UPDATE EXISTING MONTH
-    const updatedPaidAmount = existingPayment.paidAmount + newPaidAmount;
-    const updatedPenalty = existingPayment.penaltyAmount + newPenalty;
+    const updatedPaid = existingPayment.paidAmount + paidAmount;
+    const updatedPenalty = existingPayment.penaltyAmount + penaltyAmount;
 
-    const balanceAmount = Math.max(monthlyPayableAmount - updatedPaidAmount, 0);
-
-    const status =
-      updatedPaidAmount === 0
-        ? "unpaid"
-        : balanceAmount === 0
-        ? "paid"
-        : "partial";
-
-    existingPayment.paidAmount = updatedPaidAmount;
+    existingPayment.paidAmount = updatedPaid;
     existingPayment.penaltyAmount = updatedPenalty;
-    existingPayment.balanceAmount = balanceAmount;
-    existingPayment.totalPaid = updatedPaidAmount + updatedPenalty;
-    existingPayment.status = status;
+    existingPayment.balanceAmount = Math.max(
+      monthlyPayableAmount - updatedPaid,
+      0
+    );
+    existingPayment.totalPaid = updatedPaid + updatedPenalty;
+    existingPayment.status = calculateStatus(monthlyPayableAmount, updatedPaid);
 
-    await existingPayment.save();
-    return existingPayment;
+    return existingPayment.save();
   }
-
-  
-  const balanceAmount = Math.max(monthlyPayableAmount - newPaidAmount, 0);
-
-  const status =
-    newPaidAmount === 0 ? "unpaid" : balanceAmount === 0 ? "paid" : "partial";
 
   return Payment.create({
     chitId: payload.chitId,
@@ -53,13 +43,25 @@ exports.createPayment = async (payload) => {
     paymentMonth: payload.paymentMonth,
     paymentYear: payload.paymentYear,
     monthlyPayableAmount,
-    paidAmount: newPaidAmount,
-    penaltyAmount: newPenalty,
-    balanceAmount,
-    totalPaid: newPaidAmount + newPenalty,
-    status,
+    paidAmount,
+    penaltyAmount,
+    balanceAmount: Math.max(monthlyPayableAmount - paidAmount, 0),
+    totalPaid: paidAmount + penaltyAmount,
+    status: calculateStatus(monthlyPayableAmount, paidAmount),
     dueDate: payload.dueDate,
     paymentMode: payload.paymentMode,
     invoiceNumber: `INV-${Date.now()}`,
   });
+};
+
+const getPaymentsByMemberAndChit = (memberId, chitId) => {
+  return Payment.find({ memberId, chitId }).sort({
+    paymentYear: 1,
+    paymentMonth: 1,
+  });
+};
+
+module.exports = {
+  upsertMonthlyPayment,
+  getPaymentsByMemberAndChit,
 };

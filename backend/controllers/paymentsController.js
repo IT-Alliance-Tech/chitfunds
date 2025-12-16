@@ -3,66 +3,45 @@ const paymentService = require("../services/paymentService");
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
 
+const createPayment = asyncHandler(async (req, res) => {
+  const payment = await paymentService.upsertMonthlyPayment(req.body);
 
-exports.createPayment = asyncHandler(async (req, res) => {
-  //  Create monthly payment
-  const payment = await paymentService.createPayment(req.body);
-
-  // Fetch chit
   const chit = await Chit.findById(payment.chitId);
-
-  //  Fetch all payments for this member + chit
   const payments = await Payment.find({
     chitId: payment.chitId,
     memberId: payment.memberId,
   });
 
-  //  Derive summary values (INLINE – no new files)
-  const paidMonths = payments.length;
+  const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
 
-  const remainingMonths = Math.max(chit.duration - paidMonths, 0);
-
-  const totalPaidForChit = payments.reduce(
-    (sum, p) => sum + p.paidAmount,
-    0
-  );
-
-  const remainingTotalChitAmount = Math.max(
-    chit.amount - totalPaidForChit,
-    0
-  );
-
-  // Response
   res.status(201).json({
     success: true,
     data: {
       ...payment.toObject(),
       summary: {
         totalMonths: chit.duration,
-        paidMonths,
-        remainingMonths,
+        paidMonths: payments.length,
+        remainingMonths: Math.max(chit.duration - payments.length, 0),
         totalChitAmount: chit.amount,
         totalPaidForChit,
-        remainingTotalChitAmount,
+        remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
       },
     },
   });
 });
 
-
-exports.getPayments = asyncHandler(async (req, res) => {
+const getPayments = asyncHandler(async (req, res) => {
   const payments = await Payment.find()
-    .populate("chitId", "chitName amount monthlyPayableAmount duration")
+    .populate("chitId", "chitName amount duration")
     .populate("memberId", "name phone")
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: payments });
 });
 
-
-exports.getPaymentById = asyncHandler(async (req, res) => {
+const getPaymentById = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id)
-    .populate("chitId", "chitName amount monthlyPayableAmount duration")
+    .populate("chitId", "chitName amount duration")
     .populate("memberId", "name phone");
 
   if (!payment) {
@@ -73,9 +52,35 @@ exports.getPaymentById = asyncHandler(async (req, res) => {
   res.json({ success: true, data: payment });
 });
 
+const getPaymentHistory = asyncHandler(async (req, res) => {
+  const { memberId, chitId } = req.query;
 
-exports.exportInvoicePdf = asyncHandler(async (req, res) => {
-  res
-    .status(501)
-    .json({ success: false, message: "Invoice export not implemented yet" });
+  if (!memberId || !chitId) {
+    return res.status(400).json({
+      success: false,
+      message: "memberId and chitId are required",
+    });
+  }
+
+  const payments = await paymentService.getPaymentsByMemberAndChit(
+    memberId,
+    chitId
+  );
+
+  res.json({ success: true, data: payments });
 });
+
+const exportInvoicePdf = asyncHandler(async (req, res) => {
+  res.status(501).json({
+    success: false,
+    message: "Invoice export not implemented yet",
+  });
+});
+
+module.exports = {
+  createPayment,
+  getPayments,
+  getPaymentById,
+  getPaymentHistory,
+  exportInvoicePdf,
+};
