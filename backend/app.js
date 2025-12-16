@@ -6,6 +6,7 @@ const cors = require("cors");
 const adminAuthRoutes = require("./routes/adminRoutes");
 const chitsRoutes = require("./routes/chitsRoutes");
 const memberRoutes = require("./routes/memberRoutes");
+const paymentRoutes = require("./routes/paymentsRoutes");
 
 const app = express();
 
@@ -20,14 +21,11 @@ if (process.env.NODE_ENV !== "production") {
 
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 
-// ... (existing imports)
-
-
 // Routes
 app.use("/api/admin", adminAuthRoutes);
 app.use("/api/chit", chitsRoutes);
 app.use("/api/member", memberRoutes);
-
+app.use("/api/payment", paymentRoutes);
 
 // Health check
 const sendResponse = require("./utils/responseHandler");
