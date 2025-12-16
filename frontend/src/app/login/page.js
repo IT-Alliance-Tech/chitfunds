@@ -2,14 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiRequest } from "@/config/api";
+
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+const [formData, setFormData] = useState({
+  email: "",
+  password: "",
+  accessKey: "",
+});
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,20 +25,33 @@ export default function LoginPage() {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+  setLoading(true);
 
-    try {
-      console.log("Login Submitted:", formData);
-      router.push("/dashboard");
-    } catch (err) {
-      setError("Login failed. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await apiRequest("/admin/login", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    // ✅ STORE TOKEN
+    localStorage.setItem("token", response.data.token);
+
+    // Optional: store admin info
+    localStorage.setItem("admin", JSON.stringify(response.data.admin));
+
+    // Redirect after login
+    router.push("/dashboard");
+
+  } catch (err) {
+    setError(err.message || "Login failed. Try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
@@ -73,6 +90,20 @@ export default function LoginPage() {
               required
             />
           </div>
+          {/* Access Key */}
+<div>
+  <label className="block text-gray-900 mb-1">Access Key</label>
+  <input
+    type="text"
+    name="accessKey"
+    className="w-full p-3 rounded-lg border border-gray-300 text-black placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-300 outline-none"
+    value={formData.accessKey}
+    onChange={handleChange}
+    placeholder="Enter access key"
+    required
+  />
+</div>
+
 
           {/* Forgot Password */}
           <div className="flex justify-end -mt-3">

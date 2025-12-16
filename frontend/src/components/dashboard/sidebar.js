@@ -57,6 +57,7 @@ export default function Sidebar() {
           </Box>
         </Box>
       )}
+      
 
       {/* ================= MOBILE HAMBURGER ================= */}
      {!isDesktop && !open && (
