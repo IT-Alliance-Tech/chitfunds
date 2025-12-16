@@ -19,12 +19,10 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
+  Box,
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
-
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
 
 /* ================= MOCK MEMBERS ================= */
 const MEMBERS = [
@@ -50,7 +48,7 @@ const MEMBERS = [
   },
 ];
 
-/* ================= CHITS (MONTHLY FROM CHIT PAGE) ================= */
+/* ================= CHITS ================= */
 const CHITS = [
   {
     name: "Silver Chit",
@@ -78,77 +76,20 @@ const CHITS = [
 /* ================= PAYMENT DATA ================= */
 const MONTHLY_PAYMENTS = {
   "Silver Chit": [
-    {
-      month: "Jan 2025",
-      paidDate: "05-Jan-2025",
-      method: "UPI",
-      interest: 0,
-      paidAmount: 4150,
-    },
-    {
-      month: "Feb 2025",
-      paidDate: "05-Feb-2025",
-      method: "UPI",
-      interest: 0,
-      paidAmount: 4150,
-    },
-    {
-      month: "Mar 2025",
-      paidDate: "04-Mar-2025",
-      method: "Cash",
-      interest: 0,
-      paidAmount: 4150,
-    },
-    {
-      month: "Apr 2025",
-      paidDate: "—",
-      method: "—",
-      interest: 150,
-      paidAmount: 4100,
-    },
+    { month: "Jan 2025", paidDate: "05-Jan-2025", method: "UPI", interest: 0, paidAmount: 4150 },
+    { month: "Feb 2025", paidDate: "05-Feb-2025", method: "UPI", interest: 0, paidAmount: 4150 },
+    { month: "Mar 2025", paidDate: "04-Mar-2025", method: "Cash", interest: 0, paidAmount: 4150 },
+    { month: "Apr 2025", paidDate: "—", method: "—", interest: 150, paidAmount: 4100 },
   ],
-
   "Gold Chit": [
-    {
-      month: "Jan 2025",
-      paidDate: "06-Jan-2025",
-      method: "Bank",
-      interest: 0,
-      paidAmount: 8200,
-    },
-    {
-      month: "Feb 2025",
-      paidDate: "—",
-      method: "—",
-      interest: 200,
-      paidAmount: 8300,
-    },
+    { month: "Jan 2025", paidDate: "06-Jan-2025", method: "Bank", interest: 0, paidAmount: 8200 },
+    { month: "Feb 2025", paidDate: "—", method: "—", interest: 200, paidAmount: 8300 },
   ],
-
   "Starter Chit": [
-    {
-      month: "Jan 2025",
-      paidDate: "02-Jan-2025",
-      method: "UPI",
-      interest: 0,
-      paidAmount: 2500,
-    },
-    {
-      month: "Feb 2025",
-      paidDate: "01-Feb-2025",
-      method: "Cash",
-      interest: 0,
-      paidAmount: 2500,
-    },
+    { month: "Jan 2025", paidDate: "02-Jan-2025", method: "UPI", interest: 0, paidAmount: 2500 },
+    { month: "Feb 2025", paidDate: "01-Feb-2025", method: "Cash", interest: 0, paidAmount: 2500 },
   ],
 };
-
-/* ================= HELPERS ================= */
-const calculateTotal = (monthly, interest) =>
-  Number(monthly || 0) + Number(interest || 0);
-
-const calculateBalance = (total, paid) =>
-  Math.max(total - Number(paid || 0), 0);
 
 export default function MemberDetailsPage() {
   const { id } = useParams();
@@ -175,224 +116,162 @@ export default function MemberDetailsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
 
-      <Sidebar />
+      
+      {/* ================= HEADER ================= */}
+<Box className="space-y-3">
 
-      <div className="flex-1">
-        <Topbar />
+  {/* Back Button */}
+  <Box className="mt-2">
+    <Button variant="outlined" onClick={() => router.back()}>
+      Back
+    </Button>
+  </Box>
 
-        <main className="p-6 space-y-6">
+  {/* Centered Title */}
+  <Typography
+  variant="h4"
+  fontWeight={600}
+  align="center"
+  sx={{ color: "text.primary" }}
+>
+  Member Details
+</Typography>
 
-          {/* HEADER */}
-          <div className="relative flex items-center mb-4">
-            <Button variant="outlined" onClick={() => router.back()}>
-              Back
-            </Button>
 
-            <Typography
-              variant="h4"
-              fontWeight={600}
-              color="black"
-              className="absolute left-1/2 -translate-x-1/2"
-            >
-              Member Details
-            </Typography>
+</Box>
+
+
+      {/* ================= PERSONAL DETAILS ================= */}
+      <Card>
+        <CardContent className="space-y-3">
+          <Detail label="Full Name" value={member.name} />
+          <Detail label="Email" value={member.email} />
+          <Detail label="Phone" value={member.phone} />
+          <Detail label="Status" value={member.status} />
+          <Detail label="Address" value={member.address} />
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography fontWeight={600}>Security Documents</Typography>
+          <div className="flex flex-wrap gap-2">
+            {member.documents.map((doc) => (
+              <Chip key={doc} label={doc} />
+            ))}
           </div>
+        </CardContent>
+      </Card>
 
-          {/* PERSONAL */}
-          <Card>
-            <CardContent>
-
-              <div className="space-y-3">
-                <div>
-                  <Typography variant="caption">Full Name</Typography>
-                  <Typography fontWeight={500}>{member.name}</Typography>
-                </div>
-
-                <div>
-                  <Typography variant="caption">Email</Typography>
-                  <Typography fontWeight={500}>{member.email}</Typography>
-                </div>
-
-                <div>
-                  <Typography variant="caption">Phone</Typography>
-                  <Typography fontWeight={500}>{member.phone}</Typography>
-                </div>
-
-                <div>
-                  <Typography variant="caption">Status</Typography>
-                  <Typography fontWeight={500}>{member.status}</Typography>
-                </div>
-
-                <div>
-                  <Typography variant="caption">Address</Typography>
-                  <Typography fontWeight={500}>{member.address}</Typography>
-                </div>
-              </div>
-
-              <Divider sx={{ my: 3 }} />
-
-              <Typography fontWeight={600} mb={2}>
-                Security Documents
-              </Typography>
-
-              <div className="flex flex-wrap gap-2">
-                {member.documents.map((doc) => (
-                  <Chip key={doc} label={doc} />
-                ))}
-              </div>
-
-            </CardContent>
-          </Card>
-
-          {/* ASSIGNED CHITS */}
-          <Card>
-            <CardContent>
-
-              <Typography fontWeight={600} mb={2}>
-                Assigned Chits
-              </Typography>
-
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Chit</TableCell>
-                    <TableCell>Chit Amount</TableCell>
-                    <TableCell>Duration</TableCell>
-                    <TableCell>Members</TableCell>
-                    <TableCell align="center">Action</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {memberChits.map((c) => (
-                    <TableRow key={c.name}>
-                      <TableCell>{c.name}</TableCell>
-                      <TableCell>{c.amount}</TableCell>
-                      <TableCell>{c.duration}</TableCell>
-                      <TableCell>{c.members}</TableCell>
-
-                      <TableCell align="center">
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => handleOpen(c)}
-                        >
-                          View Payment
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-
-      {/* PAYMENT DIALOG */}
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg">
-
-        <DialogTitle className="flex justify-between">
-          <Typography fontWeight={600}>
-            {selectedChit?.name} {`– Payment Details`}
+      {/* ================= ASSIGNED CHITS ================= */}
+      <Card>
+        <CardContent>
+          <Typography fontWeight={600} mb={2}>
+            Assigned Chits
           </Typography>
 
+          {/* Mobile safe scroll */}
+          <Box sx={{ overflowX: "auto" }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Chit</TableCell>
+                  <TableCell>Amount</TableCell>
+                  <TableCell>Duration</TableCell>
+                  <TableCell>Members</TableCell>
+                  <TableCell align="center">Action</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {memberChits.map((c) => (
+                  <TableRow key={c.name}>
+                    <TableCell>{c.name}</TableCell>
+                    <TableCell>{c.amount}</TableCell>
+                    <TableCell>{c.duration}</TableCell>
+                    <TableCell>{c.members}</TableCell>
+                    <TableCell align="center">
+                      <Button size="small" variant="contained" onClick={() => handleOpen(c)}>
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* ================= PAYMENT DIALOG ================= */}
+      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg">
+        <DialogTitle className="flex justify-between items-center">
+          <Typography fontWeight={600}>
+            {selectedChit?.name} – Payment Details
+          </Typography>
           <IconButton onClick={handleClose}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
 
         <DialogContent>
+          <Box sx={{ overflowX: "auto" }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Month</TableCell>
+                  <TableCell>Payable</TableCell>
+                  <TableCell>Paid Date</TableCell>
+                  <TableCell>Paid</TableCell>
+                  <TableCell>Interest</TableCell>
+                  <TableCell>Balance</TableCell>
+                  <TableCell>Method</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
 
-          <Table size="small">
+              <TableBody>
+                {MONTHLY_PAYMENTS[selectedChit?.name]?.map((pay, index) => {
+                  const total = Number(selectedChit.monthly) + Number(pay.interest || 0);
+                  const balance = Math.max(total - Number(pay.paidAmount || 0), 0);
+                  const status = balance === 0 ? "Paid" : "Unpaid";
 
-           <TableHead>
-  <TableRow>
-    <TableCell><b>Month</b></TableCell>
-    <TableCell><b>Payable</b></TableCell>
-    <TableCell><b>Paid Date</b></TableCell>
-    <TableCell><b>Paid</b></TableCell>
-    <TableCell><b>Interest</b></TableCell>
-    <TableCell><b>Balance</b></TableCell>
-    <TableCell><b>Method</b></TableCell>
-    <TableCell><b>Status</b></TableCell>
-  </TableRow>
-</TableHead>
-
-
-            <TableBody>
-  {MONTHLY_PAYMENTS[selectedChit?.name]?.map((pay, index) => {
-
-    const totalPayable =
-      Number(selectedChit.monthly) + Number(pay.interest || 0);
-
-    const balance =
-      Math.max(totalPayable - Number(pay.paidAmount || 0), 0);
-
-    const status = balance === 0 ? "Paid" : "Unpaid";
-
-    return (
-      <TableRow key={index}>
-
-        <TableCell>{pay.month}</TableCell>
-
-        {/* Payable Amount */}
-        <TableCell>
-          ₹{totalPayable}
-        </TableCell>
-
-        {/* Paid Date */}
-        <TableCell>{pay.paidDate}</TableCell>
-
-        {/* Paid */}
-        <TableCell>
-          ₹{pay.paidAmount}
-        </TableCell>
-
-        {/* Interest */}
-        <TableCell>
-          ₹{pay.interest}
-        </TableCell>
-
-        {/* Balance */}
-        <TableCell
-          sx={{
-            fontWeight: 600,
-            color: balance === 0 ? "green" : "red",
-          }}
-        >
-          ₹{balance}
-        </TableCell>
-
-        {/* Payment Method */}
-        <TableCell>
-          {pay.method}
-        </TableCell>
-
-        {/* Status */}
-        <TableCell>
-          <Chip
-            size="small"
-            label={status}
-            color={status === "Paid" ? "success" : "error"}
-          />
-        </TableCell>
-
-      </TableRow>
-    );
-  })}
-</TableBody>
-
-
-          </Table>
-
+                  return (
+                    <TableRow key={index}>
+                      <TableCell>{pay.month}</TableCell>
+                      <TableCell>₹{total}</TableCell>
+                      <TableCell>{pay.paidDate}</TableCell>
+                      <TableCell>₹{pay.paidAmount}</TableCell>
+                      <TableCell>₹{pay.interest}</TableCell>
+                      <TableCell sx={{ color: balance === 0 ? "green" : "red", fontWeight: 600 }}>
+                        ₹{balance}
+                      </TableCell>
+                      <TableCell>{pay.method}</TableCell>
+                      <TableCell>
+                        <Chip
+                          size="small"
+                          label={status}
+                          color={status === "Paid" ? "success" : "error"}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Box>
         </DialogContent>
-
       </Dialog>
+    </main>
+  );
+}
 
+/* ================= SMALL HELPER ================= */
+function Detail({ label, value }) {
+  return (
+    <div>
+      <Typography variant="caption">{label}</Typography>
+      <Typography fontWeight={500}>{value}</Typography>
     </div>
   );
 }
