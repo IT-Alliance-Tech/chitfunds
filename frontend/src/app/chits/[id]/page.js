@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react"; 
+import { useEffect, useState } from "react";
 
 import {
   Card,
@@ -14,6 +14,7 @@ import {
   TableRow,
   TableHead,
   Grid,
+  Box,
 } from "@mui/material";
 
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
@@ -21,51 +22,13 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-import Sidebar from "@/components/dashboard/sidebar";
-import Topbar from "@/components/dashboard/topbar";
-
 /* ================= MOCK MEMBERS ================= */
 const MEMBERS = [
-  {
-    id: 1,
-    name: "Gireeshma Reddy",
-    phone: "9876501234",
-    joined: "2025-01-12",
-    status: "Paid",
-    chit: "Silver Chit",
-  },
-  {
-    id: 2,
-    name: "Sahana R",
-    phone: "9900123456",
-    joined: "2025-01-15",
-    status: "Pending",
-    chit: "Gold Chit",
-  },
-  {
-    id: 3,
-    name: "Kiran Kumar",
-    phone: "9988776655",
-    joined: "2025-01-20",
-    status: "Paid",
-    chit: "Starter Chit",
-  },
-  {
-    id: 4,
-    name: "Lavanya P",
-    phone: "9123987654",
-    joined: "2025-02-05",
-    status: "Paid",
-    chit: "Silver Chit",
-  },
-  {
-    id: 5,
-    name: "Manoj Shetty",
-    phone: "9001237890",
-    joined: "2025-02-10",
-    status: "Defaulted",
-    chit: "Gold Chit",
-  },
+  { id: 1, name: "Gireeshma Reddy", phone: "9876501234", joined: "2025-01-12", status: "Paid", chit: "Silver Chit" },
+  { id: 2, name: "Sahana R", phone: "9900123456", joined: "2025-01-15", status: "Pending", chit: "Gold Chit" },
+  { id: 3, name: "Kiran Kumar", phone: "9988776655", joined: "2025-01-20", status: "Paid", chit: "Starter Chit" },
+  { id: 4, name: "Lavanya P", phone: "9123987654", joined: "2025-02-05", status: "Paid", chit: "Silver Chit" },
+  { id: 5, name: "Manoj Shetty", phone: "9001237890", joined: "2025-02-10", status: "Defaulted", chit: "Gold Chit" },
 ];
 
 /* ================= BADGE UTILS ================= */
@@ -82,32 +45,21 @@ export default function ChitDetailsPage() {
 
   const [chit, setChit] = useState(null);
 
-  /* ✅ Load data passed from Chits page */
   useEffect(() => {
     const stored = localStorage.getItem("selectedChit");
-
     if (stored) {
       const parsed = JSON.parse(stored);
-
-      // ✅ safety check: ensure correct chit is loaded
       if (parsed?.id === id) {
         setChit(parsed);
       }
     }
   }, [id]);
 
-  /* ================= LOADING / NOT FOUND ================= */
-
   if (!chit) {
     return (
       <main className="p-10 text-center">
         <Typography variant="h6">Loading chit details...</Typography>
-
-        <Button
-          sx={{ mt: 2 }}
-          variant="contained"
-          onClick={() => router.back()}
-        >
+        <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.back()}>
           Back
         </Button>
       </main>
@@ -117,190 +69,169 @@ export default function ChitDetailsPage() {
   const members = MEMBERS.filter((m) => m.chit === chit.name);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
+    <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
 
-      <div className="flex-1">
-        <Topbar />
+      {/* ================= HEADER ================= */}
+      <Box className="space-y-3">
+        <Box className="mt-2">
+          <Button variant="outlined" onClick={() => router.back()}>
+            Back
+          </Button>
+        </Box>
 
-        <main className="p-6 space-y-6">
+        <Typography
+  variant="h4"
+  fontWeight={600}
+  align="center"
+  sx={{ color: "#000" }}
+>
+  {chit.name}
+</Typography>
 
-          {/* ================= HEADER ================= */}
-          <div className="relative flex items-center mb-4">
-            <Button variant="outlined" onClick={() => router.back()}>
-              Back
-            </Button>
+      </Box>
 
-            <Typography
-              variant="h4"
-              fontWeight={600}
-              color="black"
-              className="absolute left-1/2 -translate-x-1/2"
-            >
-              {chit.name}
-            </Typography>
-          </div>
+      {/* ================= STATS CARDS ================= */}
+  <div className="max-w-[100%] mx-auto">
+  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 justify-items-center">
 
-          {/* ================= STATS CARDS ================= */}
-          <Grid container spacing={3}>
-
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent className="flex gap-3 items-center">
-                  <MonetizationOnIcon color="primary" />
-                  <div>
-                    <Typography variant="subtitle2">Amount</Typography>
-                    <Typography fontWeight={600}>₹{chit.amount}</Typography>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent className="flex gap-3 items-center">
-                  <MonetizationOnIcon color="success" />
-                  <div>
-                    <Typography variant="subtitle2">Monthly Payable</Typography>
-                    <Typography fontWeight={600}>
-                      ₹{chit.monthlyAmount}
-                    </Typography>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent className="flex gap-3 items-center">
-                  <CalendarMonthIcon color="secondary" />
-                  <div>
-                    <Typography variant="subtitle2">Duration</Typography>
-                    <Typography fontWeight={600}>
-                      {chit.durationMonths} Months
-                    </Typography>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent className="flex gap-3 items-center">
-                  <GroupsIcon color="success" />
-                  <div>
-                    <Typography variant="subtitle2">Members</Typography>
-                    <Typography fontWeight={600}>
-                      {chit.membersCount}/{chit.membersLimit}
-                    </Typography>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent className="flex gap-3 items-center">
-                  <CheckCircleIcon color="success" />
-                  <div>
-                    <Typography variant="subtitle2">Status</Typography>
-                    <Typography fontWeight={600}>{chit.status}</Typography>
-                  </div>
-                </CardContent>
-              </Card>
-            </Grid>
-
-          </Grid>
-
-          {/* ================= OVERVIEW ================= */}
-          <Card elevation={2}>
-            <CardContent>
-
-              <Typography fontWeight={600} mb={2}>
-                Overview
-              </Typography>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <p><b>ID:</b> {chit.id}</p>
-                <p><b>Start Date:</b> {chit.startDate}</p>
-                <p><b>Cycle Day:</b> {chit.cycleDay}</p>
-                <p><b>Duration:</b> {chit.durationMonths}</p>
-                <p><b>Monthly Amount:</b> ₹{chit.monthlyAmount}</p>
-                <p><b>Members Limit:</b> {chit.membersLimit}</p>
-                <p><b>Status:</b> {chit.status}</p>
-              </div>
-
-            </CardContent>
-          </Card>
-
-          {/* ================= MEMBERS LIST ================= */}
-          <Card elevation={2}>
-            <CardContent className="p-0">
-
-              <Typography fontWeight="600" sx={{ p: 2 }}>
-                Members ({members.length})
-              </Typography>
-
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><b>ID</b></TableCell>
-                    <TableCell><b>Name</b></TableCell>
-                    <TableCell><b>Phone</b></TableCell>
-                    <TableCell><b>Joined</b></TableCell>
-                    <TableCell><b>Status</b></TableCell>
-                    <TableCell align="center"><b>Action</b></TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-
-                  {members.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center">
-                        No members yet
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {members.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>{m.id}</TableCell>
-                      <TableCell>{m.name}</TableCell>
-                      <TableCell>{m.phone}</TableCell>
-                      <TableCell>{m.joined}</TableCell>
-
-                      <TableCell>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm ${badge(
-                            m.status
-                          )}`}
-                        >
-                          {m.status}
-                        </span>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          sx={{ textTransform: "none", borderRadius: "8px" }}
-                          onClick={() => router.push(`/members/${m.id}`)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-
-                </TableBody>
-              </Table>
-
-            </CardContent>
-          </Card>
-
-        </main>
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <MonetizationOnIcon sx={{ fontSize: 34, color: "#1e88e5" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>₹{chit.amount}</Typography>
+          <Typography variant="body2">Amount</Typography>
+        </div>
       </div>
+    </Card>
+
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>₹{chit.monthlyAmount}</Typography>
+          <Typography variant="body2">Monthly Payable</Typography>
+        </div>
+      </div>
+    </Card>
+
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <CalendarMonthIcon sx={{ fontSize: 34, color: "#9c27b0" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>
+            {chit.durationMonths}
+          </Typography>
+          <Typography variant="body2">Months</Typography>
+        </div>
+      </div>
+    </Card>
+
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <GroupsIcon sx={{ fontSize: 34, color: "green" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>
+            {chit.membersCount}/{chit.membersLimit}
+          </Typography>
+          <Typography variant="body2">Members</Typography>
+        </div>
+      </div>
+    </Card>
+
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>{chit.status}</Typography>
+          <Typography variant="body2">Status</Typography>
+        </div>
+      </div>
+    </Card>
+
+  </div>
+</div>
+
+
+
+      {/* ================= OVERVIEW ================= */}
+     <Card>
+  <CardContent>
+    <Typography fontWeight={600} mb={2}>
+      Overview
+    </Typography>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+      <p><b>ID:</b> {chit.id}</p>
+      <p><b>Start Date:</b> {chit.startDate}</p>
+      <p><b>Cycle Day:</b> {chit.cycleDay}</p>
+      <p><b>Duration:</b> {chit.durationMonths}</p>
+      <p><b>Monthly Amount:</b> ₹{chit.monthlyAmount}</p>
+      <p><b>Members Limit:</b> {chit.membersLimit}</p>
+      <p><b>Status:</b> {chit.status}</p>
     </div>
+  </CardContent>
+</Card>
+
+
+      {/* ================= MEMBERS LIST ================= */}
+      <Card>
+        <CardContent className="p-0">
+          <Typography fontWeight={600} sx={{ p: 2 }}>
+            Members ({members.length})
+          </Typography>
+
+          {/* Mobile-safe scroll */}
+          <Box sx={{ overflowX: "auto" }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Joined</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Action</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {members.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No members yet
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                {members.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell>{m.id}</TableCell>
+                    <TableCell>{m.name}</TableCell>
+                    <TableCell>{m.phone}</TableCell>
+                    <TableCell>{m.joined}</TableCell>
+                    <TableCell>
+                      <span className={`px-3 py-1 rounded-full text-sm ${badge(m.status)}`}>
+                        {m.status}
+                      </span>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{ textTransform: "none", borderRadius: "8px" }}
+                        onClick={() => router.push(`/members/${m.id}`)}
+                      >
+                        View Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        </CardContent>
+      </Card>
+
+    </main>
   );
 }
