@@ -209,149 +209,195 @@ export default function MembersPage() {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="flex-1 w-full min-w-0">
-        <main className="p-6">
+       <main className="p-4 sm:p-6">
           {/* HEADER */}
-          <div className="relative flex items-center mb-6">
-            <Typography
-              variant="h5"
-              fontWeight={600}
-              sx={{
-                position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
-                color: "black",
-                textAlign: "center",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Member Management
-            </Typography>
+<div className="relative mb-6">
+  {/* MOBILE VIEW */}
+  <div className="flex flex-col items-center gap-3 sm:hidden">
+    <Typography
+      variant="h5"
+      fontWeight={600}
+      sx={{ textAlign: "center" }}
+    >
+      Member Management
+    </Typography>
 
-            <div className="ml-auto">
-              <Button variant="contained" onClick={handleAddMember}>
-                Add Member
-              </Button>
-            </div>
-          </div>
+    <Button
+      variant="contained"
+      onClick={handleAddMember}
+    >
+      Add Member
+    </Button>
+  </div>
+
+  {/* TABLET & DESKTOP VIEW */}
+  <div className="hidden sm:flex items-center justify-center px-16">
+    <Typography
+      variant="h4"
+      fontWeight={600}
+      sx={{
+        textAlign: "center",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Member Management
+    </Typography>
+
+    <div className="absolute right-0">
+      <Button
+        variant="contained"
+        onClick={handleAddMember}
+      >
+        Add Member
+      </Button>
+    </div>
+  </div>
+</div>
+
 
           {/* STATS */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6 max-w-[780px]">
-            <Card className="p-3 flex items-center gap-3">
-              <Group sx={{ fontSize: 28, color: "#1e88e5" }} />
-              <div>
-                <Typography variant="h5" fontWeight={600}>
-                  <CountUp end={members.length} />
-                </Typography>
-                <Typography variant="body2">Total Members</Typography>
-              </div>
-            </Card>
+{/* ===================== STATS CARDS ===================== */}
+<div className="max-w-[820px] mx-auto sm:mx-0">
+  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
 
-            <Card className="p-3 flex items-center gap-3">
-              <CheckCircle sx={{ fontSize: 28, color: "green" }} />
-              <div>
-                <Typography variant="h5" color="green" fontWeight={600}>
-                  <CountUp
-                    end={members.filter((m) => m.status === "Active").length}
-                  />
-                </Typography>
-                <Typography variant="body2">Active</Typography>
-              </div>
-            </Card>
+    {/* TOTAL MEMBERS */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <Group sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }} />
+        <div>
+          <Typography variant="h6" fontWeight={600}>
+            <CountUp end={members.length} />
+          </Typography>
+          <Typography variant="body2">Total Members</Typography>
+        </div>
+      </div>
+    </Card>
 
-            <Card className="p-3 flex items-center gap-3">
-              <Cancel sx={{ fontSize: 28, color: "red" }} />
-              <div>
-                <Typography variant="h5" color="red" fontWeight={600}>
-                  <CountUp
-                    end={members.filter((m) => m.status === "Inactive").length}
-                  />
-                </Typography>
-                <Typography variant="body2">Inactive</Typography>
-              </div>
-            </Card>
-          </div>
+    {/* ACTIVE */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <CheckCircle sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }} />
+        <div>
+          <Typography variant="h6" color="green" fontWeight={600}>
+            <CountUp end={members.filter((m) => m.status === "Active").length} />
+          </Typography>
+          <Typography variant="body2">Active</Typography>
+        </div>
+      </div>
+    </Card>
+
+    {/* INACTIVE */}
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+      <div className="flex items-center gap-3 w-full">
+        <Cancel sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }} />
+        <div>
+          <Typography variant="h6" color="red" fontWeight={600}>
+            <CountUp end={members.filter((m) => m.status === "Inactive").length} />
+          </Typography>
+          <Typography variant="body2">Inactive</Typography>
+        </div>
+      </div>
+    </Card>
+
+  </div>
+</div>
+
+
 
           {/* FILTERS */}
-          <Card sx={{ p: 2, mb: 3 }}>
-            <div className="flex flex-wrap gap-4 items-center">
-              <TextField
-                size="small"
-                label="Search Name"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
+<Card sx={{ p: 2, mb: 3 }}>
+  <div className="flex flex-wrap gap-3 items-center">
+    {/* Search Name */}
+    <TextField
+      fullWidth
+      size="small"
+      label="Search Name"
+      value={searchName}
+      onChange={(e) => setSearchName(e.target.value)}
+      sx={{ maxWidth: { sm: 220 } }}
+    />
 
-              <TextField
-                size="small"
-                label="Phone"
-                value={searchPhone}
-                onChange={(e) => setSearchPhone(e.target.value)}
-              />
+    {/* Phone */}
+    <TextField
+      fullWidth
+      size="small"
+      label="Phone"
+      value={searchPhone}
+      onChange={(e) => setSearchPhone(e.target.value)}
+      sx={{ maxWidth: { sm: 220 } }}
+    />
 
-              <FormControl size="small" sx={{ minWidth: 170 }}>
-                <InputLabel>Chit</InputLabel>
-                <Select
-                  value={filterChit}
-                  label="Chit"
-                  onChange={(e) => setFilterChit(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {chits.map((c) => (
-                    <MenuItem key={c.id} value={c.name}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+    {/* Chit */}
+    <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
+      <InputLabel>Chit</InputLabel>
+      <Select
+        value={filterChit}
+        label="Chit"
+        onChange={(e) => setFilterChit(e.target.value)}
+      >
+        <MenuItem value="">All</MenuItem>
+        {chits.map((c) => (
+          <MenuItem key={c.id} value={c.name}>
+            {c.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 170 }}>
-                <InputLabel>Location</InputLabel>
-                <Select
-                  value={filterLocation}
-                  label="Location"
-                  onChange={(e) => setFilterLocation(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {LOCATIONS.map((loc) => (
-                    <MenuItem key={loc} value={loc}>
-                      {loc}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+    {/* Location */}
+    <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
+      <InputLabel>Location</InputLabel>
+      <Select
+        value={filterLocation}
+        label="Location"
+        onChange={(e) => setFilterLocation(e.target.value)}
+      >
+        <MenuItem value="">All</MenuItem>
+        {LOCATIONS.map((loc) => (
+          <MenuItem key={loc} value={loc}>
+            {loc}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
 
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={filterStatus}
-                  label="Status"
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="Active">Active</MenuItem>
-                  <MenuItem value="Inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
+    {/* Status */}
+    <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
+      <InputLabel>Status</InputLabel>
+      <Select
+        value={filterStatus}
+        label="Status"
+        onChange={(e) => setFilterStatus(e.target.value)}
+      >
+        <MenuItem value="">All</MenuItem>
+        <MenuItem value="Active">Active</MenuItem>
+        <MenuItem value="Inactive">Inactive</MenuItem>
+      </Select>
+    </FormControl>
 
-              <Typography
-                sx={{
-                  ml: "auto",
-                  cursor: "pointer",
-                  color: "#2563eb",
-                  fontWeight: 600,
-                }}
-                onClick={() => {
-                  setSearchName("");
-                  setSearchPhone("");
-                  setFilterChit("");
-                  setFilterStatus("");
-                  setFilterLocation("");
-                }}
-              >
-                Clear Filters
-              </Typography>
-            </div>
-          </Card>
+    {/* Clear Filters */}
+    <Typography
+      sx={{
+        width: { xs: "100%", sm: "auto" },
+        textAlign: { xs: "right", sm: "left" },
+        ml: { sm: "auto" },
+        cursor: "pointer",
+        color: "#2563eb",
+        fontWeight: 600,
+      }}
+      onClick={() => {
+        setSearchName("");
+        setSearchPhone("");
+        setFilterChit("");
+        setFilterStatus("");
+        setFilterLocation("");
+      }}
+    >
+      Clear Filters
+    </Typography>
+  </div>
+</Card>
+
 
           {/* ===================== TABLE WITH MOBILE SCROLL ===================== */}
           <Card>
