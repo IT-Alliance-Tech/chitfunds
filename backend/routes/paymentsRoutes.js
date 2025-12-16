@@ -5,6 +5,7 @@ const {
   getPayments,
   getPaymentById,
   exportInvoicePdf,
+  getPaymentHistory,
 } = require("../controllers/paymentsController");
 
 const authMiddleware = require("../middleware/auth");
@@ -17,6 +18,6 @@ router.post("/create", validate(createPaymentSchema), createPayment);
 router.get("/list", getPayments);
 router.get("/details/:id", getPaymentById);
 router.get("/invoice/:id", exportInvoicePdf);
-router.get("/history", authMiddleware, paymentController.getPaymentHistory);
+router.get("/history",  getPaymentHistory);
 
 module.exports = router;
