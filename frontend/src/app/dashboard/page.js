@@ -37,6 +37,8 @@ export default function Dashboard() {
     { action: "Deleted chit", detail: "Old 50K chit", time: "2 days ago" },
   ];
 
+  
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="flex-1">

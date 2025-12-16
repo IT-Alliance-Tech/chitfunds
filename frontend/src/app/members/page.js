@@ -28,6 +28,8 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
 import CountUp from "react-countup";
+import { apiRequest } from "@/config/api";
+
 
 /* ===================== DOCUMENT OPTIONS ====================== */
 const securityDocumentOptions = [
@@ -46,59 +48,75 @@ const securityDocumentOptions = [
 export default function MembersPage() {
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
+  
+useEffect(() => {
+  fetchChits();
+}, []);
+
+const fetchChits = async () => {
+  try {
+    const res = await apiRequest("/chit/list", { method: "GET" });
+
+    const formattedChits = res.data.items.map((c) => ({
+      id: c.id || c._id,                // backend safe
+      name: c.chitName,                 // 👈 IMPORTANT
+      monthlyAmount: c.monthlyPayableAmount,
+      location: c.location,
+    }));
+
+    setChits(formattedChits);
+  } catch (err) {
+    console.error("Failed to fetch chits", err);
+  }
+};
+
+
   useEffect(() => {
-    const savedChits = localStorage.getItem("chits");
-    if (savedChits) {
-      setChits(JSON.parse(savedChits));
-    }
-  }, []);
+  console.log("CHITS DATA 👉", chits);
+}, [chits]);
+
 
   const LOCATIONS = [...new Set(chits.map((c) => c.location))];
 
   /* ===================== MEMBERS ====================== */
-  const [members, setMembers] = useState([
-    {
-      id: 1,
-      name: "Gireeshma Reddy",
-      email: "gireeshma@gmail.com",
-      address: "Banjara Hills, Hyderabad",
-      phone: "9876501234",
-      chit: "Silver Chit",
-      location: "Hyderabad",
-      monthlyAmount: 4150,
-      status: "Active",
-      documents: ["Aadhaar Card", "PAN Card"],
-    },
-    {
-      id: 2,
-      name: "Sahana R",
-      email: "sahana@gmail.com",
-      address: "Whitefield, Bangalore",
-      phone: "9900123456",
-      chit: "Gold Chit",
-      location: "Bangalore",
-      monthlyAmount: 8200,
-      status: "Inactive",
-      documents: ["Electricity Bill"],
-    },
-    {
-      id: 3,
-      name: "Kiran Kumar",
-      email: "kiran@gmail.com",
-      address: "Gachibowli, Hyderabad",
-      phone: "9988776655",
-      chit: "Starter Chit",
-      location: "Chennai",
-      monthlyAmount: 2500,
-      status: "Active",
-      documents: ["Bank Passbook Copy"],
-    },
-  ]);
+ const [members, setMembers] = useState([]);
+
 
   /* SAVE MEMBERS IN LOCAL STORAGE */
-  useEffect(() => {
-    localStorage.setItem("members", JSON.stringify(members));
-  }, [members]);
+ useEffect(() => {
+  fetchMembers();
+}, []);
+
+const fetchMembers = async () => {
+  try {
+    const res = await apiRequest("/member/list", { method: "GET" });
+
+const formattedMembers = res.data.items.map((m) => ({
+  id: m._id,
+  chitId: m.chitId,                 // 🔥 needed for edit
+  name: m.name,
+  phone: m.phone,
+  email: m.email,
+  address: m.address,
+  status: m.status,
+
+  // ✅ THIS IS THE FIX
+  chit: m.chitDetails?.chitName || "-",
+
+  location: m.chitDetails?.location || "-",
+  monthlyAmount: m.chitDetails?.monthlyPayableAmount || 0,
+
+  documents: m.securityDocuments || [],
+}));
+
+
+
+    setMembers(formattedMembers);
+  } catch (err) {
+    console.error("Failed to fetch members", err);
+  }
+};
+
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -112,17 +130,19 @@ export default function MembersPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    chit: "",
-    monthlyAmount: "",
-    location: "",
-    documents: [],
-    status: "Active",
-  });
+ const [formData, setFormData] = useState({
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  chitId: "",        // ✅ ADD THIS
+  chit: "",          // chit name (for UI)
+  monthlyAmount: "",
+  location: "",
+  documents: [],
+  status: "Active",
+});
+
 
   /* MENU ACTIONS */
   const handleMenuOpen = (e, member) => {
@@ -150,50 +170,108 @@ export default function MembersPage() {
   };
 
   /* EDIT */
-  const handleEditMember = () => {
-    setIsEdit(true);
-    setFormData(selectedMember);
-    setOpenModal(true);
-    handleMenuClose();
-  };
+const handleEditMember = () => {
+  setIsEdit(true);
+
+  setFormData({
+    id: selectedMember.id, // 🔥 REQUIRED
+    name: selectedMember.name,
+    phone: selectedMember.phone,
+    email: selectedMember.email,
+    address: selectedMember.address,
+    chit: selectedMember.chit,
+    monthlyAmount: selectedMember.monthlyAmount,
+    documents: selectedMember.documents || [],
+    status: selectedMember.status,
+    chitId:
+      chits.find((c) => c.name === selectedMember.chit)?.id || "",
+  });
+
+  setOpenModal(true);
+  handleMenuClose();
+};
+
+
 
   /* DELETE */
-  const handleDelete = () => {
-    setMembers((prev) => prev.filter((m) => m.id !== selectedMember.id));
+const handleDelete = async () => {
+  if (!selectedMember) return;
+
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete ${selectedMember.name}?`
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    await apiRequest(`/member/delete/${selectedMember.id}`, {
+      method: "DELETE",
+    });
+
+    await fetchMembers();   // refresh list from backend
     handleMenuClose();
-  };
+  } catch (err) {
+    alert(err.message || "Failed to delete member");
+  }
+};
+
 
   /* MAP CHIT CHANGE */
-  const handleChitChange = (value) => {
-    const selectedChit = chits.find((c) => c.name === value);
-    if (!selectedChit) return;
+const handleChitChange = (chitId) => {
+  const selectedChit = chits.find((c) => c.id === chitId);
+  if (!selectedChit) return;
 
-    setFormData((prev) => ({
-      ...prev,
-      chit: value,
-      monthlyAmount: String(selectedChit.monthlyAmount),
-    }));
-  };
+  setFormData((prev) => ({
+    ...prev,
+    chitId: selectedChit.id,        // backend
+    chit: selectedChit.name,        // UI display
+    monthlyAmount: selectedChit.monthlyAmount,
+    location: selectedChit.location,
+  }));
+};
+
+
 
   /* SAVE MEMBER */
-  const handleSaveMember = () => {
-    if (!formData.name || !formData.phone || !formData.chit) {
-      alert("Name, Phone & Chit required");
-      return;
-    }
+const handleSaveMember = async () => {
+  if (!formData.name || !formData.phone || !formData.chitId) {
+    alert("Name, Phone & Chit required");
+    return;
+  }
+
+  try {
+    const payload = {
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      chitId: formData.chitId,
+      securityDocuments: formData.documents,
+    };
 
     if (isEdit) {
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === selectedMember.id ? { ...formData, id: m.id } : m
-        )
-      );
+      // 🔄 EDIT MEMBER
+      await apiRequest(`/member/update/${formData.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
     } else {
-      setMembers((prev) => [...prev, { ...formData, id: prev.length + 1 }]);
+      // ➕ ADD MEMBER
+      await apiRequest("/member/create", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
     }
 
-    setOpenModal(false);
-  };
+    await fetchMembers();   // refresh table
+    setOpenModal(false);    // close modal
+    setIsEdit(false);
+  } catch (err) {
+    alert(err.message || "Failed to save member");
+  }
+};
+
+
 
   /* FILTERED MEMBERS */
   const filteredMembers = members.filter((m) => {
@@ -332,18 +410,20 @@ export default function MembersPage() {
     {/* Chit */}
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Chit</InputLabel>
-      <Select
-        value={filterChit}
-        label="Chit"
-        onChange={(e) => setFilterChit(e.target.value)}
-      >
-        <MenuItem value="">All</MenuItem>
-        {chits.map((c) => (
-          <MenuItem key={c.id} value={c.name}>
-            {c.name}
-          </MenuItem>
-        ))}
-      </Select>
+   <Select
+  value={formData.chitId}
+  label="Assigned Chit"
+  onChange={(e) => handleChitChange(e.target.value)}
+>
+ {chits.map((c) => (
+  <MenuItem key={c.id} value={c.id}>
+    {c.name}
+  </MenuItem>
+))}
+
+</Select>
+
+
     </FormControl>
 
     {/* Location */}
@@ -366,15 +446,17 @@ export default function MembersPage() {
     {/* Status */}
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Status</InputLabel>
-      <Select
-        value={filterStatus}
-        label="Status"
-        onChange={(e) => setFilterStatus(e.target.value)}
-      >
-        <MenuItem value="">All</MenuItem>
-        <MenuItem value="Active">Active</MenuItem>
-        <MenuItem value="Inactive">Inactive</MenuItem>
-      </Select>
+     <Select
+  value={filterStatus}
+  label="Status"
+  onChange={(e) => setFilterStatus(e.target.value)}
+>
+  <MenuItem value="">All</MenuItem>
+  <MenuItem value="Active">Active</MenuItem>
+  <MenuItem value="Inactive">Inactive</MenuItem>
+</Select>
+
+
     </FormControl>
 
     {/* Clear Filters */}
@@ -413,7 +495,7 @@ export default function MembersPage() {
                       <TableCell>Phone</TableCell>
                       <TableCell>Chit</TableCell>
                       <TableCell>Monthly</TableCell>
-                      <TableCell>Location</TableCell>
+                      <TableCell>Address</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell align="center">Actions</TableCell>
                     </TableRow>
@@ -426,8 +508,9 @@ export default function MembersPage() {
                         <TableCell>{m.name}</TableCell>
                         <TableCell>{m.phone}</TableCell>
                         <TableCell>{m.chit}</TableCell>
-                        <TableCell>₹{m.monthlyAmount}</TableCell>
-                        <TableCell>{m.location}</TableCell>
+                        <TableCell>₹{m.monthlyAmount || 0}</TableCell>
+                       <TableCell>{m.address}</TableCell>
+
 
                         <TableCell>
                           <span
@@ -527,21 +610,22 @@ export default function MembersPage() {
                 }
               />
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Assigned Chit</InputLabel>
+ <FormControl fullWidth sx={{ mb: 3 }}>
+  <InputLabel>Assigned Chit</InputLabel>
+  <Select
+    value={formData.chitId}
+    label="Assigned Chit"
+    onChange={(e) => handleChitChange(e.target.value)}
+  >
+    {chits.map((c) => (
+      <MenuItem key={c.id} value={c.id}>
+        {c.name}
+      </MenuItem>
+    ))}
+  </Select>
+</FormControl>
 
-                <Select
-                  value={formData.chit}
-                  label="Assigned Chit"
-                  onChange={(e) => handleChitChange(e.target.value)}
-                >
-                  {chits.map((c) => (
-                    <MenuItem key={c.id} value={c.name}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+
 
               <TextField
                 fullWidth

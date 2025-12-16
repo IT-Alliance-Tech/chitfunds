@@ -32,6 +32,8 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CountUp from "react-countup";
+import { apiRequest } from "@/config/api";
+
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
 
@@ -57,77 +59,51 @@ const getStatusColor = (status) => {
 export default function ChitsPage() {
   const router = useRouter();
 
-  const [chits, setChits] = useState([
-    {
-      id: "CHT-001",
-      name: "Silver Chit",
-      amount: 50000,
-      monthlyAmount: 4150,
-      durationMonths: 12,
-      membersLimit: 50,
-      membersCount: 24,
-      startDate: "2025-01-10",
-      cycleDay: 10,
-      status: "Active",
-      location: "Hyderabad",
-    },
-    {
-      id: "CHT-002",
-      name: "Gold Chit",
-      amount: 100000,
-      monthlyAmount: 8200,
-      durationMonths: 24,
-      membersLimit: 30,
-      membersCount: 5,
-      startDate: "2025-06-01",
-      cycleDay: 1,
-      status: "Upcoming",
-      location: "Bangalore",
-    },
-    {
-      id: "CHT-003",
-      name: "Starter Chit",
-      amount: 25000,
-      monthlyAmount: 2500,
-      durationMonths: 6,
-      membersLimit: 40,
-      membersCount: 40,
-      startDate: "2024-08-15",
-      cycleDay: 15,
-      status: "Closed",
-      location: "Chennai",
-    },
-    {
-      id: "CHT-004",
-      name: "Bronze Chit",
-      amount: 45000,
-      monthlyAmount: 4500,
-      durationMonths: 10,
-      membersLimit: 45,
-      membersCount: 20,
-      startDate: "2025-03-01",
-      cycleDay: 5,
-      status: "Active",
-      location: "Hyderabad",
-    },
-    {
-      id: "CHT-005",
-      name: "Premium Chit",
-      amount: 150000,
-      monthlyAmount: 12500,
-      durationMonths: 36,
-      membersLimit: 25,
-      membersCount: 8,
-      startDate: "2025-09-01",
-      cycleDay: 1,
-      status: "Upcoming",
-      location: "Mumbai",
-    },
-  ]);
 
-  useEffect(() => {
-    localStorage.setItem("chits", JSON.stringify(chits));
-  }, [chits]);
+
+useEffect(() => {
+  const fetchChits = async () => {
+    try {
+      const response = await apiRequest("/chit/list", {
+        method: "GET",
+      });
+
+      // ✅ IMPORTANT FIX: use response.data.items
+      const formattedChits = response.data.items.map((chit) => ({
+        id: chit.id,
+        name: chit.chitName,
+        amount: chit.amount,
+        monthlyAmount: chit.monthlyPayableAmount,
+        durationMonths: chit.duration,
+        membersLimit: chit.membersLimit,
+        membersCount: chit.membersCount || 0,
+        startDate: chit.startDate
+          ? chit.startDate.split("T")[0]
+          : "",
+        cycleDay: chit.cycleDay,
+        status: chit.status,
+        location: chit.location,
+      }));
+
+      setChits(formattedChits);
+
+    } catch (error) {
+      console.error("Fetch chits failed:", error);
+      alert(error.message || "Failed to fetch chits");
+    }
+  };
+
+  fetchChits();
+}, []);
+
+
+const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+  const [chits, setChits] = useState([]);
 
   /* FILTER STATE */
   const [filters, setFilters] = useState({
@@ -174,19 +150,18 @@ export default function ChitsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    amount: "",
-    monthlyAmount: "",
-    durationMonths: "",
-    membersLimit: "",
-    membersCount: 0,
-    startDate: "",
-    cycleDay: "",
-    status: "Active",
-    location: "",
-  });
+ const [formData, setFormData] = useState({
+  chitName: "",
+  location: "",
+  amount: "",
+  monthlyPayableAmount: "",
+  duration: "",
+  membersLimit: "",
+  startDate: "",
+  cycleDay: "",
+  status: "Upcoming",
+});
+
 
   /* ACTION HANDLERS */
   const openActions = (event, chit) => {
@@ -213,38 +188,141 @@ export default function ChitsPage() {
     setOpenModal(true);
   };
 
-  const openEditModal = (chit) => {
-    if (!chit) return;
-    setIsEditMode(true);
-    setFormData({ ...chit });
-    setOpenModal(true);
-    closeActions();
-  };
+const openEditModal = (chit) => {
+  if (!chit) return;
 
-  const handleSaveChit = () => {
-    if (!formData.name || !formData.amount || !formData.durationMonths) {
-      alert("Please fill required fields");
-      return;
-    }
+  setIsEditMode(true);
+
+  setFormData({
+    chitName: chit.name,
+    location: chit.location,
+    amount: chit.amount,
+    monthlyPayableAmount: chit.monthlyAmount,
+    duration: chit.durationMonths,
+    membersLimit: chit.membersLimit,
+    startDate: chit.startDate,
+    cycleDay: chit.cycleDay,
+    status: chit.status,
+    id: chit.id, // ✅ VERY IMPORTANT
+  });
+
+  setOpenModal(true);
+  closeActions();
+};
+
+
+const handleSaveChit = async () => {
+  if (!formData.chitName || !formData.amount || !formData.duration) {
+    alert("Please fill required fields");
+    return;
+  }
+
+  try {
+    const payload = {
+      chitName: formData.chitName,
+      location: formData.location,
+      amount: Number(formData.amount),
+      monthlyPayableAmount: Number(formData.monthlyPayableAmount),
+      duration: Number(formData.duration),
+      membersLimit: Number(formData.membersLimit),
+      startDate: formData.startDate,
+      cycleDay: Number(formData.cycleDay),
+      status: formData.status,
+    };
+
+    let response;
 
     if (isEditMode) {
+      // 🟡 EDIT API
+      response = await apiRequest(`/chit/update/${formData.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      // 🔁 Update table row
       setChits((prev) =>
-        prev.map((c) => (c.id === formData.id ? { ...formData } : c))
+        prev.map((c) =>
+          c.id === formData.id
+            ? {
+                ...c,
+                name: payload.chitName,
+                location: payload.location,
+                amount: payload.amount,
+                monthlyAmount: payload.monthlyPayableAmount,
+                durationMonths: payload.duration,
+                membersLimit: payload.membersLimit,
+                startDate: payload.startDate,
+                cycleDay: payload.cycleDay,
+                status: payload.status,
+              }
+            : c
+        )
       );
+
+      alert("Chit updated successfully");
+
     } else {
-      const newId = `CHT-${Math.floor(Math.random() * 900 + 100)}`;
-      setChits((prev) => [{ ...formData, id: newId }, ...prev]);
+      // 🟢 CREATE (your existing logic)
+      response = await apiRequest("/chit/create", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      setChits((prev) => [
+        {
+          id: response.data.chit.id,
+          name: response.data.chit.chitName,
+          amount: response.data.chit.amount,
+          monthlyAmount: response.data.chit.monthlyPayableAmount,
+          durationMonths: response.data.chit.duration,
+          membersLimit: response.data.chit.membersLimit,
+          membersCount: 0,
+          startDate: response.data.chit.startDate.split("T")[0],
+          cycleDay: response.data.chit.cycleDay,
+          status: response.data.chit.status,
+          location: response.data.chit.location,
+        },
+        ...prev,
+      ]);
+
+      alert("Chit created successfully");
     }
 
     setOpenModal(false);
-  };
 
-  const handleDelete = (chit) => {
-    if (!chit) return;
-    if (!confirm(`Delete chit "${chit.name}"?`)) return;
+  } catch (error) {
+    alert(error.message || "Operation failed");
+  }
+};
+
+
+
+
+ const handleDelete = async (chit) => {
+  if (!chit) return;
+
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete "${chit.name}"?`
+  );
+  if (!confirmDelete) return;
+
+  try {
+    await apiRequest(`/chit/delete/${chit.id}`, {
+      method: "DELETE",
+    });
+
+    // ✅ Remove from UI immediately
     setChits((prev) => prev.filter((c) => c.id !== chit.id));
+
+    alert("Chit deleted successfully");
+
+  } catch (error) {
+    alert(error.message || "Failed to delete chit");
+  } finally {
     closeActions();
-  };
+  }
+};
+
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -444,7 +522,17 @@ export default function ChitsPage() {
                 Clear filters
               </span>
             </div>
+                   {mounted && (
+  <Card className="p-4 mb-6 bg-white" elevation={2}>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+      {/* TextFields here */}
+    </div>
+  </Card>
+)}
+
           </Card>
+
+   
 
           {/* TABLE */}
           <Card elevation={2}>
@@ -469,13 +557,13 @@ export default function ChitsPage() {
 
         <TableBody>
           {filteredChits.map((chit) => (
-            <TableRow key={chit.id}>
+          <TableRow key={`${chit.id}-${chit.startDate}`}>
               <TableCell>{chit.id}</TableCell>
               <TableCell>{chit.name}</TableCell>
               <TableCell>₹{chit.amount}</TableCell>
               <TableCell>₹{chit.monthlyAmount}</TableCell>
               <TableCell>{chit.durationMonths}</TableCell>
-              <TableCell>{chit.membersCount}</TableCell>
+              <TableCell> {chit.membersLimit}</TableCell>
               <TableCell>{chit.startDate}</TableCell>
               <TableCell>{chit.location}</TableCell>
 
@@ -556,10 +644,11 @@ export default function ChitsPage() {
                 label="Chit Name"
                 fullWidth
                 margin="normal"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+               value={formData.chitName}
+onChange={(e) =>
+  setFormData({ ...formData, chitName: e.target.value })
+}
+
               />
 
               <TextField
@@ -588,13 +677,14 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                value={formData.monthlyAmount}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    monthlyAmount: Number(e.target.value),
-                  })
-                }
+                value={formData.monthlyPayableAmount}
+onChange={(e) =>
+  setFormData({
+    ...formData,
+    monthlyPayableAmount: e.target.value,
+  })
+}
+
               />
 
               <TextField
@@ -602,13 +692,11 @@ export default function ChitsPage() {
                 type="number"
                 fullWidth
                 margin="normal"
-                value={formData.durationMonths}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    durationMonths: e.target.value,
-                  })
-                }
+                value={formData.duration}
+onChange={(e) =>
+  setFormData({ ...formData, duration: e.target.value })
+}
+
               />
 
               <TextField
