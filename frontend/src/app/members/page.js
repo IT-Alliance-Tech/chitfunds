@@ -233,15 +233,17 @@ export default function MembersPage() {
   {/* TABLET & DESKTOP VIEW */}
   <div className="hidden sm:flex items-center justify-center px-16">
     <Typography
-      variant="h4"
-      fontWeight={600}
-      sx={{
-        textAlign: "center",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Member Management
-    </Typography>
+  variant="h4"
+  fontWeight={600}
+  sx={{
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    color: "#000",
+  }}
+>
+  Member Management
+</Typography>
+
 
     <div className="absolute right-0">
       <Button

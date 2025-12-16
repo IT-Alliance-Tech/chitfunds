@@ -271,12 +271,17 @@ export default function ChitsPage() {
   {/* TABLET & DESKTOP VIEW */}
   <div className="hidden sm:flex items-center justify-center px-16">
     <Typography
-      variant="h4"
-      fontWeight={600}
-      sx={{ whiteSpace: "nowrap", textAlign: "center" }}
-    >
-      Chit Management
-    </Typography>
+  variant="h4"
+  fontWeight={600}
+  sx={{
+    whiteSpace: "nowrap",
+    textAlign: "center",
+    color: "text.primary", // black (theme-safe)
+  }}
+>
+  Chit Management
+</Typography>
+
 
     <div className="absolute right-0">
       <Button
