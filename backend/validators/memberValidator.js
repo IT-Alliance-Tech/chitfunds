@@ -17,7 +17,7 @@ const createMemberSchema = z.object({
 const updateMemberSchema = z.object({
   body: memberBody.partial(),
 });
-
+// Export schemas
 module.exports = {
   createMemberSchema,
   updateMemberSchema,
