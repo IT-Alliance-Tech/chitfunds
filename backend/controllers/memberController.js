@@ -3,197 +3,236 @@ const mongoose = require("mongoose");
 
 const Member = require("../models/Member");
 const Chit = require("../models/Chit");
-const sendResponse = require("../utils/responseHandler");
 
-// 1. Add Member
+// add member
 const addMember = asyncHandler(async (req, res) => {
-    const { name, phone, email, address, chitId, securityDocuments } = req.body;
+  const {
+    name,
+    phone,
+    email,
+    address,
+    chitIds = [],
+    securityDocuments,
+  } = req.body;
 
+  if (!Array.isArray(chitIds) || chitIds.length === 0) {
+    res.status(400);
+    throw new Error("At least one chit must be selected");
+  }
 
-
-    // Check if chit exists
+  // Validate all chit IDs
+  for (const chitId of chitIds) {
     if (!mongoose.Types.ObjectId.isValid(chitId)) {
-        res.status(400);
-        throw new Error("Invalid Chit ID");
+      res.status(400);
+      throw new Error(`Invalid Chit ID: ${chitId}`);
     }
+
     const chit = await Chit.findById(chitId);
     if (!chit) {
-        res.status(404);
-        throw new Error("Chit not found");
+      res.status(404);
+      throw new Error("Chit not found");
     }
 
-    // Check capacity
-    const currentCount = await Member.countDocuments({ chitId });
-    if (currentCount >= chit.membersLimit) {
-        res.status(400);
-        throw new Error("Chit member limit reached");
-    }
+    const count = await Member.countDocuments({
+      "chits.chitId": chitId,
+    });
 
-    const member = await Member.create({
-        name,
-        phone,
-        email,
-        address,
+    if (count >= chit.membersLimit) {
+      res.status(400);
+      throw new Error(`Chit member limit reached for ${chit.chitName}`);
+    }
+  }
+
+  // Find existing member
+  let member = await Member.findOne({ phone });
+
+  if (!member) {
+    member = await Member.create({
+      name,
+      phone,
+      email,
+      address,
+      securityDocuments: securityDocuments || [],
+      chits: [],
+    });
+  }
+
+  // Add chits
+  chitIds.forEach((chitId) => {
+    const alreadyJoined = member.chits.some(
+      (c) => c.chitId.toString() === chitId
+    );
+
+    if (!alreadyJoined) {
+      member.chits.push({
         chitId,
-        securityDocuments: securityDocuments || [],
-        status: "Active"
-    });
+        status: "Active",
+      });
+    }
+  });
 
-    const memberObj = member.toObject();
-    memberObj.chit = chit;
+  await member.save();
 
-    return sendResponse(res, 201, true, "Member added successfully", { member: memberObj });
+  res.status(201).json({
+    success: true,
+    statusCode: 201,
+    error: null,
+    data: { member },
+  });
 });
 
-// 2. Get Members (All or filtered by chitId, status, search)
+// get members with pagination and filtering
 const getMembers = asyncHandler(async (req, res) => {
-    const { chitId, page, limit, search, status } = req.query;
+  const { chitId, page = 1, limit = 10, search, status } = req.query;
 
-    const pageNum = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1;
-    const limitNum = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
-    const skip = (pageNum - 1) * limitNum;
+  const pageNum = parseInt(page, 10);
+  const limitNum = parseInt(limit, 10);
+  const skip = (pageNum - 1) * limitNum;
 
-    const query = {};
+  const query = {};
 
-    if (chitId) {
-        query.chitId = chitId;
-    }
+  if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+    query["chits.chitId"] = chitId;
+  }
 
-    if (status) {
-        query.status = status;
-    }
+  if (status) {
+    query.status = status;
+  }
 
-    if (search) {
-        const searchRegex = { $regex: search, $options: "i" };
-        query.$or = [
-            { name: searchRegex },
-            { email: searchRegex },
-            { phone: searchRegex }
-        ];
-    }
+  if (search) {
+    query.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { phone: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+    ];
+  }
 
-    const [members, total] = await Promise.all([
-        Member.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
-        Member.countDocuments(query)
-    ]);
-// fetch chits details
-    const enrichedMembers = await Promise.all(members.map(async (m) => {
-        let c = null;
-        if (mongoose.Types.ObjectId.isValid(m.chitId)) {
-            c = await Chit.findById(m.chitId).select("chitName location amount duration membersLimit monthlyPayableAmount");
-        }
-        const mObj = m.toObject();
-        return {
-            ...mObj,
-            chitDetails: c || null
-        };
-    }));
+  const [members, total] = await Promise.all([
+    Member.find(query)
+      .populate("chits.chitId", "chitName amount duration membersLimit")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum),
+    Member.countDocuments(query),
+  ]);
 
-    return sendResponse(res, 200, true, "Members fetched successfully", {
-        items: enrichedMembers,
-        pagination: {
-            page: pageNum,
-            limit: limitNum,
-            totalItems: total,
-            totalPages: Math.ceil(total / limitNum) || 1,
-        }
-    });
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: {
+      members,
+      total,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
+    },
+  });
 });
 
-// 3. Get Member By ID
+// get member by id
 const getMemberById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    const member = await Member.findById(id);
-    if (!member) {
-        res.status(404);
-        throw new Error("Member not found");
-    }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error("Invalid Member ID");
+  }
 
-    // Fetch Chit Details
-    let chit = null;
-    if (member.chitId && mongoose.Types.ObjectId.isValid(member.chitId)) {
-        chit = await Chit.findById(member.chitId);
-    }
+  const member = await Member.findById(id).populate(
+    "chits.chitId",
+    "chitName amount duration membersLimit"
+  );
 
-    // Logic for "how many members 10/20"
-    let chitInfo = null;
-    if (chit) {
-        const currentCount = await Member.countDocuments({ chitId: member.chitId });
-        chitInfo = {
-            ...chit.toObject(),
-            currentMembersCount: currentCount,
-            remainingSlots: chit.membersLimit - currentCount,
-            capacityString: `${currentCount}/${chit.membersLimit}`
-        };
-    }
+  if (!member) {
+    res.status(404);
+    throw new Error("Member not found");
+  }
 
-    return sendResponse(res, 200, true, "Member details fetched successfully", {
-        member: {
-            ...member.toObject(),
-            chitDetails: chitInfo
-        }
-    });
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: { member },
+  });
 });
 
-// 4. Update Member
+// update member
 const updateMember = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { name, phone, email, address, securityDocuments, status } = req.body;
+  const { id } = req.params;
+  const { name, phone, email, address, securityDocuments, status } = req.body;
 
-    const member = await Member.findById(id);
-    if (!member) {
-        res.status(404);
-        throw new Error("Member not found");
-    }
+  const member = await Member.findById(id);
+  if (!member) {
+    res.status(404);
+    throw new Error("Member not found");
+  }
 
-    if (req.body.chitId && req.body.chitId !== member.chitId) {
-        if (!mongoose.Types.ObjectId.isValid(req.body.chitId)) {
-            res.status(400);
-            throw new Error("Invalid New Chit ID");
-        }
-        const newChit = await Chit.findById(req.body.chitId);
-        if (!newChit) {
-            res.status(404);
-            throw new Error("New Chit not found");
-        }
-        const count = await Member.countDocuments({ chitId: req.body.chitId });
-        if (count >= newChit.membersLimit) {
-            res.status(400);
-            throw new Error("New Chit member limit reached");
-        }
-        member.chitId = req.body.chitId;
-    }
+  if (name) member.name = name;
+  if (phone) member.phone = phone;
+  if (email) member.email = email;
+  if (address) member.address = address;
+  if (securityDocuments) member.securityDocuments = securityDocuments;
+  if (status) member.status = status;
 
-    if (name) member.name = name;
-    if (phone) member.phone = phone;
-    if (email) member.email = email;
-    if (address) member.address = address;
-    if (securityDocuments) member.securityDocuments = securityDocuments;
-    if (status) member.status = status;
+  await member.save();
 
-    await member.save();
-
-    return sendResponse(res, 200, true, "Member updated successfully", { member });
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: { member },
+  });
 });
 
-// 5. Delete Member
-const deleteMember = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const member = await Member.findById(id);
-    if (!member) {
-        res.status(404);
-        throw new Error("Member not found");
-    }
+// remove member from chit
+const removeMemberFromChit = asyncHandler(async (req, res) => {
+  const { memberId, chitId } = req.params;
 
-    await Member.deleteOne({ _id: id });
-    return sendResponse(res, 200, true, "Member deleted successfully", null);
+  const member = await Member.findById(memberId);
+  if (!member) {
+    res.status(404);
+    throw new Error("Member not found");
+  }
+
+  member.chits = member.chits.filter((c) => c.chitId.toString() !== chitId);
+
+  await member.save();
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    message: "Member removed from chit successfully",
+  });
+});
+// delete member
+const deleteMember = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const member = await Member.findById(id);
+  if (!member) {
+    res.status(404);
+    throw new Error("Member not found");
+  }
+
+  await Member.deleteOne({ _id: id });
+
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: { member },
+  });
 });
 
 module.exports = {
-    addMember,
-    getMembers,
-    getMemberById,
-    updateMember,
-    deleteMember
+  addMember,
+  getMembers,
+  getMemberById,
+  updateMember,
+  removeMemberFromChit,
+  deleteMember,
 };
