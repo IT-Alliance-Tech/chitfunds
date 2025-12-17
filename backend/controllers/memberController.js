@@ -76,7 +76,7 @@ const getMembers = asyncHandler(async (req, res) => {
         Member.find(query).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
         Member.countDocuments(query)
     ]);
-
+// fetch chits details
     const enrichedMembers = await Promise.all(members.map(async (m) => {
         let c = null;
         if (mongoose.Types.ObjectId.isValid(m.chitId)) {
