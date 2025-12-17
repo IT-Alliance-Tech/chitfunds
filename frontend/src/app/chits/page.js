@@ -531,9 +531,6 @@ const handleSaveChit = async () => {
 )}
 
           </Card>
-
-   
-
           {/* TABLE */}
           <Card elevation={2}>
   <CardContent className="p-0">
