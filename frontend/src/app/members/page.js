@@ -29,7 +29,8 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
 import CountUp from "react-countup";
 import { apiRequest } from "@/config/api";
-
+import ReactSelect from "react-select";
+import makeAnimated from "react-select/animated";
 
 /* ===================== DOCUMENT OPTIONS ====================== */
 const securityDocumentOptions = [
@@ -44,6 +45,15 @@ const securityDocumentOptions = [
   "Guarantee Letter",
   "Any Other",
 ];
+
+// ✅ react-select formatted options
+const securityDocSelectOptions = securityDocumentOptions.map((doc) => ({
+  value: doc,
+  label: doc,
+}));
+
+const animatedComponents = makeAnimated();
+
 
 export default function MembersPage() {
   /* ===================== LOAD CHITS ====================== */
@@ -153,39 +163,46 @@ const formattedMembers = res.data.items.map((m) => ({
   const handleMenuClose = () => setAnchorEl(null);
 
   /* ADD */
-  const handleAddMember = () => {
-    setIsEdit(false);
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      chit: "",
-      monthlyAmount: "",
-      location: "",
-      documents: [],
-      status: "Active",
-    });
-    setOpenModal(true);
-  };
+const handleAddMember = () => {
+  setIsEdit(false);
+  setFormData({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    chitId: "",          // ✅ important
+    chit: "",
+    monthlyAmount: "",
+    location: "",
+    documents: [],
+    status: "Active",
+  });
+  setOpenModal(true);
+};
+
 
   /* EDIT */
 const handleEditMember = () => {
   setIsEdit(true);
 
-  setFormData({
-    id: selectedMember.id, // 🔥 REQUIRED
-    name: selectedMember.name,
-    phone: selectedMember.phone,
-    email: selectedMember.email,
-    address: selectedMember.address,
-    chit: selectedMember.chit,
-    monthlyAmount: selectedMember.monthlyAmount,
-    documents: selectedMember.documents || [],
-    status: selectedMember.status,
-    chitId:
-      chits.find((c) => c.name === selectedMember.chit)?.id || "",
-  });
+setFormData({
+  id: selectedMember.id,
+  name: selectedMember.name,
+  phone: selectedMember.phone,
+  email: selectedMember.email,
+  address: selectedMember.address,
+
+  chit: selectedMember.chit,
+  chitId:
+    chits.find((c) => c.name === selectedMember.chit)?.id || "",
+
+  monthlyAmount: selectedMember.monthlyAmount,
+  location: selectedMember.location || "",   // ✅ ADD THIS
+
+  documents: selectedMember.documents || [],
+  status: selectedMember.status,
+});
+
 
   setOpenModal(true);
   handleMenuClose();
@@ -335,13 +352,12 @@ const handleSaveMember = async () => {
 </div>
 
 
-          {/* STATS */}
-{/* ===================== STATS CARDS ===================== */}
+
 <div className="max-w-[820px] mx-auto sm:mx-0">
   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
 
     {/* TOTAL MEMBERS */}
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <Group sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }} />
         <div>
@@ -351,10 +367,10 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Total Members</Typography>
         </div>
       </div>
-    </Card>
+    </Card> */}
 
     {/* ACTIVE */}
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <CheckCircle sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }} />
         <div>
@@ -364,10 +380,10 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Active</Typography>
         </div>
       </div>
-    </Card>
+    </Card> */}
 
     {/* INACTIVE */}
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <Cancel sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }} />
         <div>
@@ -377,7 +393,7 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Inactive</Typography>
         </div>
       </div>
-    </Card>
+    </Card> */}
 
   </div>
 </div>
@@ -410,18 +426,19 @@ const handleSaveMember = async () => {
     {/* Chit */}
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Chit</InputLabel>
-   <Select
-  value={formData.chitId}
-  label="Assigned Chit"
-  onChange={(e) => handleChitChange(e.target.value)}
+ <Select
+  value={filterChit || ""}
+  label="Chit"
+  onChange={(e) => setFilterChit(e.target.value)}
 >
- {chits.map((c) => (
-  <MenuItem key={c.id} value={c.id}>
-    {c.name}
-  </MenuItem>
-))}
-
+  <MenuItem value="">All</MenuItem>
+  {chits.map((c) => (
+    <MenuItem key={c.id} value={c.name}>
+      {c.name}
+    </MenuItem>
+  ))}
 </Select>
+
 
 
     </FormControl>
@@ -430,7 +447,7 @@ const handleSaveMember = async () => {
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Location</InputLabel>
       <Select
-        value={filterLocation}
+       value={filterLocation || ""}
         label="Location"
         onChange={(e) => setFilterLocation(e.target.value)}
       >
@@ -447,7 +464,7 @@ const handleSaveMember = async () => {
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Status</InputLabel>
      <Select
-  value={filterStatus}
+  value={filterStatus || ""}
   label="Status"
   onChange={(e) => setFilterStatus(e.target.value)}
 >
@@ -612,17 +629,19 @@ const handleSaveMember = async () => {
 
  <FormControl fullWidth sx={{ mb: 3 }}>
   <InputLabel>Assigned Chit</InputLabel>
-  <Select
-    value={formData.chitId}
-    label="Assigned Chit"
-    onChange={(e) => handleChitChange(e.target.value)}
-  >
-    {chits.map((c) => (
-      <MenuItem key={c.id} value={c.id}>
-        {c.name}
-      </MenuItem>
-    ))}
-  </Select>
+<Select
+  value={formData.chitId || ""}
+  label="Assigned Chit"
+  onChange={(e) => handleChitChange(e.target.value)}
+>
+  {chits.map((c) => (
+    <MenuItem key={c.id} value={c.id}>
+      {c.name}
+    </MenuItem>
+  ))}
+</Select>
+
+
 </FormControl>
 
 
@@ -652,32 +671,54 @@ const handleSaveMember = async () => {
                 </Select>
               </FormControl>
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Security Documents</InputLabel>
+             <div className="mb-6">
+  <Typography variant="caption" sx={{ mb: 1, display: "block" }}>
+    Security Documents
+  </Typography>
 
-                <Select
-                  multiple
-                  value={formData.documents}
-                  input={<OutlinedInput label="Security Documents" />}
-                  onChange={(e) =>
-                    setFormData({ ...formData, documents: e.target.value })
-                  }
-                  renderValue={(selected) => (
-                    <div className="flex flex-wrap gap-2">
-                      {selected.map((d) => (
-                        <Chip key={d} label={d} />
-                      ))}
-                    </div>
-                  )}
-                >
-                  {securityDocumentOptions.map((doc) => (
-                    <MenuItem key={doc} value={doc}>
-                      <Checkbox checked={formData.documents.includes(doc)} />
-                      {doc}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+  <ReactSelect
+  isMulti
+  closeMenuOnSelect={false}
+  components={animatedComponents}
+  options={securityDocSelectOptions}
+  value={securityDocSelectOptions.filter((opt) =>
+    formData.documents.includes(opt.value)
+  )}
+  onChange={(selected) =>
+    setFormData({
+      ...formData,
+      documents: selected ? selected.map((s) => s.value) : [],
+    })
+  }
+  placeholder="Select security documents"
+  styles={{
+    control: (base) => ({
+      ...base,
+      minHeight: "56px",
+      borderRadius: "8px",
+    }),
+    multiValue: (base) => ({
+      ...base,
+      backgroundColor: "#e3f2fd",
+    }),
+    multiValueLabel: (base) => ({
+      ...base,
+      color: "#1e88e5",
+      fontWeight: 500,
+    }),
+    multiValueRemove: (base) => ({
+      ...base,
+      color: "#1e88e5",
+      ":hover": {
+        backgroundColor: "#bbdefb",
+        color: "#0d47a1",
+      },
+    }),
+  }}
+/>
+
+</div>
+
             </DialogContent>
 
             <DialogActions>

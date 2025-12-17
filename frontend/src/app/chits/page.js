@@ -375,7 +375,7 @@ const handleSaveChit = async () => {
 
 
           {/* TOP CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 justify-items-center">
+        {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 justify-items-center">
 
   <Card elevation={3} className={statCardClass}>
     <div className="p-3 bg-blue-100 rounded-full">
@@ -433,7 +433,7 @@ const handleSaveChit = async () => {
       </Typography>
     </div>
   </Card>
-</div>
+</div> */}
 
 
           {/* FILTERS */}
