@@ -2,6 +2,8 @@ const asyncHandler = require("express-async-handler");
 const paymentService = require("../services/paymentService");
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
+const Member = require("../models/Member");
+const { generateInvoicePDF } = require("../utils/invoicePdf");
 
 // create payment
 const createPayment = asyncHandler(async (req, res) => {
@@ -17,6 +19,8 @@ const createPayment = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
+    statusCode: 201,
+    error: null,
     message: "Payment saved successfully",
     data: {
       ...payment.toObject(),
@@ -55,10 +59,14 @@ const getPaymentById = asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({ success: true, data: payment });
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: payments,
+  });
 });
-
-// Member history
+// get payement history
 
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const { memberId, chitId } = req.query;
@@ -75,16 +83,43 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     chitId
   );
 
-  res.json({ success: true, data: payments });
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: payments,
+  });
 });
 
 // Export invoice
 
 const exportInvoicePdf = asyncHandler(async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message: "Invoice export not implemented yet",
-  });
+  const { id } = req.params;
+
+  const payment = await Payment.findOne({ invoiceNumber: id });
+  if (!payment) {
+    return res.status(404).json({
+      success: false,
+      statusCode: 404,
+      error: { message: "Invoice not found" },
+      data: null,
+    });
+  }
+
+  const chit = await Chit.findById(payment.chitId);
+  const member = await Member.findById(payment.memberId);
+
+  if (!chit || !member) {
+    return res.status(404).json({
+      success: false,
+      statusCode: 404,
+      error: { message: "Chit or Member not found" },
+      data: null,
+    });
+  } 
+  
+
+  generateInvoicePDF(res, payment, chit, member);
 });
 
 // Admin confirm
@@ -114,6 +149,8 @@ const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
+    statusCode: 200,
+    error: null,
     message: "Payment confirmed by admin",
     data: payment,
   });

@@ -52,7 +52,7 @@ const upsertMonthlyPayment = async (payload) => {
     dueDate: payload.dueDate,
     paymentMode: payload.paymentMode,
     invoiceNumber: `INV-${Date.now()}`,
-    isAdminConfirmed: false,
+    isAdminConfirmed: true,
   });
 };
 

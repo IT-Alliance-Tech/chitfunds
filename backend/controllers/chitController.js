@@ -55,7 +55,13 @@ const createChit = asyncHandler(async (req, res) => {
 
   await chit.save();
 
-  return sendResponse(res, 201, true, "Chit created successfully", { chit });
+  res.status(201).json({
+    success: true,
+    statusCode: 201,
+    error: null,
+    message: "Chit created successfully",
+    data: chit,
+  });
 });
 
 // get all chits with filtering
@@ -118,15 +124,9 @@ const getChits = asyncHandler(async (req, res) => {
 
     const chitIds = memberAgg.map((item) => item._id);
 
-    // If we are filtering by membersCount and found no matches, we can return early or force empty result
     if (chitIds.length === 0) {
-      // Force no results if no chits match the member count
-      // We can use a non-existent ID or similar strategy, or just return empty now
-      // But to keep consistency with "find", let's just make the query impossible or use $in []
       finalQuery._id = { $in: [] };
     } else {
-      // If we already had other filters, we must intersect.
-      // But easier is just to say: ID must be in this list AND satisfy other props
       finalQuery._id = { $in: chitIds };
     }
   }
@@ -153,17 +153,21 @@ const getChits = asyncHandler(async (req, res) => {
     })
   );
 
-  return sendResponse(res, 200, true, "Chits fetched successfully", {
-    items: enrichedChits,
-    pagination: {
-      page: pageNum,
-      limit: limitNum,
-      totalItems: total,
-      totalPages: Math.ceil(total / limitNum) || 1,
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: {
+      chits: enrichedChits,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
     },
   });
 });
-
 // single chit
 
 const getChitById = asyncHandler(async (req, res) => {
@@ -203,8 +207,11 @@ const getChitById = asyncHandler(async (req, res) => {
     members: formattedMembers,
   };
 
-  return sendResponse(res, 200, true, "Chit details fetched successfully", {
-    chit: enrichedChit,
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: enrichedChit,
   });
 });
 // edit chit
@@ -260,13 +267,12 @@ const deleteChit = asyncHandler(async (req, res) => {
 
   await Member.deleteMany({ chitId: chit._id });
 
-  return sendResponse(
-    res,
-    200,
-    true,
-    "Chit and related members deleted successfully",
-    null
-  );
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    message: "Chit deleted successfully",
+  });
 });
 
 module.exports = {
