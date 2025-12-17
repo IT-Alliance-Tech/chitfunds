@@ -29,8 +29,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
 import CountUp from "react-countup";
 import { apiRequest } from "@/config/api";
-import ReactSelect from "react-select";
-import makeAnimated from "react-select/animated";
+
 
 /* ===================== DOCUMENT OPTIONS ====================== */
 const securityDocumentOptions = [
@@ -46,15 +45,6 @@ const securityDocumentOptions = [
   "Any Other",
 ];
 
-// ✅ react-select formatted options
-const securityDocSelectOptions = securityDocumentOptions.map((doc) => ({
-  value: doc,
-  label: doc,
-}));
-
-const animatedComponents = makeAnimated();
-
-
 export default function MembersPage() {
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
@@ -67,18 +57,24 @@ const fetchChits = async () => {
   try {
     const res = await apiRequest("/chit/list", { method: "GET" });
 
-    const formattedChits = res.data.items.map((c) => ({
-      id: c.id || c._id,                // backend safe
-      name: c.chitName,                 // 👈 IMPORTANT
-      monthlyAmount: c.monthlyPayableAmount,
+    const chitsArray =
+      res?.data?.chits ||           // preferred
+      res?.data?.items ||           // fallback
+      [];                            // safety
+
+    const formattedChits = chitsArray.map((c) => ({
+      id: c._id || c.id,
+      name: c.chitName,
       location: c.location,
     }));
 
     setChits(formattedChits);
   } catch (err) {
     console.error("Failed to fetch chits", err);
+    setChits([]); // prevent crash
   }
 };
+
 
 
   useEffect(() => {
@@ -101,29 +97,48 @@ const fetchMembers = async () => {
   try {
     const res = await apiRequest("/member/list", { method: "GET" });
 
-const formattedMembers = res.data.items.map((m) => ({
-  id: m._id,
-  chitId: m.chitId,                 // 🔥 needed for edit
-  name: m.name,
-  phone: m.phone,
-  email: m.email,
-  address: m.address,
-  status: m.status,
+    const membersArray =
+      res?.data?.members ||         // preferred
+      res?.data?.items ||           // fallback
+      [];                            // safety
 
-  // ✅ THIS IS THE FIX
-  chit: m.chitDetails?.chitName || "-",
+ const formattedMembers = membersArray.map((m) => {
+  const safeChitIds =
+    (m.chits || [])
+      .map((c) => {
+        // CASE 1: chitId is populated object
+        if (typeof c.chitId === "object" && c.chitId?.id) {
+          return c.chitId.id;
+        }
 
-  location: m.chitDetails?.location || "-",
-  monthlyAmount: m.chitDetails?.monthlyPayableAmount || 0,
+        // CASE 2: chitId is string
+        if (typeof c.chitId === "string") {
+          return c.chitId;
+        }
 
-  documents: m.securityDocuments || [],
-}));
+        // CASE 3: null / invalid
+        return null;
+      })
+      .filter(Boolean); // 🔥 removes nulls
 
+  return {
+    id: m._id,
+    name: m.name,
+    phone: m.phone,
+    email: m.email,
+    address: m.address,
+    status: m.status,
+    chitIds: safeChitIds,            // ✅ ALWAYS string[]
+    chits: m.chits || [],
+    documents: m.securityDocuments || [],
+  };
+});
 
 
     setMembers(formattedMembers);
   } catch (err) {
     console.error("Failed to fetch members", err);
+    setMembers([]); // prevent UI crash
   }
 };
 
@@ -140,18 +155,16 @@ const formattedMembers = res.data.items.map((m) => ({
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
 
- const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
   name: "",
   phone: "",
   email: "",
   address: "",
-  chitId: "",        // ✅ ADD THIS
-  chit: "",          // chit name (for UI)
-  monthlyAmount: "",
-  location: "",
+  chitIds: [],          // ✅ MULTIPLE
   documents: [],
   status: "Active",
 });
+
 
 
   /* MENU ACTIONS */
@@ -163,50 +176,43 @@ const formattedMembers = res.data.items.map((m) => ({
   const handleMenuClose = () => setAnchorEl(null);
 
   /* ADD */
-const handleAddMember = () => {
-  setIsEdit(false);
-  setFormData({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    chitId: "",          // ✅ important
-    chit: "",
-    monthlyAmount: "",
-    location: "",
-    documents: [],
-    status: "Active",
-  });
-  setOpenModal(true);
-};
+  const handleAddMember = () => {
+    setIsEdit(false);
+    
+   setFormData({
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  chitIds: [],        // 🔥 REQUIRED
+  documents: [],
+  status: "Active",
+});
 
+    setOpenModal(true);
+  };
 
   /* EDIT */
 const handleEditMember = () => {
   setIsEdit(true);
 
-setFormData({
-  id: selectedMember.id,
-  name: selectedMember.name,
-  phone: selectedMember.phone,
-  email: selectedMember.email,
-  address: selectedMember.address,
-
-  chit: selectedMember.chit,
-  chitId:
-    chits.find((c) => c.name === selectedMember.chit)?.id || "",
-
-  monthlyAmount: selectedMember.monthlyAmount,
-  location: selectedMember.location || "",   // ✅ ADD THIS
-
-  documents: selectedMember.documents || [],
-  status: selectedMember.status,
-});
-
+  setFormData({
+    id: selectedMember.id,
+    name: selectedMember.name,
+    phone: selectedMember.phone,
+    email: selectedMember.email,
+    address: selectedMember.address,
+    chitIds: selectedMember.chitIds || [], // 🔥 already normalized
+    documents: selectedMember.documents || [],
+    status: selectedMember.status,
+  });
 
   setOpenModal(true);
   handleMenuClose();
 };
+
+
+
 
 
 
@@ -234,59 +240,59 @@ const handleDelete = async () => {
 
 
   /* MAP CHIT CHANGE */
-const handleChitChange = (chitId) => {
-  const selectedChit = chits.find((c) => c.id === chitId);
-  if (!selectedChit) return;
+// const handleChitChange = (chitId) => {
+//   const selectedChit = chits.find((c) => c.id === chitId);
+//   if (!selectedChit) return;
 
-  setFormData((prev) => ({
-    ...prev,
-    chitId: selectedChit.id,        // backend
-    chit: selectedChit.name,        // UI display
-    monthlyAmount: selectedChit.monthlyAmount,
-    location: selectedChit.location,
-  }));
-};
+//   setFormData((prev) => ({
+//     ...prev,
+//     chitId: selectedChit.id,        // backend
+//     chit: selectedChit.name,        // UI display
+//     monthlyAmount: selectedChit.monthlyAmount,
+//     location: selectedChit.location,
+//   }));
+// };
 
 
 
   /* SAVE MEMBER */
 const handleSaveMember = async () => {
-  if (!formData.name || !formData.phone || !formData.chitId) {
-    alert("Name, Phone & Chit required");
+  if (!formData.name || !formData.phone || formData.chitIds.length === 0) {
+    alert("Name, Phone & at least one Chit required");
     return;
   }
 
   try {
     const payload = {
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      chitId: formData.chitId,
-      securityDocuments: formData.documents,
-    };
+  name: formData.name,
+  phone: formData.phone,
+  email: formData.email,
+  address: formData.address,
+  chitIds: (formData.chitIds || []).filter(Boolean), // 🔥 CRITICAL
+  securityDocuments: formData.documents,
+};
+
 
     if (isEdit) {
-      // 🔄 EDIT MEMBER
       await apiRequest(`/member/update/${formData.id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
     } else {
-      // ➕ ADD MEMBER
       await apiRequest("/member/create", {
         method: "POST",
         body: JSON.stringify(payload),
       });
     }
 
-    await fetchMembers();   // refresh table
-    setOpenModal(false);    // close modal
+    await fetchMembers();
+    setOpenModal(false);
     setIsEdit(false);
   } catch (err) {
     alert(err.message || "Failed to save member");
   }
 };
+
 
 
 
@@ -352,12 +358,13 @@ const handleSaveMember = async () => {
 </div>
 
 
-
+          {/* STATS */}
+{/* ===================== STATS CARDS ===================== */}
 <div className="max-w-[820px] mx-auto sm:mx-0">
   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
 
     {/* TOTAL MEMBERS */}
-    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <Group sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }} />
         <div>
@@ -367,10 +374,10 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Total Members</Typography>
         </div>
       </div>
-    </Card> */}
+    </Card>
 
     {/* ACTIVE */}
-    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <CheckCircle sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }} />
         <div>
@@ -380,10 +387,10 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Active</Typography>
         </div>
       </div>
-    </Card> */}
+    </Card>
 
     {/* INACTIVE */}
-    {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
       <div className="flex items-center gap-3 w-full">
         <Cancel sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }} />
         <div>
@@ -393,7 +400,7 @@ const handleSaveMember = async () => {
           <Typography variant="body2">Inactive</Typography>
         </div>
       </div>
-    </Card> */}
+    </Card>
 
   </div>
 </div>
@@ -424,30 +431,29 @@ const handleSaveMember = async () => {
     />
 
     {/* Chit */}
-    <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
+    {/* <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Chit</InputLabel>
- <Select
-  value={filterChit || ""}
-  label="Chit"
-  onChange={(e) => setFilterChit(e.target.value)}
+   <Select
+  value={formData.chitId}
+  label="Assigned Chit"
+  onChange={(e) => handleChitChange(e.target.value)}
 >
-  <MenuItem value="">All</MenuItem>
-  {chits.map((c) => (
-    <MenuItem key={c.id} value={c.name}>
-      {c.name}
-    </MenuItem>
-  ))}
+ {chits.map((c) => (
+  <MenuItem key={c.id} value={c.id}>
+    {c.name}
+  </MenuItem>
+))}
+
 </Select>
 
 
-
-    </FormControl>
+    </FormControl> */}
 
     {/* Location */}
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Location</InputLabel>
       <Select
-       value={filterLocation || ""}
+        value={filterLocation}
         label="Location"
         onChange={(e) => setFilterLocation(e.target.value)}
       >
@@ -464,7 +470,7 @@ const handleSaveMember = async () => {
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Status</InputLabel>
      <Select
-  value={filterStatus || ""}
+  value={filterStatus}
   label="Status"
   onChange={(e) => setFilterStatus(e.target.value)}
 >
@@ -627,32 +633,37 @@ const handleSaveMember = async () => {
                 }
               />
 
- <FormControl fullWidth sx={{ mb: 3 }}>
-  <InputLabel>Assigned Chit</InputLabel>
-<Select
-  value={formData.chitId || ""}
-  label="Assigned Chit"
-  onChange={(e) => handleChitChange(e.target.value)}
->
-  {chits.map((c) => (
-    <MenuItem key={c.id} value={c.id}>
-      {c.name}
-    </MenuItem>
-  ))}
-</Select>
+<FormControl fullWidth sx={{ mb: 3 }}>
+  <InputLabel>Assigned Chits</InputLabel>
 
+  <Select
+    multiple
+    value={formData.chitIds}
+    input={<OutlinedInput label="Assigned Chits" />}
+    onChange={(e) =>
+      setFormData({ ...formData,  chitIds: (e.target.value || []).map(String), })
+    }
+    renderValue={(selected) => (
+      <div className="flex flex-wrap gap-2">
+        {selected.map((id) => {
+          const chit = chits.find((c) => c.id === id);
+          return <Chip key={id} label={chit?.name || id} />;
+        })}
+      </div>
+    )}
+  >
+    {chits.map((c) => (
+      <MenuItem key={c.id} value={c.id}>
+        <Checkbox
+  checked={Array.isArray(formData.chitIds) && formData.chitIds.includes(c.id)}
+/>
 
+        {c.name}
+      </MenuItem>
+    ))}
+  </Select>
 </FormControl>
 
-
-
-              <TextField
-                fullWidth
-                sx={{ mb: 3 }}
-                label="Monthly Payable"
-                value={formData.monthlyAmount || ""}
-                InputProps={{ readOnly: true }}
-              />
 
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel>Location</InputLabel>
@@ -671,54 +682,32 @@ const handleSaveMember = async () => {
                 </Select>
               </FormControl>
 
-             <div className="mb-6">
-  <Typography variant="caption" sx={{ mb: 1, display: "block" }}>
-    Security Documents
-  </Typography>
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel>Security Documents</InputLabel>
 
-  <ReactSelect
-  isMulti
-  closeMenuOnSelect={false}
-  components={animatedComponents}
-  options={securityDocSelectOptions}
-  value={securityDocSelectOptions.filter((opt) =>
-    formData.documents.includes(opt.value)
-  )}
-  onChange={(selected) =>
-    setFormData({
-      ...formData,
-      documents: selected ? selected.map((s) => s.value) : [],
-    })
-  }
-  placeholder="Select security documents"
-  styles={{
-    control: (base) => ({
-      ...base,
-      minHeight: "56px",
-      borderRadius: "8px",
-    }),
-    multiValue: (base) => ({
-      ...base,
-      backgroundColor: "#e3f2fd",
-    }),
-    multiValueLabel: (base) => ({
-      ...base,
-      color: "#1e88e5",
-      fontWeight: 500,
-    }),
-    multiValueRemove: (base) => ({
-      ...base,
-      color: "#1e88e5",
-      ":hover": {
-        backgroundColor: "#bbdefb",
-        color: "#0d47a1",
-      },
-    }),
-  }}
-/>
-
-</div>
-
+                <Select
+                  multiple
+                  value={formData.documents}
+                  input={<OutlinedInput label="Security Documents" />}
+                  onChange={(e) =>
+                    setFormData({ ...formData, documents: e.target.value })
+                  }
+                  renderValue={(selected) => (
+                    <div className="flex flex-wrap gap-2">
+                      {selected.map((d) => (
+                        <Chip key={d} label={d} />
+                      ))}
+                    </div>
+                  )}
+                >
+                  {securityDocumentOptions.map((doc) => (
+                    <MenuItem key={doc} value={doc}>
+                      <Checkbox checked={formData.documents.includes(doc)} />
+                      {doc}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </DialogContent>
 
             <DialogActions>

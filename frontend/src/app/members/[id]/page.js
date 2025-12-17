@@ -76,6 +76,23 @@ export default function MemberDetailsPage() {
     setOpen(false);
   };
 
+    const safeChits =
+    (member.chits || [])
+      .map((c) => {
+        if (typeof c.chitId === "object" && c.chitId?.id) {
+          return {
+            id: c.chitId.id,
+            name: c.chitId.chitName,
+            amount: c.chitId.amount,
+            duration: c.chitId.duration,
+            membersLimit: c.chitId.membersLimit,
+            status: c.status,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
 
@@ -130,48 +147,52 @@ export default function MemberDetailsPage() {
       </Card>
 
       {/* ================= ASSIGNED CHIT ================= */}
-      <Card>
-        <CardContent>
-          <Typography fontWeight={600} mb={2}>
-            Assigned Chit
-          </Typography>
+     <Card>
+  <CardContent>
+    <Typography fontWeight={600} mb={2}>
+      Assigned Chits
+    </Typography>
 
-          <Card variant="outlined">
-            <CardContent className="space-y-2">
+    {safeChits.length === 0 ? (
+      <Typography color="text.secondary">
+        No chits assigned
+      </Typography>
+    ) : (
+      <div className="grid gap-3">
+        {safeChits.map((chit) => (
+          <Card key={chit.id} variant="outlined">
+            <CardContent className="space-y-1">
               <Typography variant="h6" fontWeight={600}>
-                {member.chitDetails.chitName}
+                {chit.name}
               </Typography>
 
-              <Typography>📍 {member.chitDetails.location}</Typography>
-              <Typography>💰 Total Amount: ₹{member.chitDetails.amount}</Typography>
-              <Typography>
-                📆 Monthly Payable: ₹{member.chitDetails.monthlyPayableAmount}
-              </Typography>
-              <Typography>
-                ⏳ Duration: {member.chitDetails.duration} months
-              </Typography>
-              <Typography>
-                👥 Members Limit: {member.chitDetails.membersLimit}
-              </Typography>
+              <Typography>💰 Amount: ₹{chit.amount}</Typography>
+              <Typography>⏳ Duration: {chit.duration} months</Typography>
+              <Typography>👥 Members Limit: {chit.membersLimit}</Typography>
+              <Typography>Status: {chit.status}</Typography>
 
               <Button
                 size="small"
                 variant="contained"
                 sx={{ mt: 1 }}
-                onClick={() => handleOpen(member.chitDetails)}
+                onClick={() => handleOpen(chit)}
               >
                 View Payments
               </Button>
             </CardContent>
           </Card>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
+
 
       {/* ================= PAYMENT DIALOG ================= */}
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
         <DialogTitle className="flex justify-between items-center">
           <Typography fontWeight={600}>
-            {selectedChit?.chitName} – Payment Details
+          {selectedChit?.name} {`–`} Payment Details
           </Typography>
           <IconButton onClick={handleClose}>
             <CloseIcon />
