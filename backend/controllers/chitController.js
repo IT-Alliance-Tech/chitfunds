@@ -39,7 +39,6 @@ const createChit = asyncHandler(async (req, res) => {
     status,
   } = req.body;
 
-
   const finalStatus = computeStatus(startDate, status);
 
   const chit = new Chit({
@@ -170,26 +169,44 @@ const getChits = asyncHandler(async (req, res) => {
 const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  let chit = null;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error("Invalid Chit ID");
+  }
 
-  chit = await Chit.findOne({ _id: id });
-
+  const chit = await Chit.findById(id);
   if (!chit) {
     res.status(404);
     throw new Error("Chit not found");
   }
 
-  const membersCount = await Member.countDocuments({ chitId: chit._id });
+  const members = await Member.find({ chitId: chit._id })
+    .select("name phone status createdAt")
+    .sort({ createdAt: 1 });
+
+  const membersCount = members.length;
+
+  const formattedMembers = members.map((m) => ({
+    memberId: m._id,
+    name: m.name,
+    phone: m.phone,
+    joinedAt: m.createdAt,
+    status: m.status,
+  }));
+
   const chitObj = chit.toObject();
+
   const enrichedChit = {
     ...chitObj,
     membersCount,
     remainingSlots: chit.membersLimit - membersCount,
+    members: formattedMembers,
   };
 
-  return sendResponse(res, 200, true, "Chit details fetched successfully", { chit: enrichedChit });
+  return sendResponse(res, 200, true, "Chit details fetched successfully", {
+    chit: enrichedChit,
+  });
 });
-
 // edit chit
 const updateChit = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -243,7 +260,13 @@ const deleteChit = asyncHandler(async (req, res) => {
 
   await Member.deleteMany({ chitId: chit._id });
 
-  return sendResponse(res, 200, true, "Chit and related members deleted successfully", null);
+  return sendResponse(
+    res,
+    200,
+    true,
+    "Chit and related members deleted successfully",
+    null
+  );
 });
 
 module.exports = {
