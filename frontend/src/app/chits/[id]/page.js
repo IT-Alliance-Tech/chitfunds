@@ -25,9 +25,9 @@ import { apiRequest } from "@/config/api";
 /* ================= BADGE UTILS ================= */
 const badge = (status) => {
   if (status === "Active") return "bg-green-100 text-green-700";
-  if (status === "Pending") return "bg-yellow-100 text-yellow-700";
-  if (status === "Defaulted") return "bg-red-100 text-red-700";
-  return "bg-gray-200 text-gray-600";
+  if (status === "Upcoming") return "bg-blue-100 text-blue-700";
+  if (status === "Completed") return "bg-gray-200 text-gray-700";
+  return "bg-gray-100 text-gray-600";
 };
 
 export default function ChitDetailsPage() {
@@ -36,6 +36,7 @@ export default function ChitDetailsPage() {
 
   const [chit, setChit] = useState(null);
   const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -43,21 +44,38 @@ export default function ChitDetailsPage() {
     const fetchChitDetails = async () => {
       try {
         const res = await apiRequest(`/chit/details/${id}`);
-        setChit(res.data.chit);
-        setMembers(res.data.chit.members || []);
+
+        // ✅ SAFE HANDLING FOR ALL RESPONSE SHAPES
+        const chitData = res?.data?.data || res?.data || null;
+
+        setChit(chitData);
+        setMembers(chitData?.members ?? []);
       } catch (err) {
         console.error("Failed to fetch chit details", err);
+        setChit(null);
+        setMembers([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchChitDetails();
   }, [id]);
 
-  if (!chit) {
+  /* ================= LOADING / ERROR ================= */
+  if (loading) {
     return (
       <main className="p-10 text-center">
         <Typography variant="h6">Loading chit details...</Typography>
-        <Button sx={{ mt: 2 }} variant="contained" onClick={() => router.back()}>
+      </main>
+    );
+  }
+
+  if (!chit) {
+    return (
+      <main className="p-10 text-center">
+        <Typography variant="h6">No chit found</Typography>
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => router.back()}>
           Back
         </Button>
       </main>
@@ -69,15 +87,14 @@ export default function ChitDetailsPage() {
 
       {/* ================= HEADER ================= */}
       <Box className="space-y-3">
-        <Box className="mt-2">
-          <Button variant="outlined" onClick={() => router.back()}>
-            Back
-          </Button>
-        </Box>
+        <Button variant="outlined" onClick={() => router.back()}>
+          Back
+        </Button>
 
-        <Typography variant="h4" fontWeight={600} align="center">
-          {chit.chitName}
-        </Typography>
+       <Typography variant="h4" fontWeight={600} align="center" color="black">
+  {chit.chitName}
+</Typography>
+
       </Box>
 
       {/* ================= STATS ================= */}
@@ -102,34 +119,71 @@ export default function ChitDetailsPage() {
         />
 
         <StatCard
-          icon={<GroupsIcon sx={{ fontSize: 34, color: "green" }} />}
-          value={`${chit.membersCount}/${chit.membersLimit}`}
-          label="Members"
-        />
+  icon={<GroupsIcon sx={{ fontSize: 34, color: "green" }} />}
+  value={`${members.length}/${chit.membersLimit}`}
+  label="Members"
+/>
+
 
         <StatCard
           icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
           value={chit.status}
           label="Status"
         />
-
       </div>
 
       {/* ================= OVERVIEW ================= */}
-      <Card>
-        <CardContent>
-          <Typography fontWeight={600} mb={2}>
-            Overview
-          </Typography>
+     {/* ================= OVERVIEW ================= */}
+<Card>
+  <CardContent>
+    <Typography fontWeight={600} mb={2}>
+      Overview
+    </Typography>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <p><b>Start Date:</b> {new Date(chit.startDate).toLocaleDateString()}</p>
-            <p><b>Cycle Day:</b> {chit.cycleDay}</p>
-            <p><b>Location:</b> {chit.location}</p>
-            <p><b>Remaining Slots:</b> {chit.remainingSlots}</p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <p>
+        <b>Chit Amount:</b> ₹{chit.amount}
+      </p>
+
+      <p>
+        <b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}
+      </p>
+
+      <p>
+        <b>Duration:</b> {chit.duration} months
+      </p>
+
+      <p>
+        <b>Total Members:</b> {members.length} / {chit.membersLimit}
+      </p>
+
+      <p>
+        <b>Start Date:</b>{" "}
+        {chit.startDate
+          ? new Date(chit.startDate).toLocaleDateString()
+          : "-"}
+      </p>
+
+      <p>
+        <b>Cycle Day:</b> {chit.cycleDay}
+      </p>
+
+      <p>
+        <b>Location:</b> {chit.location}
+      </p>
+
+      <p>
+        <b>Status:</b>{" "}
+        <span
+          className={`px-2 py-1 rounded text-sm ${badge(chit.status)}`}
+        >
+          {chit.status}
+        </span>
+      </p>
+    </div>
+  </CardContent>
+</Card>
+
 
       {/* ================= MEMBERS LIST ================= */}
       <Card>
@@ -145,7 +199,7 @@ export default function ChitDetailsPage() {
                   <TableCell>ID</TableCell>
                   <TableCell>Name</TableCell>
                   <TableCell>Phone</TableCell>
-                  <TableCell>Joined</TableCell>
+                  <TableCell>Address</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="center">Action</TableCell>
                 </TableRow>
@@ -160,36 +214,38 @@ export default function ChitDetailsPage() {
                   </TableRow>
                 )}
 
-                {members.map((m) => (
-                  <TableRow key={m.memberId}>
-                    <TableCell>{m.memberId}</TableCell>
-                    <TableCell>{m.name}</TableCell>
-                    <TableCell>{m.phone}</TableCell>
-                    <TableCell>
-                      {new Date(m.joinedAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-3 py-1 rounded-full text-sm ${badge(m.status)}`}>
-                        {m.status}
-                      </span>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => router.push(`/members/${m.memberId}`)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+               {members.map((m, index) => (
+  <TableRow key={m.memberId || m._id || index}>
+    <TableCell>{m.memberId || m._id}</TableCell>
+    <TableCell>{m.name}</TableCell>
+    <TableCell>{m.phone}</TableCell>
+    <TableCell>{m.address || "-"}</TableCell>
+    <TableCell>
+      <span
+        className={`px-3 py-1 rounded-full text-sm ${badge(m.status)}`}
+      >
+        {m.status}
+      </span>
+    </TableCell>
+    <TableCell align="center">
+      <Button
+        size="small"
+        variant="outlined"
+        onClick={() =>
+          router.push(`/members/${m.memberId || m._id}`)
+        }
+      >
+        View Details
+      </Button>
+    </TableCell>
+  </TableRow>
+))}
+
               </TableBody>
             </Table>
           </Box>
         </CardContent>
       </Card>
-
     </main>
   );
 }
@@ -200,7 +256,9 @@ function StatCard({ icon, value, label }) {
     <Card className="p-3 flex items-center gap-3">
       {icon}
       <div>
-        <Typography variant="h6" fontWeight={600}>{value}</Typography>
+        <Typography variant="h6" fontWeight={600}>
+          {value}
+        </Typography>
         <Typography variant="body2">{label}</Typography>
       </div>
     </Card>
