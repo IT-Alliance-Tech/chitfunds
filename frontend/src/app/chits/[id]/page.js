@@ -34,7 +34,7 @@ export default function ChitDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  const [chit, setChit] = useState(null);
+  const [chit, setChit] = useState({});
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
@@ -43,8 +43,10 @@ export default function ChitDetailsPage() {
     const fetchChitDetails = async () => {
       try {
         const res = await apiRequest(`/chit/details/${id}`);
-        setChit(res.data.chit);
-        setMembers(res.data.chit.members || []);
+
+setChit(res.data);
+setMembers(res.data.members || []);
+
       } catch (err) {
         console.error("Failed to fetch chit details", err);
       }
