@@ -51,8 +51,8 @@ export default function Sidebar() {
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <SidebarItem href="/dashboard" icon={<Home size={20} />} label="Dashboard" />
-            <SidebarItem href="/members" icon={<Users size={20} />} label="Members" />
             <SidebarItem href="/chits" icon={<Layers size={20} />} label="Chit Management" />
+            <SidebarItem href="/members" icon={<Users size={20} />} label="Members" />
             <SidebarItem href="/payments" icon={<CreditCard size={20} />} label="Payments" />
           </Box>
         </Box>

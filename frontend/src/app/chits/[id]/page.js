@@ -13,7 +13,6 @@ import {
   TableCell,
   TableRow,
   TableHead,
-  Grid,
   Box,
 } from "@mui/material";
 
@@ -21,19 +20,11 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-
-/* ================= MOCK MEMBERS ================= */
-const MEMBERS = [
-  { id: 1, name: "Gireeshma Reddy", phone: "9876501234", joined: "2025-01-12", status: "Paid", chit: "Silver Chit" },
-  { id: 2, name: "Sahana R", phone: "9900123456", joined: "2025-01-15", status: "Pending", chit: "Gold Chit" },
-  { id: 3, name: "Kiran Kumar", phone: "9988776655", joined: "2025-01-20", status: "Paid", chit: "Starter Chit" },
-  { id: 4, name: "Lavanya P", phone: "9123987654", joined: "2025-02-05", status: "Paid", chit: "Silver Chit" },
-  { id: 5, name: "Manoj Shetty", phone: "9001237890", joined: "2025-02-10", status: "Defaulted", chit: "Gold Chit" },
-];
+import { apiRequest } from "@/config/api";
 
 /* ================= BADGE UTILS ================= */
 const badge = (status) => {
-  if (status === "Paid") return "bg-green-100 text-green-700";
+  if (status === "Active") return "bg-green-100 text-green-700";
   if (status === "Pending") return "bg-yellow-100 text-yellow-700";
   if (status === "Defaulted") return "bg-red-100 text-red-700";
   return "bg-gray-200 text-gray-600";
@@ -44,15 +35,22 @@ export default function ChitDetailsPage() {
   const router = useRouter();
 
   const [chit, setChit] = useState(null);
+  const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("selectedChit");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed?.id === id) {
-        setChit(parsed);
+    if (!id) return;
+
+    const fetchChitDetails = async () => {
+      try {
+        const res = await apiRequest(`/chit/details/${id}`);
+        setChit(res.data.chit);
+        setMembers(res.data.chit.members || []);
+      } catch (err) {
+        console.error("Failed to fetch chit details", err);
       }
-    }
+    };
+
+    fetchChitDetails();
   }, [id]);
 
   if (!chit) {
@@ -66,8 +64,6 @@ export default function ChitDetailsPage() {
     );
   }
 
-  const members = MEMBERS.filter((m) => m.chit === chit.name);
-
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
 
@@ -79,99 +75,61 @@ export default function ChitDetailsPage() {
           </Button>
         </Box>
 
-        <Typography
-  variant="h4"
-  fontWeight={600}
-  align="center"
-  sx={{ color: "#000" }}
->
-  {chit.name}
-</Typography>
-
+        <Typography variant="h4" fontWeight={600} align="center">
+          {chit.chitName}
+        </Typography>
       </Box>
 
-      {/* ================= STATS CARDS ================= */}
-  <div className="max-w-[100%] mx-auto">
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 justify-items-center">
+      {/* ================= STATS ================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
 
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-      <div className="flex items-center gap-3 w-full">
-        <MonetizationOnIcon sx={{ fontSize: 34, color: "#1e88e5" }} />
-        <div>
-          <Typography variant="h6" fontWeight={600}>₹{chit.amount}</Typography>
-          <Typography variant="body2">Amount</Typography>
-        </div>
+        <StatCard
+          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "#1e88e5" }} />}
+          value={`₹${chit.amount}`}
+          label="Amount"
+        />
+
+        <StatCard
+          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />}
+          value={`₹${chit.monthlyPayableAmount}`}
+          label="Monthly Payable"
+        />
+
+        <StatCard
+          icon={<CalendarMonthIcon sx={{ fontSize: 34, color: "#9c27b0" }} />}
+          value={chit.duration}
+          label="Months"
+        />
+
+        <StatCard
+          icon={<GroupsIcon sx={{ fontSize: 34, color: "green" }} />}
+          value={`${chit.membersCount}/${chit.membersLimit}`}
+          label="Members"
+        />
+
+        <StatCard
+          icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
+          value={chit.status}
+          label="Status"
+        />
+
       </div>
-    </Card>
-
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-      <div className="flex items-center gap-3 w-full">
-        <MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />
-        <div>
-          <Typography variant="h6" fontWeight={600}>₹{chit.monthlyAmount}</Typography>
-          <Typography variant="body2">Monthly Payable</Typography>
-        </div>
-      </div>
-    </Card>
-
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-      <div className="flex items-center gap-3 w-full">
-        <CalendarMonthIcon sx={{ fontSize: 34, color: "#9c27b0" }} />
-        <div>
-          <Typography variant="h6" fontWeight={600}>
-            {chit.durationMonths}
-          </Typography>
-          <Typography variant="body2">Months</Typography>
-        </div>
-      </div>
-    </Card>
-
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-      <div className="flex items-center gap-3 w-full">
-        <GroupsIcon sx={{ fontSize: 34, color: "green" }} />
-        <div>
-          <Typography variant="h6" fontWeight={600}>
-            {chit.membersCount}/{chit.membersLimit}
-          </Typography>
-          <Typography variant="body2">Members</Typography>
-        </div>
-      </div>
-    </Card>
-
-    <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-      <div className="flex items-center gap-3 w-full">
-        <CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />
-        <div>
-          <Typography variant="h6" fontWeight={600}>{chit.status}</Typography>
-          <Typography variant="body2">Status</Typography>
-        </div>
-      </div>
-    </Card>
-
-  </div>
-</div>
-
-
 
       {/* ================= OVERVIEW ================= */}
-     <Card>
-  <CardContent>
-    <Typography fontWeight={600} mb={2}>
-      Overview
-    </Typography>
+      <Card>
+        <CardContent>
+          <Typography fontWeight={600} mb={2}>
+            Overview
+          </Typography>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-      <p><b>ID:</b> {chit.id}</p>
-      <p><b>Start Date:</b> {chit.startDate}</p>
-      <p><b>Cycle Day:</b> {chit.cycleDay}</p>
-      <p><b>Duration:</b> {chit.durationMonths}</p>
-      <p><b>Monthly Amount:</b> ₹{chit.monthlyAmount}</p>
-      <p><b>Members Limit:</b> {chit.membersLimit}</p>
-      <p><b>Status:</b> {chit.status}</p>
-    </div>
-  </CardContent>
-</Card>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <p><b>Start Date:</b> {new Date(chit.startDate).toLocaleDateString()}</p>
+            <p><b>Cycle Day:</b> {chit.cycleDay}</p>
+            <p><b>Location:</b> {chit.location}</p>
+            <p><b>Remaining Slots:</b> {chit.remainingSlots}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ================= MEMBERS LIST ================= */}
       <Card>
@@ -180,7 +138,6 @@ export default function ChitDetailsPage() {
             Members ({members.length})
           </Typography>
 
-          {/* Mobile-safe scroll */}
           <Box sx={{ overflowX: "auto" }}>
             <Table>
               <TableHead>
@@ -198,17 +155,19 @@ export default function ChitDetailsPage() {
                 {members.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} align="center">
-                      No members yet
+                      No members assigned
                     </TableCell>
                   </TableRow>
                 )}
 
                 {members.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell>{m.id}</TableCell>
+                  <TableRow key={m.memberId}>
+                    <TableCell>{m.memberId}</TableCell>
                     <TableCell>{m.name}</TableCell>
                     <TableCell>{m.phone}</TableCell>
-                    <TableCell>{m.joined}</TableCell>
+                    <TableCell>
+                      {new Date(m.joinedAt).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>
                       <span className={`px-3 py-1 rounded-full text-sm ${badge(m.status)}`}>
                         {m.status}
@@ -218,8 +177,7 @@ export default function ChitDetailsPage() {
                       <Button
                         size="small"
                         variant="outlined"
-                        sx={{ textTransform: "none", borderRadius: "8px" }}
-                        onClick={() => router.push(`/members/${m.id}`)}
+                        onClick={() => router.push(`/members/${m.memberId}`)}
                       >
                         View Details
                       </Button>
@@ -233,5 +191,18 @@ export default function ChitDetailsPage() {
       </Card>
 
     </main>
+  );
+}
+
+/* ================= STAT CARD ================= */
+function StatCard({ icon, value, label }) {
+  return (
+    <Card className="p-3 flex items-center gap-3">
+      {icon}
+      <div>
+        <Typography variant="h6" fontWeight={600}>{value}</Typography>
+        <Typography variant="body2">{label}</Typography>
+      </div>
+    </Card>
   );
 }
