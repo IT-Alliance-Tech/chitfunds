@@ -57,18 +57,24 @@ const fetchChits = async () => {
   try {
     const res = await apiRequest("/chit/list", { method: "GET" });
 
-    const formattedChits = res.data.items.map((c) => ({
-      id: c.id || c._id,                // backend safe
-      name: c.chitName,                 // 👈 IMPORTANT
-      monthlyAmount: c.monthlyPayableAmount,
+    const chitsArray =
+      res?.data?.chits ||           // preferred
+      res?.data?.items ||           // fallback
+      [];                            // safety
+
+    const formattedChits = chitsArray.map((c) => ({
+      id: c._id || c.id,
+      name: c.chitName,
       location: c.location,
     }));
 
     setChits(formattedChits);
   } catch (err) {
     console.error("Failed to fetch chits", err);
+    setChits([]); // prevent crash
   }
 };
+
 
 
   useEffect(() => {
@@ -91,29 +97,48 @@ const fetchMembers = async () => {
   try {
     const res = await apiRequest("/member/list", { method: "GET" });
 
-const formattedMembers = res.data.items.map((m) => ({
-  id: m._id,
-  chitId: m.chitId,                 // 🔥 needed for edit
-  name: m.name,
-  phone: m.phone,
-  email: m.email,
-  address: m.address,
-  status: m.status,
+    const membersArray =
+      res?.data?.members ||         // preferred
+      res?.data?.items ||           // fallback
+      [];                            // safety
 
-  // ✅ THIS IS THE FIX
-  chit: m.chitDetails?.chitName || "-",
+ const formattedMembers = membersArray.map((m) => {
+  const safeChitIds =
+    (m.chits || [])
+      .map((c) => {
+        // CASE 1: chitId is populated object
+        if (typeof c.chitId === "object" && c.chitId?.id) {
+          return c.chitId.id;
+        }
 
-  location: m.chitDetails?.location || "-",
-  monthlyAmount: m.chitDetails?.monthlyPayableAmount || 0,
+        // CASE 2: chitId is string
+        if (typeof c.chitId === "string") {
+          return c.chitId;
+        }
 
-  documents: m.securityDocuments || [],
-}));
+        // CASE 3: null / invalid
+        return null;
+      })
+      .filter(Boolean); // 🔥 removes nulls
 
+  return {
+    id: m._id,
+    name: m.name,
+    phone: m.phone,
+    email: m.email,
+    address: m.address,
+    status: m.status,
+    chitIds: safeChitIds,            // ✅ ALWAYS string[]
+    chits: m.chits || [],
+    documents: m.securityDocuments || [],
+  };
+});
 
 
     setMembers(formattedMembers);
   } catch (err) {
     console.error("Failed to fetch members", err);
+    setMembers([]); // prevent UI crash
   }
 };
 
@@ -130,18 +155,16 @@ const formattedMembers = res.data.items.map((m) => ({
   const [filterStatus, setFilterStatus] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
 
- const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
   name: "",
   phone: "",
   email: "",
   address: "",
-  chitId: "",        // ✅ ADD THIS
-  chit: "",          // chit name (for UI)
-  monthlyAmount: "",
-  location: "",
+  chitIds: [],          // ✅ MULTIPLE
   documents: [],
   status: "Active",
 });
+
 
 
   /* MENU ACTIONS */
@@ -155,17 +178,17 @@ const formattedMembers = res.data.items.map((m) => ({
   /* ADD */
   const handleAddMember = () => {
     setIsEdit(false);
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      address: "",
-      chit: "",
-      monthlyAmount: "",
-      location: "",
-      documents: [],
-      status: "Active",
-    });
+    
+   setFormData({
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  chitIds: [],        // 🔥 REQUIRED
+  documents: [],
+  status: "Active",
+});
+
     setOpenModal(true);
   };
 
@@ -174,22 +197,22 @@ const handleEditMember = () => {
   setIsEdit(true);
 
   setFormData({
-    id: selectedMember.id, // 🔥 REQUIRED
+    id: selectedMember.id,
     name: selectedMember.name,
     phone: selectedMember.phone,
     email: selectedMember.email,
     address: selectedMember.address,
-    chit: selectedMember.chit,
-    monthlyAmount: selectedMember.monthlyAmount,
+    chitIds: selectedMember.chitIds || [], // 🔥 already normalized
     documents: selectedMember.documents || [],
     status: selectedMember.status,
-    chitId:
-      chits.find((c) => c.name === selectedMember.chit)?.id || "",
   });
 
   setOpenModal(true);
   handleMenuClose();
 };
+
+
+
 
 
 
@@ -217,59 +240,59 @@ const handleDelete = async () => {
 
 
   /* MAP CHIT CHANGE */
-const handleChitChange = (chitId) => {
-  const selectedChit = chits.find((c) => c.id === chitId);
-  if (!selectedChit) return;
+// const handleChitChange = (chitId) => {
+//   const selectedChit = chits.find((c) => c.id === chitId);
+//   if (!selectedChit) return;
 
-  setFormData((prev) => ({
-    ...prev,
-    chitId: selectedChit.id,        // backend
-    chit: selectedChit.name,        // UI display
-    monthlyAmount: selectedChit.monthlyAmount,
-    location: selectedChit.location,
-  }));
-};
+//   setFormData((prev) => ({
+//     ...prev,
+//     chitId: selectedChit.id,        // backend
+//     chit: selectedChit.name,        // UI display
+//     monthlyAmount: selectedChit.monthlyAmount,
+//     location: selectedChit.location,
+//   }));
+// };
 
 
 
   /* SAVE MEMBER */
 const handleSaveMember = async () => {
-  if (!formData.name || !formData.phone || !formData.chitId) {
-    alert("Name, Phone & Chit required");
+  if (!formData.name || !formData.phone || formData.chitIds.length === 0) {
+    alert("Name, Phone & at least one Chit required");
     return;
   }
 
   try {
     const payload = {
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      chitId: formData.chitId,
-      securityDocuments: formData.documents,
-    };
+  name: formData.name,
+  phone: formData.phone,
+  email: formData.email,
+  address: formData.address,
+  chitIds: (formData.chitIds || []).filter(Boolean), // 🔥 CRITICAL
+  securityDocuments: formData.documents,
+};
+
 
     if (isEdit) {
-      // 🔄 EDIT MEMBER
       await apiRequest(`/member/update/${formData.id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
     } else {
-      // ➕ ADD MEMBER
       await apiRequest("/member/create", {
         method: "POST",
         body: JSON.stringify(payload),
       });
     }
 
-    await fetchMembers();   // refresh table
-    setOpenModal(false);    // close modal
+    await fetchMembers();
+    setOpenModal(false);
     setIsEdit(false);
   } catch (err) {
     alert(err.message || "Failed to save member");
   }
 };
+
 
 
 
@@ -408,7 +431,7 @@ const handleSaveMember = async () => {
     />
 
     {/* Chit */}
-    <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
+    {/* <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
       <InputLabel>Chit</InputLabel>
    <Select
   value={formData.chitId}
@@ -424,7 +447,7 @@ const handleSaveMember = async () => {
 </Select>
 
 
-    </FormControl>
+    </FormControl> */}
 
     {/* Location */}
     <FormControl fullWidth size="small" sx={{ maxWidth: { sm: 220 } }}>
@@ -610,30 +633,37 @@ const handleSaveMember = async () => {
                 }
               />
 
- <FormControl fullWidth sx={{ mb: 3 }}>
-  <InputLabel>Assigned Chit</InputLabel>
+<FormControl fullWidth sx={{ mb: 3 }}>
+  <InputLabel>Assigned Chits</InputLabel>
+
   <Select
-    value={formData.chitId}
-    label="Assigned Chit"
-    onChange={(e) => handleChitChange(e.target.value)}
+    multiple
+    value={formData.chitIds}
+    input={<OutlinedInput label="Assigned Chits" />}
+    onChange={(e) =>
+      setFormData({ ...formData,  chitIds: (e.target.value || []).map(String), })
+    }
+    renderValue={(selected) => (
+      <div className="flex flex-wrap gap-2">
+        {selected.map((id) => {
+          const chit = chits.find((c) => c.id === id);
+          return <Chip key={id} label={chit?.name || id} />;
+        })}
+      </div>
+    )}
   >
     {chits.map((c) => (
       <MenuItem key={c.id} value={c.id}>
+        <Checkbox
+  checked={Array.isArray(formData.chitIds) && formData.chitIds.includes(c.id)}
+/>
+
         {c.name}
       </MenuItem>
     ))}
   </Select>
 </FormControl>
 
-
-
-              <TextField
-                fullWidth
-                sx={{ mb: 3 }}
-                label="Monthly Payable"
-                value={formData.monthlyAmount || ""}
-                InputProps={{ readOnly: true }}
-              />
 
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel>Location</InputLabel>

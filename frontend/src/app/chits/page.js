@@ -64,37 +64,43 @@ export default function ChitsPage() {
 useEffect(() => {
   const fetchChits = async () => {
     try {
-      const response = await apiRequest("/chit/list", {
-        method: "GET",
-      });
+      const response = await apiRequest("/chit/list", { method: "GET" });
 
-      // ✅ IMPORTANT FIX: use response.data.items
-      const formattedChits = response.data.items.map((chit) => ({
-        id: chit.id,
-        name: chit.chitName,
-        amount: chit.amount,
-        monthlyAmount: chit.monthlyPayableAmount,
-        durationMonths: chit.duration,
-        membersLimit: chit.membersLimit,
-        membersCount: chit.membersCount || 0,
-        startDate: chit.startDate
-          ? chit.startDate.split("T")[0]
-          : "",
-        cycleDay: chit.cycleDay,
-        status: chit.status,
-        location: chit.location,
-      }));
+      // 🔥 SAFE EXTRACTION (NO CRASH)
+      const chitArray =
+        response?.data?.chits ||   // preferred
+        response?.data ||          // fallback
+        [];
+
+      const formattedChits = Array.isArray(chitArray)
+        ? chitArray.map((chit) => ({
+            id: chit._id || chit.id,
+            name: chit.chitName,
+            amount: chit.amount,
+            monthlyAmount: chit.monthlyPayableAmount,
+            durationMonths: chit.duration,
+            membersLimit: chit.membersLimit,
+            membersCount: chit.membersCount || 0,
+            startDate: chit.startDate
+              ? chit.startDate.split("T")[0]
+              : "",
+            cycleDay: chit.cycleDay,
+            status: chit.status,
+            location: chit.location,
+          }))
+        : [];
 
       setChits(formattedChits);
 
     } catch (error) {
       console.error("Fetch chits failed:", error);
-      alert(error.message || "Failed to fetch chits");
+      setChits([]); // 🛡️ prevent UI crash
     }
   };
 
   fetchChits();
 }, []);
+
 
 
 const [mounted, setMounted] = useState(false);
@@ -268,22 +274,23 @@ const handleSaveChit = async () => {
         body: JSON.stringify(payload),
       });
 
-      setChits((prev) => [
-        {
-          id: response.data.chit.id,
-          name: response.data.chit.chitName,
-          amount: response.data.chit.amount,
-          monthlyAmount: response.data.chit.monthlyPayableAmount,
-          durationMonths: response.data.chit.duration,
-          membersLimit: response.data.chit.membersLimit,
-          membersCount: 0,
-          startDate: response.data.chit.startDate.split("T")[0],
-          cycleDay: response.data.chit.cycleDay,
-          status: response.data.chit.status,
-          location: response.data.chit.location,
-        },
-        ...prev,
-      ]);
+     setChits((prev) => [
+  {
+    id: response.data.id,
+    name: response.data.chitName,
+    amount: response.data.amount,
+    monthlyAmount: response.data.monthlyPayableAmount,
+    durationMonths: response.data.duration,
+    membersLimit: response.data.membersLimit,
+    membersCount: 0,
+    startDate: response.data.startDate.split("T")[0],
+    cycleDay: response.data.cycleDay,
+    status: response.data.status,
+    location: response.data.location,
+  },
+  ...prev,
+]);
+
 
       alert("Chit created successfully");
     }
@@ -375,7 +382,7 @@ const handleSaveChit = async () => {
 
 
           {/* TOP CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 justify-items-center">
+        {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 justify-items-center">
 
   <Card elevation={3} className={statCardClass}>
     <div className="p-3 bg-blue-100 rounded-full">
@@ -433,7 +440,7 @@ const handleSaveChit = async () => {
       </Typography>
     </div>
   </Card>
-</div>
+</div> */}
 
 
           {/* FILTERS */}
