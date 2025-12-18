@@ -152,19 +152,20 @@ const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error("Invalid Chit ID");
+    return sendResponse(res, 400, false, "Invalid Chit ID", null);
   }
 
+  // Fetch chit
   const chit = await Chit.findById(id);
   if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 404, false, "Chit not found", null);
   }
 
   const members = await Member.find({ chitId: chit._id })
     .select("name phone status createdAt")
     .sort({ createdAt: 1 });
+
+  const membersCount = members.length;
 
   const formattedMembers = members.map((m) => ({
     memberId: m._id,
@@ -174,20 +175,21 @@ const getChitById = asyncHandler(async (req, res) => {
     status: m.status,
   }));
 
+  const chitObj = chit.toObject();
+
   const enrichedChit = {
-    ...chit.toObject(),
-    membersCount: members.length,
-    remainingSlots: chit.membersLimit - members.length,
+    ...chitObj,
+    membersCount,
+    remainingSlots: chit.membersLimit - membersCount,
     members: formattedMembers,
   };
 
-  return sendResponse(
-    res,
-    200,
-    true,
-    "Chit details fetched successfully",
-    enrichedChit
-  );
+  res.status(200).json({
+    success: true,
+    statusCode: 200,
+    error: null,
+    data: enrichedChit,
+  });
 });
 
 // update chit
