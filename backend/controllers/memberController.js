@@ -138,56 +138,56 @@ const getMemberById = asyncHandler(async (req, res) => {
 // update member
 const updateMember = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const {
-    name,
-    phone,
-    email,
-    address,
-    securityDocuments,
-    status,
-    chitIds = [],
-  } = req.body;
+  const { name, phone, email, address, securityDocuments, status, chitIds } =
+    req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error("Invalid Member ID");
+    return sendResponse(res, 400, false, "Invalid Member ID", null);
   }
 
   const member = await Member.findById(id);
   if (!member) {
-    res.status(404);
-    throw new Error("Member not found");
+    return sendResponse(res, 404, false, "Member not found", null);
   }
 
-  if (Array.isArray(chitIds) && chitIds.length > 0) {
+  if (Array.isArray(chitIds)) {
+    const newChits = [];
+
     for (const cid of chitIds) {
       if (!mongoose.Types.ObjectId.isValid(cid)) {
-        res.status(400);
-        throw new Error("Invalid Chit ID");
+        return sendResponse(res, 400, false, "Invalid Chit ID", null);
       }
 
       const chit = await Chit.findById(cid);
       if (!chit) {
-        res.status(404);
-        throw new Error("Chit not found");
+        return sendResponse(res, 404, false, "Chit not found", null);
       }
-
-      const alreadyJoined = member.chits.some(
-        (c) => c.chitId.toString() === cid
-      );
-      if (alreadyJoined) continue;
 
       const count = await Member.countDocuments({
         "chits.chitId": cid,
       });
 
-      if (count >= chit.membersLimit) {
-        res.status(400);
-        throw new Error(`Chit member limit reached for ${chit.chitName}`);
+      if (
+        count >= chit.membersLimit &&
+        !member.chits.some((c) => c.chitId.toString() === cid)
+      ) {
+        return sendResponse(
+          res,
+          400,
+          false,
+          `Chit member limit reached for ${chit.chitName}`,
+          null
+        );
       }
 
-      member.chits.push({ chitId: cid, status: "Active" });
+      newChits.push({
+        chitId: cid,
+        status: "Active",
+        joinedAt: new Date(),
+      });
     }
+
+    member.chits = newChits;
   }
 
   if (name) member.name = name;
