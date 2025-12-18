@@ -4,12 +4,18 @@ const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const { generateInvoicePDF } = require("../utils/invoicePdf");
+const sendResponse = require("../utils/responseHandler");
 
-// create payment
+// create or update payment
 const createPayment = asyncHandler(async (req, res) => {
   const payment = await paymentService.upsertMonthlyPayment(req.body);
 
   const chit = await Chit.findById(payment.chitId);
+  if (!chit) {
+    res.status(404);
+    throw new Error("Chit not found");
+  }
+
   const payments = await Payment.find({
     chitId: payment.chitId,
     memberId: payment.memberId,
@@ -17,65 +23,54 @@ const createPayment = asyncHandler(async (req, res) => {
 
   const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
 
-  res.status(201).json({
-    success: true,
-    statusCode: 201,
-    error: null,
-    message: "Payment saved successfully",
-    data: {
-      ...payment.toObject(),
-      summary: {
-        totalMonths: chit.duration,
-        paidMonths: payments.length,
-        remainingMonths: Math.max(chit.duration - payments.length, 0),
-        totalChitAmount: chit.amount,
-        totalPaidForChit,
-        remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
-      },
+  return sendResponse(res, 201, true, "Payment saved successfully", {
+    ...payment.toObject(),
+    summary: {
+      totalMonths: chit.duration,
+      paidMonths: payments.length,
+      remainingMonths: Math.max(chit.duration - payments.length, 0),
+      totalChitAmount: chit.amount,
+      totalPaidForChit,
+      remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
     },
   });
 });
 
-//list payments
+// get all payments
 const getPayments = asyncHandler(async (req, res) => {
   const payments = await Payment.find()
     .populate("chitId", "chitName amount duration")
     .populate("memberId", "name phone")
     .sort({ createdAt: -1 });
 
-  res.json({ success: true, data: payments });
+  return sendResponse(res, 200, true, "Payments fetched successfully", {
+    payments,
+  });
 });
 
-// view payment
+// get payment by id
 const getPaymentById = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id)
     .populate("chitId", "chitName amount duration")
     .populate("memberId", "name phone");
 
   if (!payment) {
-    return res.status(404).json({
-      success: false,
-      message: "Payment not found",
-    });
+    res.status(404);
+    throw new Error("Payment not found");
   }
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    data: payments,
+  return sendResponse(res, 200, true, "Payment fetched successfully", {
+    payment,
   });
 });
-// get payement history
 
+// get payment history
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const { memberId, chitId } = req.query;
 
   if (!memberId || !chitId) {
-    return res.status(400).json({
-      success: false,
-      message: "memberId and chitId are required",
-    });
+    res.status(400);
+    throw new Error("memberId and chitId are required");
   }
 
   const payments = await paymentService.getPaymentsByMemberAndChit(
@@ -83,77 +78,52 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     chitId
   );
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    data: payments,
+  return sendResponse(res, 200, true, "Payment history fetched successfully", {
+    payments,
   });
 });
 
-// Export invoice
-
+// export invoice pdf
 const exportInvoicePdf = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const payment = await Payment.findOne({ invoiceNumber: id });
   if (!payment) {
-    return res.status(404).json({
-      success: false,
-      statusCode: 404,
-      error: { message: "Invoice not found" },
-      data: null,
-    });
+    res.status(404);
+    throw new Error("Invoice not found");
   }
 
   const chit = await Chit.findById(payment.chitId);
   const member = await Member.findById(payment.memberId);
 
   if (!chit || !member) {
-    return res.status(404).json({
-      success: false,
-      statusCode: 404,
-      error: { message: "Chit or Member not found" },
-      data: null,
-    });
-  } 
-  
+    res.status(404);
+    throw new Error("Chit or Member not found");
+  }
 
+  
   generateInvoicePDF(res, payment, chit, member);
 });
 
-// Admin confirm
-
+// admin confirm payment
 const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
   const { paymentId } = req.params;
 
   const payment = await Payment.findById(paymentId);
-
   if (!payment) {
-    return res.status(404).json({
-      success: false,
-      message: "Payment not found",
-    });
+    res.status(404);
+    throw new Error("Payment not found");
   }
 
   if (payment.isAdminConfirmed) {
-    return res.status(400).json({
-      success: false,
-      message: "Payment already confirmed",
-    });
+    res.status(400);
+    throw new Error("Payment already confirmed");
   }
 
-  //  Admin confirmation
   payment.isAdminConfirmed = true;
   await payment.save();
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    message: "Payment confirmed by admin",
-    data: payment,
-  });
+  return sendResponse(res, 200, true, "Payment confirmed by admin", payment);
 });
 
 module.exports = {

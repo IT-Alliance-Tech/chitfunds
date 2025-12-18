@@ -1,27 +1,33 @@
 const sendResponse = require("../utils/responseHandler");
 
+// GLOBAL ERROR HANDLER
 const errorHandler = (err, req, res, next) => {
-    const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  const statusCode =
+    res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
 
-    // Log the error stack for debugging in non-production
-    if (process.env.NODE_ENV !== "production") {
-        console.error(err.stack);
-    }
+  // Log error stack in development
+  if (process.env.NODE_ENV !== "production") {
+    console.error(err.stack);
+  }
 
-    return sendResponse(
-        res,
-        statusCode,
-        false,
-        err.message || "Internal Server Error",
-        null,
-        process.env.NODE_ENV === "production" ? null : { stack: err.stack }
-    );
+  return sendResponse(
+    res,
+    statusCode,
+    false,
+    null,
+    null,
+    err.message || "Internal Server Error"
+  );
 };
 
+// 404 HANDLER
 const notFound = (req, res, next) => {
-    const error = new Error(`Not Found - ${req.originalUrl}`);
-    res.status(404);
-    next(error);
+  res.status(404);
+  const error = new Error(`Route not found - ${req.originalUrl}`);
+  next(error);
 };
 
-module.exports = { errorHandler, notFound };
+module.exports = {
+  errorHandler,
+  notFound,
+};

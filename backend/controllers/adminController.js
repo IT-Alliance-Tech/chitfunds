@@ -12,7 +12,7 @@ const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
 const JWT_SECRET = process.env.JWT_SECRET || "replace_me";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
-// Admin Login
+// admin login
 const login = asyncHandler(async (req, res) => {
   const { email, password, accessKey } = req.body;
 
@@ -44,18 +44,13 @@ const login = asyncHandler(async (req, res) => {
     updatedAt: admin.updatedAt,
   };
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    data: {
-      admin: adminData,
-      token,
-    },
+  return sendResponse(res, 200, true, "Login successful", {
+    admin: adminData,
+    token,
   });
 });
 
-//  Forgot Password - Send OTP
+// forgot password
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -65,11 +60,9 @@ const forgotPassword = asyncHandler(async (req, res) => {
     throw new Error("Admin not found");
   }
 
-  // Generate OTP and expiry (5 minutes)
   const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
 
-  // Save OTP to AdminOTP collection - remove previous OTPs for email first
   await AdminOTP.deleteMany({ email: admin.email });
   await AdminOTP.create({
     email: admin.email,
@@ -83,15 +76,10 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   await sendEmail({ to: admin.email, subject, text, html });
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    message: "OTP sent successfully",
-  });
+  return sendResponse(res, 200, true, "OTP sent successfully", null);
 });
 
-//  Verify OTP
+// verify otp
 const verifyOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
@@ -99,6 +87,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
     email: email.toLowerCase().trim(),
     otp,
   });
+
   if (!otpRecord) {
     res.status(400);
     throw new Error("Invalid OTP");
@@ -109,21 +98,17 @@ const verifyOTP = asyncHandler(async (req, res) => {
     throw new Error("OTP expired");
   }
 
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    message: "OTP verified",
-  });
+  return sendResponse(res, 200, true, "OTP verified successfully", null);
 });
 
-//  Reset Password
+// reset password
 const resetPassword = asyncHandler(async (req, res) => {
   const { email, newPassword } = req.body;
 
   const otpRecord = await AdminOTP.findOne({
     email: email.toLowerCase().trim(),
   });
+
   if (!otpRecord) {
     res.status(400);
     throw new Error("No OTP request found for this email");
@@ -134,28 +119,24 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw new Error("OTP expired");
   }
 
-  const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-  const updated = await Admin.findOneAndUpdate(
+  const updatedAdmin = await Admin.findOneAndUpdate(
     { email: email.toLowerCase().trim() },
-    { $set: { password: hashed } },
+    { $set: { password: hashedPassword } },
     { new: true }
   );
 
-  if (!updated) {
+  if (!updatedAdmin) {
     res.status(404);
     throw new Error("Admin not found");
   }
 
-  // Delete OTP record after reset
   await AdminOTP.deleteMany({ email: email.toLowerCase().trim() });
-  res.status(200).json({
-    success: true,
-    statusCode: 200,
-    error: null,
-    message: "Password reset successful",
-  });
+
+  return sendResponse(res, 200, true, "Password reset successful", null);
 });
+
 module.exports = {
   login,
   forgotPassword,
