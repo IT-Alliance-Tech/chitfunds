@@ -5,12 +5,6 @@ const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const sendResponse = require("../utils/responseHandler");
 
-<<<<<<< HEAD
-=======
-// --------------------
-// HELPERS
-// --------------------
->>>>>>> 3b72818ec91d35cf8d67daa3628511a556f59b1a
 const normalizeDate = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -40,7 +34,8 @@ const createChit = asyncHandler(async (req, res) => {
 
   return sendResponse(res, 201, true, "Chit created successfully", chit);
 });
-//get chits
+
+// get chits with pagination and filters
 const getChits = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.max(parseInt(req.query.limit) || 10, 1);
@@ -70,7 +65,7 @@ const getChits = asyncHandler(async (req, res) => {
   });
 });
 
-//get chit by id
+// get chit by id
 const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -83,33 +78,22 @@ const getChitById = asyncHandler(async (req, res) => {
     return sendResponse(res, 404, false, "Chit not found", null);
   }
 
-<<<<<<< HEAD
-   const members = await Member.find({
+  const members = await Member.find({
     "chits.chitId": chit._id,
-  });
-
-  const response = {
-    ...chit.toObject(),
-    members,
-  };
+  })
+    .select("name phone email address status chits createdAt")
+    .sort({ createdAt: 1 });
 
   return sendResponse(
     res,
     200,
     true,
     "Chit details with members fetched successfully",
-    response
+    {
+      ...chit.toObject(),
+      members,
+    }
   );
-=======
-  const members = await Member.find({
-    "chits.chitId": chit._id,
-  });
-
-  return sendResponse(res, 200, true, "Chit with members fetched", {
-    ...chit.toObject(),
-    members,
-  });
->>>>>>> 3b72818ec91d35cf8d67daa3628511a556f59b1a
 });
 
 // update chit
@@ -139,7 +123,6 @@ const deleteChit = asyncHandler(async (req, res) => {
 
   await Chit.deleteOne({ _id: chit._id });
 
-  // remove chit reference from members
   await Member.updateMany(
     { "chits.chitId": chit._id },
     { $pull: { chits: { chitId: chit._id } } }
