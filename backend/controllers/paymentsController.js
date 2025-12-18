@@ -30,6 +30,7 @@ const createPayment = asyncHandler(async (req, res) => {
       paidMonths: payments.length,
       remainingMonths: Math.max(chit.duration - payments.length, 0),
       totalChitAmount: chit.amount,
+      // lateFee: payment.penaltyAmount || 0,
       totalPaidForChit,
       remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
     },
@@ -101,7 +102,6 @@ const exportInvoicePdf = asyncHandler(async (req, res) => {
     throw new Error("Chit or Member not found");
   }
 
-  
   generateInvoicePDF(res, payment, chit, member);
 });
 
