@@ -123,8 +123,6 @@ export default function ChitDetailsPage() {
   value={`${members.length}/${chit.membersLimit}`}
   label="Members"
 />
-
-
         <StatCard
           icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
           value={chit.status}
