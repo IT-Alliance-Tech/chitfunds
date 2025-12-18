@@ -1,48 +1,66 @@
 const mongoose = require("mongoose");
 
 const memberSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        phone: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        email: {
-            type: String,
-            trim: true,
-            lowercase: true,
-        },
-        address: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        chitId: {
-            type: String, // Storing chitId string (e.g., CHT-001) for consistency with Chit model
-            required: true,
-            ref: "Chit",
-        },
-
-        securityDocuments: [{
-            type: String, 
-            trim: true
-        }],
-        status: {
-            type: String,
-            enum: ["Active", "Inactive"],
-            default: "Active",
-        }
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    {
-        timestamps: true,
-    }
+
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+
+    address: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    chits: [
+      {
+        chitId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Chit",
+          required: true,
+        },
+        joinedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        status: {
+          type: String,
+          enum: ["Active", "Completed", "Left"],
+          default: "Active",
+        },
+      },
+    ],
+
+    securityDocuments: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
+  },
+  {
+    timestamps: true,
+  }
 );
 
-const Member = mongoose.model("Member", memberSchema);
-
-module.exports = Member;
+module.exports = mongoose.model("Member", memberSchema);

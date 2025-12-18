@@ -16,7 +16,6 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
-  
     paymentMonth: {
       // Example: 2025-01 (YYYY-MM)
       type: String,
@@ -30,7 +29,6 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
- 
     monthlyPayableAmount: {
       type: Number,
       required: true,
@@ -48,16 +46,13 @@ const paymentSchema = new mongoose.Schema(
       min: 0,
     },
 
-   
     balanceAmount: {
-      
       type: Number,
       required: true,
       min: 0,
     },
 
     totalPaid: {
-     
       type: Number,
       required: true,
     },
@@ -66,6 +61,12 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       enum: ["paid", "partial", "unpaid"],
       required: true,
+      index: true,
+    },
+
+    isAdminConfirmed: {
+      type: Boolean,
+      default: false,
       index: true,
     },
 

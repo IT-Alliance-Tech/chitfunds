@@ -33,6 +33,7 @@ const upsertMonthlyPayment = async (payload) => {
     );
     existingPayment.totalPaid = updatedPaid + updatedPenalty;
     existingPayment.status = calculateStatus(monthlyPayableAmount, updatedPaid);
+    existingPayment.isAdminConfirmed = false;
 
     return existingPayment.save();
   }
@@ -51,6 +52,7 @@ const upsertMonthlyPayment = async (payload) => {
     dueDate: payload.dueDate,
     paymentMode: payload.paymentMode,
     invoiceNumber: `INV-${Date.now()}`,
+    isAdminConfirmed: true,
   });
 };
 

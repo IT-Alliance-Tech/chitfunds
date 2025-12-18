@@ -6,10 +6,14 @@ export const apiRequest = async (endpoint, options = {}) => {
       ? localStorage.getItem("token")
       : null;
 
+  const isAuthRoute = endpoint.includes("/login");
+
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token && !isAuthRoute && {
+        Authorization: `Bearer ${token}`,
+      }),
       ...(options.headers || {}),
     },
     ...options,
@@ -20,9 +24,11 @@ export const apiRequest = async (endpoint, options = {}) => {
     try {
       const errorData = await response.json();
       errorMessage = errorData.message || errorMessage;
-    } catch (e) {}
+    } catch {}
     throw new Error(errorMessage);
   }
 
   return response.json();
 };
+
+
