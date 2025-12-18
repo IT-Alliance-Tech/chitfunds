@@ -17,7 +17,6 @@ const addMember = asyncHandler(async (req, res) => {
     securityDocuments,
   } = req.body;
 
-  // Normalize chitIds (backward compatible)
   const finalChitIds = chitIds.length ? chitIds : chitId ? [chitId] : [];
 
   if (finalChitIds.length === 0) {
@@ -48,10 +47,7 @@ const addMember = asyncHandler(async (req, res) => {
       throw new Error(`Chit member limit reached for ${chit.chitName}`);
     }
 
-    chits.push({
-      chitId: cid,
-      status: "Active",
-    });
+    chits.push({ chitId: cid, status: "Active" });
   }
 
   const member = await Member.create({
@@ -163,7 +159,6 @@ const updateMember = asyncHandler(async (req, res) => {
     throw new Error("Member not found");
   }
 
-  // Add new chits (no duplicates)
   if (Array.isArray(chitIds) && chitIds.length > 0) {
     for (const cid of chitIds) {
       if (!mongoose.Types.ObjectId.isValid(cid)) {
