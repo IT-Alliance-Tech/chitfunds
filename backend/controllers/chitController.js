@@ -6,7 +6,7 @@ const Member = require("../models/Member");
 const sendResponse = require("../utils/responseHandler");
 
 // --------------------
-// HELPERS (UNCHANGED)
+// HELPERS
 // --------------------
 const normalizeDate = (date) => {
   const d = new Date(date);
@@ -23,126 +23,46 @@ const computeStatus = (startDate, requestedStatus) => {
   const start = normalizeDate(startDate);
 
   if (today < start) return "Upcoming";
-  if (today.getTime() === start.getTime()) return "Ongoing";
-
   return "Ongoing";
 };
 
 // create chit
 const createChit = asyncHandler(async (req, res) => {
-  const {
-    chitName,
-    location,
-    amount,
-    monthlyPayableAmount,
-    duration,
-    membersLimit,
-    startDate,
-    cycleDay,
-    status,
-  } = req.body;
-
-  const finalStatus = computeStatus(startDate, status);
+  const finalStatus = computeStatus(req.body.startDate, req.body.status);
 
   const chit = await Chit.create({
-    chitName,
-    location,
-    amount,
-    monthlyPayableAmount,
-    duration,
-    membersLimit,
-    startDate,
-    cycleDay,
+    ...req.body,
     status: finalStatus,
   });
 
   return sendResponse(res, 201, true, "Chit created successfully", chit);
 });
-
-// get chits with pagination and filters
+//get chits
 const getChits = asyncHandler(async (req, res) => {
-  const {
-    chitName,
-    duration,
-    membersCount,
-    startDate,
-    location,
-    status,
-    page,
-    limit,
-  } = req.query;
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+  const skip = (page - 1) * limit;
 
   const query = {};
-
-  if (chitName) {
-    query.chitName = { $regex: chitName, $options: "i" };
-  }
-
-  if (duration) {
-    query.duration = Number(duration);
-  }
-
-  if (location) {
-    query.location = { $regex: location, $options: "i" };
-  }
-
-  if (status) {
-    query.status = status;
-  }
-
-  if (startDate) {
-    const start = normalizeDate(startDate);
-    const nextDay = new Date(start);
-    nextDay.setDate(start.getDate() + 1);
-    query.startDate = { $gte: start, $lt: nextDay };
-  }
-
-  let finalQuery = { ...query };
-
-  if (membersCount !== undefined) {
-    const countNum = Number(membersCount);
-
-    const memberAgg = await Member.aggregate([
-      {
-        $group: {
-          _id: "$chitId",
-          membersCount: { $sum: 1 },
-        },
-      },
-      { $match: { membersCount: countNum } },
-    ]);
-
-    const chitIds = memberAgg.map((item) => item._id);
-    finalQuery._id = { $in: chitIds.length ? chitIds : [] };
-  }
-
-  const pageNum = parseInt(page, 10) > 0 ? parseInt(page, 10) : 1;
-  const limitNum = parseInt(limit, 10) > 0 ? parseInt(limit, 10) : 10;
-  const skip = (pageNum - 1) * limitNum;
+  if (req.query.chitName)
+    query.chitName = { $regex: req.query.chitName, $options: "i" };
+  if (req.query.location)
+    query.location = { $regex: req.query.location, $options: "i" };
+  if (req.query.status) query.status = req.query.status;
+  if (req.query.duration) query.duration = Number(req.query.duration);
 
   const [chits, total] = await Promise.all([
-    Chit.find(finalQuery).sort({ createdAt: -1 }).skip(skip).limit(limitNum),
-    Chit.countDocuments(finalQuery),
+    Chit.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Chit.countDocuments(query),
   ]);
 
-  const enrichedChits = await Promise.all(
-    chits.map(async (chit) => {
-      const membersCount = await Member.countDocuments({ chitId: chit._id });
-      return {
-        ...chit.toObject(),
-        membersCount,
-        remainingSlots: chit.membersLimit - membersCount,
-      };
-    })
-  );
-
   return sendResponse(res, 200, true, "Chits fetched successfully", {
-    chits: enrichedChits,
+    chits,
     pagination: {
       total,
-      page: pageNum,
-      limit: limitNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
   });
 });
@@ -152,67 +72,35 @@ const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error("Invalid Chit ID");
+    return sendResponse(res, 400, false, "Invalid Chit ID", null);
   }
 
   const chit = await Chit.findById(id);
   if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 404, false, "Chit not found", null);
   }
 
-  const members = await Member.find({ chitId: chit._id })
-    .select("name phone status createdAt")
-    .sort({ createdAt: 1 });
+  const members = await Member.find({
+    "chits.chitId": chit._id,
+  });
 
-  const formattedMembers = members.map((m) => ({
-    memberId: m._id,
-    name: m.name,
-    phone: m.phone,
-    joinedAt: m.createdAt,
-    status: m.status,
-  }));
-
-  const enrichedChit = {
+  return sendResponse(res, 200, true, "Chit with members fetched", {
     ...chit.toObject(),
-    membersCount: members.length,
-    remainingSlots: chit.membersLimit - members.length,
-    members: formattedMembers,
-  };
-
-  return sendResponse(
-    res,
-    200,
-    true,
-    "Chit details fetched successfully",
-    enrichedChit
-  );
+    members,
+  });
 });
 
 // update chit
 const updateChit = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const updateData = { ...req.body };
-
-  const chit = await Chit.findById(id);
+  const chit = await Chit.findById(req.params.id);
   if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 404, false, "Chit not found", null);
   }
 
-  delete updateData.id;
-  delete updateData._id;
+  Object.assign(chit, req.body);
 
-  Object.keys(updateData).forEach((key) => {
-    chit[key] = updateData[key];
-  });
-
-  if (updateData.startDate || updateData.status) {
-    chit.status = computeStatus(
-      chit.startDate,
-      updateData.status || chit.status
-    );
+  if (req.body.startDate || req.body.status) {
+    chit.status = computeStatus(chit.startDate, req.body.status);
   }
 
   await chit.save();
@@ -222,16 +110,18 @@ const updateChit = asyncHandler(async (req, res) => {
 
 // delete chit
 const deleteChit = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const chit = await Chit.findById(id);
+  const chit = await Chit.findById(req.params.id);
   if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 404, false, "Chit not found", null);
   }
 
   await Chit.deleteOne({ _id: chit._id });
-  await Member.deleteMany({ chitId: chit._id });
+
+  // remove chit reference from members
+  await Member.updateMany(
+    { "chits.chitId": chit._id },
+    { $pull: { chits: { chitId: chit._id } } }
+  );
 
   return sendResponse(res, 200, true, "Chit deleted successfully", null);
 });
