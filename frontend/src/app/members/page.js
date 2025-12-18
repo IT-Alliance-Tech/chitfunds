@@ -195,9 +195,6 @@ export default function MembersPage() {
   const handleEditMember = () => {
     setIsEdit(true);
 
-    console.log("📝 SELECTED MEMBER RAW:", selectedMember);
-    console.log("📝 SELECTED MEMBER CHIT IDS:", selectedMember.chitIds);
-    console.log("📝 SELECTED MEMBER CHIT DETAILS:", selectedMember.chitDetails);
 
     // Ensure chitIds are strings
     const cleanChitIds = (selectedMember.chitIds || [])
