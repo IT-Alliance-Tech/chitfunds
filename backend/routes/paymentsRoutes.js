@@ -20,7 +20,7 @@ router.post("/create", validate(createPaymentSchema), createPayment);
 // List payments
 router.get("/list", getPayments);
 // Payment details
-router.get("/details/:id", getPaymentById);
+router.get("/payement/:id", getPaymentById);
 // Invoice placeholder
 router.get("/invoice/:id", exportInvoicePdf);
 // Payment history

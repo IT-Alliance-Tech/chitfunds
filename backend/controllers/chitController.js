@@ -5,9 +5,6 @@ const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const sendResponse = require("../utils/responseHandler");
 
-// --------------------
-// HELPERS
-// --------------------
 const normalizeDate = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -37,7 +34,8 @@ const createChit = asyncHandler(async (req, res) => {
 
   return sendResponse(res, 201, true, "Chit created successfully", chit);
 });
-//get chits
+
+// get chits with pagination and filters
 const getChits = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.max(parseInt(req.query.limit) || 10, 1);
@@ -67,7 +65,7 @@ const getChits = asyncHandler(async (req, res) => {
   });
 });
 
-//get chit by id
+// get chit by id
 const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -82,12 +80,20 @@ const getChitById = asyncHandler(async (req, res) => {
 
   const members = await Member.find({
     "chits.chitId": chit._id,
-  });
+  })
+    .select("name phone email address status chits createdAt")
+    .sort({ createdAt: 1 });
 
-  return sendResponse(res, 200, true, "Chit with members fetched", {
-    ...chit.toObject(),
-    members,
-  });
+  return sendResponse(
+    res,
+    200,
+    true,
+    "Chit details with members fetched successfully",
+    {
+      ...chit.toObject(),
+      members,
+    }
+  );
 });
 
 // update chit
@@ -117,7 +123,6 @@ const deleteChit = asyncHandler(async (req, res) => {
 
   await Chit.deleteOne({ _id: chit._id });
 
-  // remove chit reference from members
   await Member.updateMany(
     { "chits.chitId": chit._id },
     { $pull: { chits: { chitId: chit._id } } }
