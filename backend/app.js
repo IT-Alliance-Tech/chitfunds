@@ -7,6 +7,7 @@ const adminAuthRoutes = require("./routes/adminRoutes");
 const chitsRoutes = require("./routes/chitsRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const paymentRoutes = require("./routes/paymentsRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/admin", adminAuthRoutes);
 app.use("/api/chit", chitsRoutes);
 app.use("/api/member", memberRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Health check
 const sendResponse = require("./utils/responseHandler");
