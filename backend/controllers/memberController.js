@@ -193,7 +193,7 @@ const deleteMember = asyncHandler(async (req, res) => {
   await Member.deleteOne({ _id: id });
   return sendResponse(res, 200, true, "Member deleted successfully", null);
 });
-
+// END
 module.exports = {
   addMember,
   getMembers,
