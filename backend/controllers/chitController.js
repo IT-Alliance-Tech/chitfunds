@@ -168,8 +168,8 @@ const getChits = asyncHandler(async (req, res) => {
     },
   });
 });
-// get chit by id with members info
 
+//gwet chit by id
 const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
