@@ -5,9 +5,6 @@ const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const sendResponse = require("../utils/responseHandler");
 
-// --------------------
-// HELPERS (UNCHANGED)
-// --------------------
 const normalizeDate = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -152,41 +149,29 @@ const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error("Invalid Chit ID");
+    return sendResponse(res, 400, false, "Invalid Chit ID", null);
   }
 
   const chit = await Chit.findById(id);
   if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 404, false, "Chit not found", null);
   }
 
-  const members = await Member.find({ chitId: chit._id })
-    .select("name phone status createdAt")
-    .sort({ createdAt: 1 });
+   const members = await Member.find({
+    "chits.chitId": chit._id,
+  });
 
-  const formattedMembers = members.map((m) => ({
-    memberId: m._id,
-    name: m.name,
-    phone: m.phone,
-    joinedAt: m.createdAt,
-    status: m.status,
-  }));
-
-  const enrichedChit = {
+  const response = {
     ...chit.toObject(),
-    membersCount: members.length,
-    remainingSlots: chit.membersLimit - members.length,
-    members: formattedMembers,
+    members,
   };
 
   return sendResponse(
     res,
     200,
     true,
-    "Chit details fetched successfully",
-    enrichedChit
+    "Chit details with members fetched successfully",
+    response
   );
 });
 
