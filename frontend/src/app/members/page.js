@@ -28,6 +28,8 @@ import CountUp from "react-countup";
 import ReactSelect from "react-select";
 import makeAnimated from "react-select/animated";
 import { apiRequest } from "@/config/api";
+import AddIcon from "@mui/icons-material/Add";
+
 
 const animatedComponents = makeAnimated();
 
@@ -358,6 +360,7 @@ export default function MembersPage() {
               </Typography>
 
               <div className="absolute right-0">
+                startIcon={<AddIcon />}
                 <Button variant="contained" onClick={handleAddMember}>
                   Add Member
                 </Button>
@@ -369,7 +372,7 @@ export default function MembersPage() {
           <div className="max-w-[820px] mx-auto sm:mx-0">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
               {/* TOTAL MEMBERS */}
-              <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
                 <div className="flex items-center gap-3 w-full">
                   <Group
                     sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }}
@@ -381,10 +384,10 @@ export default function MembersPage() {
                     <Typography variant="body2">Total Members</Typography>
                   </div>
                 </div>
-              </Card>
+              </Card> */}
 
               {/* ACTIVE */}
-              <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
                 <div className="flex items-center gap-3 w-full">
                   <CheckCircle
                     sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }}
@@ -400,10 +403,10 @@ export default function MembersPage() {
                     <Typography variant="body2">Active</Typography>
                   </div>
                 </div>
-              </Card>
+              </Card> */}
 
               {/* INACTIVE */}
-              <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
+              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
                 <div className="flex items-center gap-3 w-full">
                   <Cancel
                     sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }}
@@ -419,7 +422,7 @@ export default function MembersPage() {
                     <Typography variant="body2">Inactive</Typography>
                   </div>
                 </div>
-              </Card>
+              </Card> */}
             </div>
           </div>
 
@@ -535,15 +538,18 @@ export default function MembersPage() {
               <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
                 <Table className="min-w-max">
                   <TableHead>
-                    <TableRow>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Phone</TableCell>
-                      <TableCell>Address</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell align="center">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
+  <TableRow>
+    <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
+    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+    <TableCell sx={{ fontWeight: 700 }} align="center">
+      Actions
+    </TableCell>
+  </TableRow>
+</TableHead>
+
 
                   <TableBody>
                     {filteredMembers.map((m) => (
