@@ -109,7 +109,7 @@ export default function ChitDetailsPage() {
         <StatCard
           icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />}
           value={`₹${chit.monthlyPayableAmount}`}
-          label="Monthly Payable"
+          label="Monthly Payable" 
         />
 
         <StatCard
