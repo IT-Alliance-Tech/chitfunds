@@ -25,6 +25,14 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { apiRequest } from "@/config/api";
 
+const formatDate = (date) =>
+  new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+
 const handleLogout = () => {
   
   localStorage.removeItem("token");
@@ -74,7 +82,17 @@ export default function Dashboard() {
     <Box className="min-h-screen bg-gray-100">
       <Box component="main" sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
         {/* ================= STATS GRID ================= */}
-        <Grid container spacing={1.5} justifyContent="center" padding="1rem">
+      <Grid
+  container
+  spacing={2}
+  padding="1rem"
+  justifyContent={{
+    xs: "center",
+    md: "flex-start",
+  }}
+>
+
+
           <StatCard
             icon={<AccountBalanceIcon sx={iconStyle("#0ea5e9")} />}
             label="Total Chits"
@@ -133,89 +151,128 @@ export default function Dashboard() {
         </Grid>
 
         {/* ================= RECENT ACTIVITIES ================= */}
-        <Paper elevation={1} sx={{ mt: 3, p: 2 }}>
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Recent Activities
-          </Typography>
+        <Paper
+  elevation={1}
+  sx={{
+    mt: 3,
+    px: 4,
+    py: 3,
+    width: "100%",
+  }}
+>
+  <Typography variant="h6" fontWeight={700} mb={2}>
+    Recent Activities
+  </Typography>
 
-          <Grid container spacing={2}>
-            <RecentBlock
-              title="Recent Members"
-              items={data.recentActivities.filter((a) => a.type === "MEMBER")}
-              renderRight={(item) => item.title}
-            />
+  <Grid
+    container
+    direction="column"
+    spacing={2}
+    sx={{ mt: 1 }}
+  >
+    <RecentBlock
+      title="Recent Payments"
+      items={data.recentActivities.filter(
+        (item) => item.type === "PAYMENT"
+      )}
+    />
 
-            <RecentBlock
-              title="Recent Chits"
-              items={data.recentActivities.filter((a) => a.type === "CHIT")}
-              renderRight={(item) => item.title || "-"}
-            />
+    <RecentBlock
+      title="Recent Members"
+      items={data.recentActivities.filter(
+        (item) => item.type === "MEMBER"
+      )}
+    />
 
-            <RecentBlock
-              title="Recent Payments"
-              items={data.recentActivities.filter((a) => a.type === "PAYMENT")}
-              renderRight={(item) => `₹${item.amount}`}
-            />
-          </Grid>
-        </Paper>
+    <RecentBlock
+      title="Recent Chits"
+      items={data.recentActivities.filter(
+        (item) => item.type === "CHIT"
+      )}
+    />
+  </Grid>
+</Paper>
+
       </Box>
     </Box>
   );
 }
 
 /* ================= STAT CARD ================= */
-
 function StatCard({ icon, label, value }) {
   return (
-    <Grid item xs={12} sm={6} md={4} lg={3}>
+    <Grid item xs={12} sm={6} md={3}>
       <Card sx={cardStyle}>
         <CardContent sx={cardContentStyle}>
           <Box sx={iconWrapper}>{icon}</Box>
 
           <Box sx={textWrapper}>
-            <Typography variant="body2" color="text.secondary">
-              {label}
-            </Typography>
             <Typography variant="h6" fontWeight={700}>
-              {value}
+             {value}
             </Typography>
+            <Typography variant="body2" color="text.secondary">
+             {label}
+            </Typography>
+
           </Box>
         </CardContent>
       </Card>
     </Grid>
   );
 }
-function RecentBlock({ title, items, renderRight }) {
+
+function RecentBlock({ title, items }) {
   return (
-    <Grid item xs={12} md={4} justifycontent= "center">
-      <Paper variant="outlined" sx={{ p: 2, height: "100%" }}>
-        <Typography fontWeight={700} mb={1}>
+    <Grid item xs={12}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: "14px 16px",
+          borderRadius: 2,
+        }}
+      >
+        <Typography fontWeight={600} mb={1.5} fontSize={15}>
           {title}
         </Typography>
 
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {items.slice(0, 6).map((item, index) => (
-            <Box
-              key={index}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 14,
-                borderBottom: "1px solid #eee",
-                pb: 0.5,
-              }}
-            >
-              <span>{item.action}</span>
-              <span>{renderRight(item)}</span>
-            </Box>
-          ))}
-
-          {items.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              No records found
-            </Typography>
-          )}
+        {/* Header */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr 1.5fr",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "text.secondary",
+            mb: 1,
+          }}
+        >
+          <span>Type</span>
+          <span>Action</span>
+          <span>Amount</span>
+          <span>Date</span>
         </Box>
+
+        {items.map((item, index) => (
+          <Box
+            key={index}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr 1.5fr",
+              fontSize: 13,
+              borderBottom: "1px solid #eee",
+              py: 0.8,
+            }}
+          >
+            <span>{item.type}</span>
+            <span>{item.action}</span>
+            <span>
+              {item.amount
+                ? `₹${item.amount.toLocaleString("en-IN")}`
+                : "-"}
+            </span>
+            <span>{formatDate(item.date)}</span>
+          </Box>
+        ))}
       </Paper>
     </Grid>
   );
@@ -224,37 +281,47 @@ function RecentBlock({ title, items, renderRight }) {
 /* ================= STYLES ================= */
 
 const cardStyle = {
-  width: "100%", // ✅ full width
+   width: 230,
   height: 120,
+  minHeight: 120,
+  maxHeight: 120,
   borderRadius: 2,
-  padding: 5,
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
+  // justifyContent: "center",
 };
 
 const cardContentStyle = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
-  padding: 2,
+  gap: 2,
+  padding: "12px 16px", // controlled padding
+  "&:last-child": {
+    paddingBottom: "12px",
+  },
 };
+
 
 const iconWrapper = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
-  width: 50,
+  justifyContent: "flex-start", // LEFT on all screens
+  width: 45,
 };
 
 const textWrapper = {
   display: "flex",
   flexDirection: "column",
-  justifyContent: "center",
-  alignItems: "center",
+  alignItems: "flex-start",
 };
+
+
 const iconStyle = (color) => ({
-  justifyContent: "center",
-  fontSize: 30,
   color,
+  fontSize: {
+    xs: 40,
+    md: 45,
+  },
 });
+
+
