@@ -7,6 +7,7 @@ const {
   exportInvoicePdf,
   getPaymentHistory,
   confirmPaymentByAdmin,
+  getMembersForPayment
 } = require("../controllers/paymentsController");
 
 const authMiddleware = require("../middleware/auth");
@@ -27,5 +28,8 @@ router.get("/invoice/:id", exportInvoicePdf);
 router.get("/history", getPaymentHistory);
 //  Admin confirm payment
 router.put("/confirm/:paymentId" ,confirmPaymentByAdmin);
+// Get members list for payment
+router.get("/members", getMembersForPayment);
+
 
 module.exports = router;

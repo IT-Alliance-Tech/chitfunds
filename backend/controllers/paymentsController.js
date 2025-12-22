@@ -83,10 +83,60 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     payments,
   });
 });
+// get members list for payment
+const getMembersForPayment = asyncHandler(async (req, res) => {
+  const { chitId, location, name, phone, page = 1, limit = 10 } = req.query;
+
+  const skip = (Number(page) - 1) * Number(limit);
+
+  const memberFilter = {};
+
+  if (location) {
+    memberFilter.location = location;
+  }
+
+  if (name) {
+    memberFilter.name = { $regex: name, $options: "i" };
+  }
+
+  if (phone) {
+    memberFilter.phone = { $regex: phone, $options: "i" };
+  }
+
+  let membersQuery = Member.find(memberFilter)
+    .select("name phone location chits")
+    .lean();
+
+  const totalMembers = await Member.countDocuments(memberFilter);
+
+  let members = await membersQuery.skip(skip).limit(Number(limit));
+
+  if (chitId) {
+    members = members.filter((m) =>
+      m.chits?.some((c) => c.chitId.toString() === chitId)
+    );
+  }
+
+  return sendResponse(res, 200, true, "Members fetched successfully", {
+    members,
+    pagination: {
+      total: totalMembers,
+      page: Number(page),
+      limit: Number(limit),
+      totalPages: Math.ceil(totalMembers / limit),
+    },
+    filters: {
+      chitId: chitId || null,
+      location: location || null,
+      name: name || null,
+      phone: phone || null,
+    },
+  });
+});
 
 // export invoice pdf
 const exportInvoicePdf = asyncHandler(async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
 
   const payment = await Payment.findById(id)
     .populate("chitId")
@@ -128,4 +178,5 @@ module.exports = {
   getPaymentHistory,
   exportInvoicePdf,
   confirmPaymentByAdmin,
+  getMembersForPayment,
 };
