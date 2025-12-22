@@ -76,7 +76,7 @@ const exportInvoicePdf = asyncHandler(async (req, res) => {
     message: "Invoice export not implemented yet",
   });
 });
-
+// Additional functions to be implemented
 module.exports = {
   createPayment,
   getPayments,
