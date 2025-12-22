@@ -1,56 +1,150 @@
 const PDFDocument = require("pdfkit");
 
-exports.generateInvoicePDF = (res, payment) => {
-  const doc = new PDFDocument({ margin: 40 });
+const formatDate = (date) => {
+  const d = new Date(date);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+};
 
-  // ===== HTTP HEADERS =====
+exports.generateInvoicePDF = (res, payment) => {
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 50,
+    font: "Helvetica",
+  });
+
+  // ===== Headers =====
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
     `attachment; filename=invoice-${payment.invoiceNumber}.pdf`
   );
 
-  // ===== STREAM PDF TO RESPONSE =====
   doc.pipe(res);
 
-  // ===== SAFE DATE HANDLING =====
-  const paymentDate =
-    payment.paymentDate || payment.createdAt || new Date();
+  const paymentDate = formatDate(payment.paymentDate);
+  const dueDate = formatDate(payment.dueDate);
 
-  // ===== TITLE =====
-  doc.fontSize(18).text("CHIT PAYMENT INVOICE", { align: "center" });
+  /* ================= HEADER ================= */
+  doc.fontSize(18).font("Helvetica-Bold").text("IT ALLIANCE TECH");
+
+  doc
+    .fontSize(10)
+    .font("Helvetica")
+    .fillColor("#555")
+    .text("Chit Fund Management System");
+
+  // Invoice meta (TOP RIGHT)
+  doc
+    .fontSize(10)
+    .fillColor("#000")
+    .text(`Invoice No: ${payment.invoiceNumber}`, 350, 50, { align: "right" })
+    .text(`Payment Date: ${paymentDate}`, { align: "right" });
+
   doc.moveDown(2);
+  doc.moveTo(50, 95).lineTo(550, 95).stroke();
 
-  // ===== INVOICE INFO =====
-  doc.fontSize(12);
-  doc.text(`Invoice No : ${payment.invoiceNumber}`);
-  doc.text(`Payment Date : ${new Date(paymentDate).toDateString()}`);
-  doc.moveDown();
+  /* ================= BILL TO & CHIT INFO (2 COLUMNS) ================= */
 
-  // ===== MEMBER INFO =====
-  doc.text(`Member Name : ${payment.memberId.name}`);
-  doc.text(`Phone       : ${payment.memberId.phone}`);
-  doc.moveDown();
+  const leftX = 50;
+  const rightX = 320;
+  const startY = 110;
 
-  // ===== CHIT INFO =====
-  doc.text(`Chit Name         : ${payment.chitId.chitName}`);
-  doc.text(`Monthly Payable  : ₹${payment.monthlyPayableAmount}`);
-  doc.moveDown();
+  // ----- Bill To -----
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .fillColor("#000")
+    .text("Bill To", leftX, startY);
 
-  // ===== PAYMENT INFO =====
-  doc.text(`Paid Amount    : ₹${payment.paidAmount}`);
-  doc.text(`Penalty Amount: ₹${payment.penaltyAmount}`);
-  doc.text(`Total Paid     : ₹${payment.totalPaid}`);
-  doc.text(`Balance Amount : ₹${payment.balanceAmount}`);
-  doc.moveDown();
+  doc
+    .font("Helvetica")
+    .fontSize(10)
+    .text(`Name  : ${payment.memberId.name}`, leftX, startY + 18)
+    .text(`Phone : ${payment.memberId.phone}`, leftX, startY + 34);
 
-  // ===== STATUS =====
-  doc.text(`Payment Status : ${payment.status.toUpperCase()}`);
-  doc.moveDown(2);
+  // ----- Chit Info -----
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text("Chit Information", rightX, startY);
 
-  // ===== FOOTER =====
-  doc.text("This is a system generated invoice.", { align: "center" });
-  doc.text("Thank you for your payment.", { align: "center" });
+  doc
+    .font("Helvetica")
+    .fontSize(10)
+    .text(`Chit Name   : ${payment.chitId.chitName}`, rightX, startY + 18)
+    .text(`Total Amount: ₹${payment.chitId.amount}`, rightX, startY + 34)
+    .text(
+      `Duration    : ${payment.chitId.duration} months`,
+      rightX,
+      startY + 50
+    )
+    .text(`Payment Mode: ${payment.paymentMode}`, rightX, startY + 66)
+    .text(`Due Date    : ${dueDate}`, rightX, startY + 82);
+
+  doc.moveDown(6);
+
+  /* ================= PAYMENT STATUS ================= */
+  const statusColor = payment.status === "paid" ? "#198754" : "#dc3545";
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .fillColor(statusColor)
+    .text(`Payment Status: ${payment.status.toUpperCase()}`, {
+      align: "right",
+    });
+
+  doc.moveDown(1);
+
+  /* ================= PAYMENT TABLE ================= */
+  const tableTop = doc.y + 10;
+
+  // Table Header
+  doc.rect(50, tableTop, 500, 25).fill("#f1f1f1");
+
+  doc
+    .fillColor("#000")
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("Description", 60, tableTop + 7)
+    .text("Amount (₹)", 430, tableTop + 7);
+
+  doc.font("Helvetica").fontSize(10);
+
+  const drawRow = (y, label, value, highlight = false) => {
+    doc.fillColor("#000").text(label, 60, y);
+    doc.fillColor(highlight ? "#dc3545" : "#000").text(`₹${value}`, 430, y);
+  };
+
+  let y = tableTop + 35;
+  drawRow(y, "Monthly Payable Amount", payment.monthlyPayableAmount);
+  y += 22;
+  drawRow(y, "Paid Amount", payment.paidAmount);
+  y += 22;
+  drawRow(y, "Penalty Amount", payment.penaltyAmount);
+  y += 22;
+  drawRow(y, "Total Paid", payment.totalPaid);
+  y += 22;
+  drawRow(
+    y,
+    "Balance Amount",
+    payment.balanceAmount,
+    payment.balanceAmount > 0
+  );
+
+  doc.moveDown(4);
+
+  /* ================= FOOTER ================= */
+  doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor("#ccc").stroke();
+
+  doc.moveDown(1);
+  doc
+    .fontSize(9)
+    .fillColor("#555")
+    .text("This is a system generated bill.", { align: "center" });
 
   doc.end();
 };
