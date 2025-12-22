@@ -54,7 +54,7 @@ async function run() {
     console.log("[INFO] Connected to MongoDB");
 
     // === EDIT THESE VALUES ===
-    const email = "admin@test.com";
+    const email = "naveen@italliancetech.com";
     const plainPassword = "Admin@123";
     const accessKey = "ADMIN-ACCESS-001";
     // =========================
