@@ -625,4 +625,4 @@ export default function ChitsPage() {
       </div>
     </div>
   );
-} 
+}  
