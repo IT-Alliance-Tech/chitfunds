@@ -21,6 +21,8 @@ import {
   Select,
   InputLabel,
   FormControl,
+  TablePagination,
+  Box,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
@@ -29,7 +31,6 @@ import ReactSelect from "react-select";
 import makeAnimated from "react-select/animated";
 import { apiRequest } from "@/config/api";
 import AddIcon from "@mui/icons-material/Add";
-
 
 const animatedComponents = makeAnimated();
 
@@ -48,6 +49,12 @@ const securityDocumentOptions = [
 ];
 
 export default function MembersPage() {
+  /* ===================== PAGINATION STATE ====================== */
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
 
@@ -83,15 +90,25 @@ export default function MembersPage() {
   /* ===================== MEMBERS ====================== */
   const [members, setMembers] = useState([]);
 
+  // 🔥 FETCH MEMBERS WITH PAGINATION
   useEffect(() => {
     fetchMembers();
-  }, []);
+  }, [page, rowsPerPage]); // Refetch when page or rowsPerPage changes
 
   const fetchMembers = async () => {
     try {
-      const res = await apiRequest("/member/list", { method: "GET" });
+      // 🔥 ADD PAGINATION PARAMETERS TO API CALL
+      const res = await apiRequest(
+        `/member/list?page=${page}&limit=${rowsPerPage}`,
+        { method: "GET" }
+      );
 
       const membersArray = res?.data?.members || res?.data?.items || [];
+
+      // 🔥 EXTRACT PAGINATION DATA
+      const paginationData = res?.data?.pagination || {};
+      setTotalItems(paginationData.totalItems || 0);
+      setTotalPages(paginationData.totalPages || 0);
 
       const formattedMembers = membersArray.map((m) => {
         // Extract chitIds from the chits array - handle both string and object cases
@@ -136,6 +153,7 @@ export default function MembersPage() {
     } catch (err) {
       console.error("Failed to fetch members", err);
       setMembers([]);
+      setTotalItems(0);
     }
   };
 
@@ -166,6 +184,16 @@ export default function MembersPage() {
     console.log("💾 FORM DATA UPDATED:", formData);
   }, [formData]);
 
+  // 🔥 PAGINATION HANDLERS
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage + 1); // Material-UI uses 0-based index, API uses 1-based
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(1); // Reset to first page when changing rows per page
+  };
+
   /* MENU ACTIONS */
   const handleMenuOpen = (e, member) => {
     setAnchorEl(e.currentTarget);
@@ -195,11 +223,10 @@ export default function MembersPage() {
   const handleEditMember = () => {
     setIsEdit(true);
 
-
     // Ensure chitIds are strings
     const cleanChitIds = (selectedMember.chitIds || [])
-      .map(id => {
-        if (typeof id === 'object') {
+      .map((id) => {
+        if (typeof id === "object") {
           return id._id || id.id || null;
         }
         return id;
@@ -239,7 +266,9 @@ export default function MembersPage() {
         method: "DELETE",
       });
 
-      await fetchMembers();
+      alert("Member deleted successfully");
+      // 🔥 REFETCH DATA AFTER DELETE
+      fetchMembers();
       handleMenuClose();
     } catch (err) {
       alert(err.message || "Failed to delete member");
@@ -269,25 +298,24 @@ export default function MembersPage() {
 
       console.log("📤 PAYLOAD BEING SENT:", payload);
 
-      let response;
       if (isEdit) {
-        response = await apiRequest(`/member/update/${formData.id}`, {
+        await apiRequest(`/member/update/${formData.id}`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
+        alert("Member updated successfully!");
       } else {
-        response = await apiRequest("/member/create", {
+        await apiRequest("/member/create", {
           method: "POST",
           body: JSON.stringify(payload),
         });
+        alert("Member created successfully!");
       }
 
-      console.log("✅ BACKEND RESPONSE:", response);
-
-      await fetchMembers();
       setOpenModal(false);
       setIsEdit(false);
-      alert("Member saved successfully!");
+      // 🔥 REFETCH DATA AFTER SAVE
+      fetchMembers();
     } catch (err) {
       console.error("❌ ERROR:", err);
       alert(err.message || "Failed to save member");
@@ -337,7 +365,11 @@ export default function MembersPage() {
                 Member Management
               </Typography>
 
-              <Button variant="contained" onClick={handleAddMember}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddMember}
+              >
                 Add Member
               </Button>
             </div>
@@ -357,69 +389,14 @@ export default function MembersPage() {
               </Typography>
 
               <div className="absolute right-0">
-                startIcon={<AddIcon />}
-                <Button variant="contained" onClick={handleAddMember}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddMember}
+                >
                   Add Member
                 </Button>
               </div>
-            </div>
-          </div>
-
-          {/* STATS CARDS */}
-          <div className="max-w-[820px] mx-auto sm:mx-0">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-3 md:gap-2 mb-6 justify-items-center sm:justify-items-start">
-              {/* TOTAL MEMBERS */}
-              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-                <div className="flex items-center gap-3 w-full">
-                  <Group
-                    sx={{ fontSize: { xs: 30, sm: 34 }, color: "#1e88e5" }}
-                  />
-                  <div>
-                    <Typography variant="h6" fontWeight={600}>
-                      <CountUp end={members.length} />
-                    </Typography>
-                    <Typography variant="body2">Total Members</Typography>
-                  </div>
-                </div>
-              </Card> */}
-
-              {/* ACTIVE */}
-              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-                <div className="flex items-center gap-3 w-full">
-                  <CheckCircle
-                    sx={{ fontSize: { xs: 30, sm: 34 }, color: "green" }}
-                  />
-                  <div>
-                    <Typography variant="h6" color="green" fontWeight={600}>
-                      <CountUp
-                        end={
-                          members.filter((m) => m.status === "Active").length
-                        }
-                      />
-                    </Typography>
-                    <Typography variant="body2">Active</Typography>
-                  </div>
-                </div>
-              </Card> */}
-
-              {/* INACTIVE */}
-              {/* <Card className="p-3 bg-white flex items-center w-full max-w-[240px] h-[88px]">
-                <div className="flex items-center gap-3 w-full">
-                  <Cancel
-                    sx={{ fontSize: { xs: 30, sm: 34 }, color: "red" }}
-                  />
-                  <div>
-                    <Typography variant="h6" color="red" fontWeight={600}>
-                      <CountUp
-                        end={
-                          members.filter((m) => m.status === "Inactive").length
-                        }
-                      />
-                    </Typography>
-                    <Typography variant="body2">Inactive</Typography>
-                  </div>
-                </div>
-              </Card> */}
             </div>
           </div>
 
@@ -531,22 +508,21 @@ export default function MembersPage() {
 
           {/* TABLE WITH MOBILE SCROLL */}
           <Card>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
                 <Table className="min-w-max">
                   <TableHead>
-  <TableRow>
-    <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
-    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-    <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
-    <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
-    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-    <TableCell sx={{ fontWeight: 700 }} align="center">
-      Actions
-    </TableCell>
-  </TableRow>
-</TableHead>
-
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }} align="center">
+                        Actions
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
 
                   <TableBody>
                     {filteredMembers.map((m) => (
@@ -577,6 +553,23 @@ export default function MembersPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* 🔥 PAGINATION CONTROLS */}
+              <Box sx={{ borderTop: 1, borderColor: "divider" }}>
+                <TablePagination
+                  component="div"
+                  count={totalItems}
+                  page={page - 1} // Material-UI uses 0-based index
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                  labelRowsPerPage="Rows per page:"
+                  labelDisplayedRows={({ from, to, count }) =>
+                    `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                  }
+                />
+              </Box>
             </CardContent>
           </Card>
 
@@ -658,7 +651,7 @@ export default function MembersPage() {
                   variant="body2"
                   sx={{ mb: 1, fontWeight: 500, color: "#666" }}
                 >
-                  Assigned Chits *
+                  Assigned Chits 
                 </Typography>
                 <ReactSelect
                   isMulti
