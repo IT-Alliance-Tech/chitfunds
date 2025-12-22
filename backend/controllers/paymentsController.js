@@ -120,7 +120,7 @@ const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
 
   return sendResponse(res, 200, true, "Payment confirmed by admin", payment);
 });
-
+// Additional functions to be implemented
 module.exports = {
   createPayment,
   getPayments,
