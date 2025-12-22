@@ -86,23 +86,18 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
 
 // export invoice pdf
 const exportInvoicePdf = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; 
 
-  const payment = await Payment.findOne({ invoiceNumber: id });
+  const payment = await Payment.findById(id)
+    .populate("chitId")
+    .populate("memberId");
+
   if (!payment) {
     res.status(404);
-    throw new Error("Invoice not found");
+    throw new Error("Payment not found");
   }
 
-  const chit = await Chit.findById(payment.chitId);
-  const member = await Member.findById(payment.memberId);
-
-  if (!chit || !member) {
-    res.status(404);
-    throw new Error("Chit or Member not found");
-  }
-
-  generateInvoicePDF(res, payment, chit, member);
+  generateInvoicePDF(res, payment);
 });
 
 // admin confirm payment
