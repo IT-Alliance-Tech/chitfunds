@@ -17,7 +17,7 @@ const paymentSchema = new mongoose.Schema(
     },
 
     paymentMonth: {
-      // Example: 2025-01 (YYYY-MM)
+      // Example: 2025-01
       type: String,
       required: true,
       index: true,
@@ -89,14 +89,10 @@ const paymentSchema = new mongoose.Schema(
     invoiceNumber: {
       type: String,
       unique: true,
+      index: true,
     },
   },
   { timestamps: true }
-);
-
-paymentSchema.index(
-  { chitId: 1, memberId: 1, paymentMonth: 1 },
-  { unique: true }
 );
 
 module.exports = mongoose.model("Payment", paymentSchema);
