@@ -11,6 +11,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TablePagination,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,70 +21,57 @@ import {
   InputLabel,
   FormControl,
   Select,
+  useMediaQuery,
 } from "@mui/material";
 
 import { apiRequest } from "@/config/api";
 
+/* ================= INITIAL FORM STATE ================= */
+const initialFormState = {
+  chitId: "",
+  memberId: "",
+  phone: "",
+  location: "",
+  paymentMonth: "",
+  paymentYear: "",
+  paidAmount: "",
+  penaltyAmount: "",
+  paymentMode: "",
+  dueDate: "",
+  paymentDate: "",
+};
+
 export default function PaymentsPage() {
-  /* ================= STATE ================= */
+  const isMobile = useMediaQuery("(max-width:600px)");
 
   const [payments, setPayments] = useState([]);
   const [chits, setChits] = useState([]);
   const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
+  const [form, setForm] = useState(initialFormState);
 
-  const [form, setForm] = useState({
-    chitId: "",
-    memberId: "",
-    phone: "",
-    location: "",
-    paymentMonth: "",
-    paymentYear: "",
-    paidAmount: "",
-    penaltyAmount: "",
-    paymentMode: "",
-  });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   /* ================= FETCH PAYMENTS ================= */
-
   const fetchPayments = async () => {
-    try {
-      setLoading(true);
-      const res = await apiRequest("/payment/list", "GET");
-      setPayments(res?.data?.payments || []);
-    } catch (err) {
-      console.error("Error fetching payments", err);
-      setPayments([]);
-    } finally {
-      setLoading(false);
-    }
+    const res = await apiRequest("/payment/list");
+    setPayments(res?.data?.payments || []);
   };
 
   /* ================= FETCH CHITS ================= */
-
   const fetchChits = async () => {
-    try {
-      const res = await apiRequest("/chit/list", "GET");
-      setChits(res?.data?.chits || []);
-    } catch (err) {
-      console.error("Error fetching chits", err);
-      setChits([]);
-    }
+    const res = await apiRequest("/chit/list");
+    setChits(res?.data?.chits || []);
   };
 
-  /* ================= FETCH MEMBERS BY CHIT ================= */
-
+  /* ================= FETCH MEMBERS ================= */
   const fetchMembersByChit = async (chitId) => {
     if (!chitId) return;
-
     try {
-      const res = await apiRequest(`/chit/details/${chitId}`, "GET");
-
-      // ✅ based on your API response
+      const res = await apiRequest(`/chit/details/${chitId}`);
       setMembers(res?.data?.members || []);
-    } catch (err) {
-      console.error("Error fetching members", err);
+    } catch {
       setMembers([]);
     }
   };
@@ -94,134 +82,192 @@ export default function PaymentsPage() {
   }, []);
 
   /* ================= SAVE PAYMENT ================= */
-
   const savePayment = async () => {
-    try {
-      const payload = {
-        chitId: form.chitId,
-        memberId: form.memberId,
-        paymentMonth: form.paymentMonth,
-        paymentYear: form.paymentYear,
-        paidAmount: Number(form.paidAmount),
-        penaltyAmount: Number(form.penaltyAmount || 0),
-        paymentMode: form.paymentMode,
-      };
+    const payload = {
+      chitId: form.chitId,
+      memberId: form.memberId,
+      paidAmount: Number(form.paidAmount),
+      penaltyAmount: Number(form.penaltyAmount || 0),
+      paymentMonth: form.paymentMonth,
+      paymentYear: Number(form.paymentYear),
+      dueDate: form.dueDate,
+      paymentDate: form.paymentDate,
+      paymentMode: form.paymentMode,
+    };
 
-      await apiRequest("/payment/add", "POST", payload);
+    await apiRequest("/payment/create", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
 
-      setOpenModal(false);
-      setForm({
-        chitId: "",
-        memberId: "",
-        phone: "",
-        location: "",
-        paymentMonth: "",
-        paymentYear: "",
-        paidAmount: "",
-        penaltyAmount: "",
-        paymentMode: "",
-      });
-
-      fetchPayments();
-    } catch (err) {
-      console.error("Error saving payment", err);
-    }
+    setOpenModal(false);
+    setForm(initialFormState);
+    setMembers([]);
+    fetchPayments();
   };
+
+  const paginatedPayments = payments.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
       <div className="max-w-[1300px] mx-auto space-y-6">
 
         {/* ================= HEADER ================= */}
-        <div className="flex justify-between items-center">
-          <Typography
-            fontWeight={600}
-            sx={{ fontSize: { xs: "1.25rem", md: "1.75rem" } }}
-          >
-            Payment Management
-          </Typography>
+      <div
+  style={{
+    position: "relative",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 12,
+  }}
+>
+  {/* Heading */}
+  <Typography
+    fontWeight={600}
+    sx={{
+      fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+      color: "#000",
+      textAlign: "center",
+    }}
+  >
+    Payment Management
+  </Typography>
 
-          <Button variant="contained" onClick={() => setOpenModal(true)}>
-            Add Payment
-          </Button>
-        </div>
+  {/* Add Payment Button */}
+  <Button
+    variant="contained"
+    sx={{
+      position: { xs: "static", md: "absolute" }, // 👈 mobile vs desktop
+      right: { md: 0 },
+      top: { md: "50%" },
+      transform: { md: "translateY(-50%)" },
+    }}
+    onClick={() => {
+      setForm(initialFormState);
+      setMembers([]);
+      setOpenModal(true);
+    }}
+  >
+    Add Payment
+  </Button>
+</div>
 
-        {/* ================= PAYMENTS TABLE ================= */}
+
+        {/* ================= PAYMENT LIST ================= */}
         <Card>
           <CardContent>
-            <Typography mb={2} fontWeight={600}>
-              Payments ({payments.length})
+            <Typography fontWeight={600} sx={{ mb: 2 }}>
+              Payments List
             </Typography>
 
-            <div className="overflow-x-auto">
-              <Table className="min-w-[1100px]">
+            {/* Responsive table wrapper */}
+            <div style={{ width: "100%", overflowX: "auto" }}>
+              <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Invoice</TableCell>
-                    <TableCell>Member</TableCell>
-                    <TableCell>Phone</TableCell>
-                    <TableCell>Chit</TableCell>
-                    <TableCell>Month</TableCell>
-                    <TableCell>Paid</TableCell>
-                    <TableCell>Penalty</TableCell>
-                    <TableCell>Total</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Mode</TableCell>
+                    {[
+                      "Invoice",
+                      "Chit",
+                      "Member",
+                      "Phone",
+                      "Date",
+                      "Paid",
+                      "Penalty",
+                      "Total",
+                      "Mode",
+                      "Status",
+                    ].map((h) => (
+                      <TableCell key={h} sx={{ fontWeight: 600 }}>
+                        {h}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
-                  {loading && (
-                    <TableRow>
-                      <TableCell colSpan={10} align="center">
-                        Loading payments...
-                      </TableCell>
-                    </TableRow>
-                  )}
-
-                  {!loading && payments.length === 0 && (
+                  {paginatedPayments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} align="center">
                         No payments found
                       </TableCell>
                     </TableRow>
+                  ) : (
+                    paginatedPayments.map((p) => (
+                      <TableRow key={p._id}>
+                        <TableCell sx={{ whiteSpace: "nowrap" }}>
+                          {p.invoiceNumber || "-"}
+                        </TableCell>
+                        <TableCell>{p.chitId?.chitName || "-"}</TableCell>
+                        <TableCell>{p.memberId?.name || "-"}</TableCell>
+                        <TableCell>{p.memberId?.phone || "-"}</TableCell>
+                        <TableCell>
+                          {new Date(p.paymentDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>₹{p.paidAmount}</TableCell>
+                        <TableCell>₹{p.penaltyAmount}</TableCell>
+                        <TableCell>₹{p.totalPaid}</TableCell>
+                        <TableCell>{p.paymentMode}</TableCell>
+                        <TableCell>{p.status}</TableCell>
+                      </TableRow>
+                    ))
                   )}
-
-                  {payments.map((p) => (
-                    <TableRow key={p._id}>
-                      <TableCell>{p.invoiceNumber}</TableCell>
-                      <TableCell>{p.memberId?.name || "-"}</TableCell>
-                      <TableCell>{p.memberId?.phone || "-"}</TableCell>
-                      <TableCell>{p.chitId?.chitName || "-"}</TableCell>
-                      <TableCell>{p.paymentMonth}</TableCell>
-                      <TableCell>₹{p.paidAmount}</TableCell>
-                      <TableCell>₹{p.penaltyAmount}</TableCell>
-                      <TableCell>₹{p.totalPaid}</TableCell>
-                      <TableCell>{p.status}</TableCell>
-                      <TableCell>{p.paymentMode}</TableCell>
-                    </TableRow>
-                  ))}
                 </TableBody>
               </Table>
             </div>
+
+            {payments.length > 0 && (
+              <TablePagination
+                component="div"
+                count={payments.length}
+                page={page}
+                onPageChange={(e, n) => setPage(n)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(e) =>
+                  setRowsPerPage(parseInt(e.target.value, 10))
+                }
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                sx={{
+                  mt: 2,
+                  "& .MuiTablePagination-toolbar": {
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                  },
+                }}
+              />
+            )}
           </CardContent>
         </Card>
 
         {/* ================= ADD PAYMENT MODAL ================= */}
-        <Dialog open={openModal} fullWidth maxWidth="sm">
+        <Dialog
+          open={openModal}
+          fullWidth
+          maxWidth="sm"
+          fullScreen={isMobile}   // ✅ ONLY mobile
+        >
           <DialogTitle>Add Payment</DialogTitle>
 
-          <DialogContent>
-            {/* 🔹 CHIT DROPDOWN */}
-            <FormControl fullWidth sx={{ mb: 2 }}>
+          <DialogContent
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            <FormControl fullWidth>
               <InputLabel>Select Chit</InputLabel>
               <Select
                 label="Select Chit"
-                value={form.chitId || ""}
+                value={form.chitId}
                 onChange={(e) => {
                   const chitId = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
+                  setForm((p) => ({
+                    ...p,
                     chitId,
                     memberId: "",
                     phone: "",
@@ -230,30 +276,26 @@ export default function PaymentsPage() {
                   fetchMembersByChit(chitId);
                 }}
               >
-                {chits.map((chit) => (
-                  <MenuItem key={chit._id} value={chit._id}>
-                    {chit.chitName}
+                {chits.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.chitName}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {/* 🔹 MEMBER DROPDOWN */}
-            <FormControl fullWidth sx={{ mb: 2 }} disabled={!members.length}>
+            <FormControl fullWidth disabled={!members.length}>
               <InputLabel>Select Member</InputLabel>
               <Select
                 label="Select Member"
-                value={form.memberId || ""}
+                value={form.memberId}
                 onChange={(e) => {
-                  const member = members.find(
-                    (m) => m._id === e.target.value
-                  );
-
-                  setForm((prev) => ({
-                    ...prev,
-                    memberId: member?._id || "",
-                    phone: member?.phone || "",
-                    location: member?.address || "",
+                  const m = members.find((x) => x._id === e.target.value);
+                  setForm((p) => ({
+                    ...p,
+                    memberId: m._id,
+                    phone: m.phone,
+                    location: m.address,
                   }));
                 }}
               >
@@ -265,69 +307,54 @@ export default function PaymentsPage() {
               </Select>
             </FormControl>
 
-            {/* 🔹 AUTO-FILLED FIELDS */}
-            <TextField
-              fullWidth
-              label="Phone"
-              value={form.phone || ""}
-              disabled
-              sx={{ mb: 2 }}
-            />
-
-            <TextField
-              fullWidth
-              label="Location"
-              value={form.location || ""}
-              disabled
-              sx={{ mb: 2 }}
-            />
+            <TextField label="Phone" value={form.phone} disabled />
+            <TextField label="Location" value={form.location} disabled />
 
             <TextField
               type="month"
-              fullWidth
               label="Payment Month"
               InputLabelProps={{ shrink: true }}
-              sx={{ mb: 2 }}
-              value={
-                form.paymentYear && form.paymentMonth
-                  ? `${form.paymentYear}-${form.paymentMonth}`
-                  : ""
-              }
               onChange={(e) => {
                 const [year, month] = e.target.value.split("-");
-                setForm((prev) => ({
-                  ...prev,
+                setForm((p) => ({
+                  ...p,
                   paymentYear: year,
-                  paymentMonth: month,
+                  paymentMonth: `${year}-${month}`,
                 }));
               }}
             />
 
             <TextField
-              fullWidth
-              label="Paid Amount"
-              type="number"
-              sx={{ mb: 2 }}
-              value={form.paidAmount || ""}
+              type="date"
+              label="Due Date"
+              InputLabelProps={{ shrink: true }}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  paidAmount: e.target.value,
-                }))
+                setForm((p) => ({ ...p, dueDate: e.target.value }))
               }
             />
 
             <TextField
-              fullWidth
+              type="date"
+              label="Payment Date"
+              InputLabelProps={{ shrink: true }}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, paymentDate: e.target.value }))
+              }
+            />
+
+            <TextField
+              label="Paid Amount"
+              type="number"
+              onChange={(e) =>
+                setForm((p) => ({ ...p, paidAmount: e.target.value }))
+              }
+            />
+
+            <TextField
               label="Penalty Amount"
               type="number"
-              sx={{ mb: 2 }}
-              value={form.penaltyAmount || ""}
               onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  penaltyAmount: e.target.value,
-                }))
+                setForm((p) => ({ ...p, penaltyAmount: e.target.value }))
               }
             />
 
@@ -335,23 +362,35 @@ export default function PaymentsPage() {
               <InputLabel>Payment Mode</InputLabel>
               <Select
                 label="Payment Mode"
-                value={form.paymentMode || ""}
+                value={form.paymentMode}
                 onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    paymentMode: e.target.value,
-                  }))
+                  setForm((p) => ({ ...p, paymentMode: e.target.value }))
                 }
               >
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="upi">UPI</MenuItem>
-                <MenuItem value="bank">Bank Transfer</MenuItem>
+                <MenuItem value="bank">Bank</MenuItem>
               </Select>
             </FormControl>
           </DialogContent>
 
-          <DialogActions>
-            <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+          <DialogActions
+            sx={{
+              flexDirection: { xs: "column", sm: "row" },
+              gap: 1,
+              px: 3,
+              pb: 2,
+            }}
+          >
+            <Button
+              onClick={() => {
+                setOpenModal(false);
+                setForm(initialFormState);
+                setMembers([]);
+              }}
+            >
+              Cancel
+            </Button>
             <Button variant="contained" onClick={savePayment}>
               Save Payment
             </Button>
