@@ -11,7 +11,7 @@ const chitBody = z.object({
     cycleDay: z.number().min(1).max(31, 'Cycle day must be between 1 and 31'),
     status: z.enum(["Upcoming", "Ongoing", "Active", "Closed", "Completed"]).optional(),
 });
-
+// Export schemas
 const createChitSchema = z.object({
     body: chitBody
 });
@@ -19,7 +19,7 @@ const createChitSchema = z.object({
 const updateChitSchema = z.object({
     body: chitBody.partial()
 });
-
+// Export schemas
 module.exports = {
     createChitSchema,
     updateChitSchema,
