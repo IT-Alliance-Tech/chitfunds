@@ -23,7 +23,7 @@ const computeStatus = (startDate, requestedStatus) => {
   return "Ongoing";
 };
 
-// create chit
+// create chit with status
 const createChit = asyncHandler(async (req, res) => {
   const finalStatus = computeStatus(req.body.startDate, req.body.status);
 
