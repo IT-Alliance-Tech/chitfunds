@@ -27,6 +27,10 @@ const chitSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    duedate: {
+      type: Date,
+      required: true,
+    },
     membersLimit: {
       type: Number,
       required: true,
@@ -50,25 +54,7 @@ const chitSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
-    toObject: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
   }
 );
 
-const Chit = mongoose.model("Chit", chitSchema);
-
-module.exports = Chit;
+module.exports = mongoose.model("Chit", chitSchema);
