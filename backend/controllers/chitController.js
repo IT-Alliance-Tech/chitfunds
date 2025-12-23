@@ -13,7 +13,7 @@ const normalizeDate = (date) => {
   d.setHours(0, 0, 0, 0);
   return d;
 };
-
+// accepted statuses: Upcoming, Ongoing, Active, Closed
 const computeStatus = (startDate, requestedStatus) => {
   if (requestedStatus === "Closed" || requestedStatus === "Completed") {
     return requestedStatus;
@@ -37,7 +37,7 @@ const createChit = asyncHandler(async (req, res) => {
 
   return sendResponse(res, 201, true, "Chit created successfully", chit);
 });
-//get chits
+//get chits with pagination and filters
 const getChits = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.max(parseInt(req.query.limit) || 10, 1);
