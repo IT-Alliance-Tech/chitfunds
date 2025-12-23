@@ -39,7 +39,7 @@ const createChit = asyncHandler(async (req, res) => {
   return sendResponse(res, 201, true, "Chit created successfully", { chit });
 });
 
-/* ================= GET CHITS (PAGINATION + FILTERS) ================= */
+// get chits with pagination and filters
 const getChits = asyncHandler(async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
