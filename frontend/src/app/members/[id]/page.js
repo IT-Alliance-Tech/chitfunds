@@ -29,6 +29,9 @@ export default function MemberDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selectedChit, setSelectedChit] = useState(null);
+  const [payments, setPayments] = useState([]);
+const [paymentsLoading, setPaymentsLoading] = useState(false);
+
 
   useEffect(() => {
     if (!id) return;
@@ -66,15 +69,32 @@ export default function MemberDetailsPage() {
     );
   }
 
-  const handleOpen = (chit) => {
-    setSelectedChit(chit);
-    setOpen(true);
-  };
+ const handleOpen = async (chit) => {
+  setSelectedChit(chit);
+  setOpen(true);
+  setPayments([]);
+  setPaymentsLoading(true);
 
-  const handleClose = () => {
-    setSelectedChit(null);
-    setOpen(false);
-  };
+  try {
+    const res = await apiRequest(
+      `/payment/history?memberId=${member._id}&chitId=${chit.id}`
+    );
+
+    setPayments(res?.data?.payments || []);
+  } catch (err) {
+    console.error("Failed to fetch payments", err);
+    setPayments([]);
+  } finally {
+    setPaymentsLoading(false);
+  }
+};
+
+const handleClose = () => {
+  setSelectedChit(null);
+  setPayments([]);
+  setOpen(false);
+};
+
 
     const safeChits =
     (member.chits || [])
@@ -202,15 +222,60 @@ export default function MemberDetailsPage() {
         </DialogTitle>
 
         <DialogContent>
-          <Box className="py-10 text-center">
-            <Typography variant="h6" gutterBottom>
-              No Payment Data
-            </Typography>
-            <Typography color="text.secondary">
-              Payment details will appear once the payment module is integrated.
-            </Typography>
-          </Box>
-        </DialogContent>
+  {paymentsLoading ? (
+    <Box className="py-10 text-center">
+      <Typography>Loading payments...</Typography>
+    </Box>
+  ) : payments.length === 0 ? (
+    <Box className="py-10 text-center">
+      <Typography variant="h6">No Payments Found</Typography>
+      <Typography color="text.secondary">
+        No payment records available for this chit.
+      </Typography>
+    </Box>
+  ) : (
+    <Box sx={{ overflowX: "auto" }}>
+      <table className="min-w-full border text-sm">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="border px-3 py-2">Invoice</th>
+            <th className="border px-3 py-2">Month</th>
+            <th className="border px-3 py-2">Paid</th>
+            <th className="border px-3 py-2">Penalty</th>
+            <th className="border px-3 py-2">Total</th>
+            <th className="border px-3 py-2">Mode</th>
+            <th className="border px-3 py-2">Status</th>
+            <th className="border px-3 py-2">Date</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {payments.map((p) => (
+            <tr key={p._id}>
+              <td className="border px-3 py-2">{p.invoiceNumber}</td>
+              <td className="border px-3 py-2">{p.paymentMonth}</td>
+              <td className="border px-3 py-2">₹{p.paidAmount}</td>
+              <td className="border px-3 py-2">₹{p.penaltyAmount}</td>
+              <td className="border px-3 py-2 font-semibold">
+                ₹{p.totalPaid}
+              </td>
+              <td className="border px-3 py-2 capitalize">
+                {p.paymentMode}
+              </td>
+              <td className="border px-3 py-2 capitalize">
+                {p.status}
+              </td>
+              <td className="border px-3 py-2">
+                {new Date(p.paymentDate).toLocaleDateString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Box>
+  )}
+</DialogContent>
+
       </Dialog>
     </main>
   );
