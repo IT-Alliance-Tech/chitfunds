@@ -6,15 +6,21 @@ const sendResponse = (
   data = null,
   error = null
 ) => {
-  const response = {
-    success,
+  return res.status(statusCode).json({
     statusCode,
-    error: success ? null : error,
-    message: success ? message : null,
-    data: success ? data : null,
-  };
-
-  return res.status(statusCode).json(response);
+    success,
+    error: success
+      ? null
+      : {
+          message: error,
+        },
+    data: success
+      ? {
+          message,
+          ...data,
+        }
+      : null,
+  });
 };
 
 module.exports = sendResponse;
