@@ -55,6 +55,7 @@ export default function MembersPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
+
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
 
@@ -179,6 +180,8 @@ export default function MembersPage() {
     status: "Active",
   });
 
+  const [chitLimitError, setChitLimitError] = useState("");
+  
   // Debug formData changes
   useEffect(() => {
     console.log("💾 FORM DATA UPDATED:", formData);
@@ -205,6 +208,7 @@ export default function MembersPage() {
   /* ADD */
   const handleAddMember = () => {
     setIsEdit(false);
+  setChitLimitError(""); // ✅ clear old backend error
 
     setFormData({
       name: "",
@@ -222,6 +226,7 @@ export default function MembersPage() {
   /* EDIT */
   const handleEditMember = () => {
     setIsEdit(true);
+     setChitLimitError(""); // ✅ clear error
 
     // Ensure chitIds are strings
     const cleanChitIds = (selectedMember.chitIds || [])
@@ -317,9 +322,16 @@ export default function MembersPage() {
       // 🔥 REFETCH DATA AFTER SAVE
       fetchMembers();
     } catch (err) {
-      console.error("❌ ERROR:", err);
-      alert(err.message || "Failed to save member");
-    }
+  console.error("❌ ERROR:", err);
+
+  // ✅ If chit member limit reached
+  if (err.message?.includes("Chit member limit reached")) {
+    setChitLimitError(err.message);
+  } else {
+    alert(err.message || "Failed to save member");
+  }
+}
+
   };
 
   /* FILTERED MEMBERS */
@@ -676,15 +688,18 @@ export default function MembersPage() {
                       : []
                   }
                   onChange={(selected) => {
-                    const newChitIds = selected
-                      ? selected.map((s) => s.value)
-                      : [];
-                    console.log("🔄 CHITS CHANGED:", newChitIds);
-                    setFormData({
-                      ...formData,
-                      chitIds: newChitIds,
-                    });
-                  }}
+  const newChitIds = selected
+    ? selected.map((s) => s.value)
+    : [];
+
+  setChitLimitError(""); // ✅ clear error when user changes chit
+
+  setFormData({
+    ...formData,
+    chitIds: newChitIds,
+  });
+}}
+
                   placeholder="Select chits..."
                   styles={{
                     control: (base, state) => ({
@@ -717,6 +732,19 @@ export default function MembersPage() {
                     }),
                   }}
                 />
+                {chitLimitError && (
+  <Typography
+    variant="body2"
+    sx={{
+      mt: 1,
+      color: "error.main",
+      fontWeight: 500,
+    }}
+  >
+    {chitLimitError}
+  </Typography>
+)}
+
               </div>
 
               {/* SECURITY DOCUMENTS - REACT SELECT */}
