@@ -36,7 +36,9 @@ const createChit = asyncHandler(async (req, res) => {
     status: finalStatus,
   });
 
-  return sendResponse(res, 201, true, "Chit created successfully", { chit });
+  return sendResponse(res, 201, true, "Chit created successfully", {
+    chit,
+  });
 });
 
 /* ================= GET CHITS ================= */
@@ -84,12 +86,14 @@ const getChitById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return sendResponse(res, 400, false, "Invalid chit ID");
+    res.status(400);
+    throw new Error("Invalid chit ID");
   }
 
   const chit = await Chit.findById(id);
   if (!chit) {
-    return sendResponse(res, 404, false, "Chit not found");
+    res.status(404);
+    throw new Error("Chit not found");
   }
 
   const members = await Member.find({
@@ -107,7 +111,8 @@ const updateChit = asyncHandler(async (req, res) => {
   const chit = await Chit.findById(req.params.id);
 
   if (!chit) {
-    return sendResponse(res, 404, false, "Chit not found");
+    res.status(404);
+    throw new Error("Chit not found");
   }
 
   Object.assign(chit, req.body);
@@ -118,7 +123,9 @@ const updateChit = asyncHandler(async (req, res) => {
 
   await chit.save();
 
-  return sendResponse(res, 200, true, "Chit updated successfully", { chit });
+  return sendResponse(res, 200, true, "Chit updated successfully", {
+    chit,
+  });
 });
 
 /* ================= DELETE CHIT ================= */
@@ -126,7 +133,8 @@ const deleteChit = asyncHandler(async (req, res) => {
   const chit = await Chit.findById(req.params.id);
 
   if (!chit) {
-    return sendResponse(res, 404, false, "Chit not found");
+    res.status(404);
+    throw new Error("Chit not found");
   }
 
   await Promise.all([
