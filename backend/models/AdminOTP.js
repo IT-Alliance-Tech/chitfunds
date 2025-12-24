@@ -1,5 +1,4 @@
-const mongoose = require("mongoose");
-
+const mongoose = require('mongoose');
 const AdminOTPSchema = new mongoose.Schema(
   {
     email: {
@@ -9,17 +8,18 @@ const AdminOTPSchema = new mongoose.Schema(
       trim: true,
     },
     otp: {
-      type: String, 
+      type: String,
       required: true,
     },
     expiresAt: {
       type: Date,
       required: true,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
-
-AdminOTPSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-
 module.exports = mongoose.model("AdminOTP", AdminOTPSchema);
