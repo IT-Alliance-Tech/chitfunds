@@ -81,19 +81,18 @@ export default function ChitsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
- const [formData, setFormData] = useState({
-  chitName: "",
-  location: "",
-  amount: "",
-  monthlyPayableAmount: "",
-  duration: "",
-  membersLimit: "",
-  startDate: "",
-  duedate: "",        // ✅ ADD THIS
-  cycleDay: "",
-  status: "Upcoming",
-});
-
+  const [formData, setFormData] = useState({
+    chitName: "",
+    location: "",
+    amount: "",
+    monthlyPayableAmount: "",
+    duration: "",
+    membersLimit: "",
+    startDate: "",
+    duedate: "",
+    cycleDay: "",
+    status: "Upcoming",
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -102,7 +101,7 @@ export default function ChitsPage() {
   // 🔥 FETCH CHITS WITH PAGINATION
   useEffect(() => {
     fetchChits();
-  }, [page, rowsPerPage]); // Refetch when page or rowsPerPage changes
+  }, [page, rowsPerPage]);
 
   const fetchChits = async () => {
     try {
@@ -112,30 +111,31 @@ export default function ChitsPage() {
         { method: "GET" }
       );
 
-      const chitArray = response?.data?.chits || response?.data || [];
+      // ✅ FIXED: Changed from data.chits to data.items
+      const chitArray = response?.data?.items || [];
       
       // 🔥 EXTRACT PAGINATION DATA
       const paginationData = response?.data?.pagination || {};
-      setTotalChits(paginationData.total || 0);
+      // ✅ FIXED: Changed from 'total' to 'totalItems'
+      setTotalChits(paginationData.totalItems || 0);
       setTotalPages(paginationData.totalPages || 0);
 
       const formattedChits = Array.isArray(chitArray)
-  ? chitArray.map((chit) => ({
-      id: chit._id || chit.id,
-      name: chit.chitName,
-      amount: chit.amount,
-      monthlyAmount: chit.monthlyPayableAmount,
-      durationMonths: chit.duration,
-      membersLimit: chit.membersLimit,
-      membersCount: chit.membersCount || 0,
-      startDate: chit.startDate ? chit.startDate.split("T")[0] : "",
-      duedate: chit.duedate ? chit.duedate.split("T")[0] : "", // ✅ ADD
-      cycleDay: chit.cycleDay,
-      status: chit.status,
-      location: chit.location,
-    }))
-  : [];
-
+        ? chitArray.map((chit) => ({
+            id: chit._id || chit.id,
+            name: chit.chitName,
+            amount: chit.amount,
+            monthlyAmount: chit.monthlyPayableAmount,
+            durationMonths: chit.duration,
+            membersLimit: chit.membersLimit,
+            membersCount: chit.membersCount || 0,
+            startDate: chit.startDate ? chit.startDate.split("T")[0] : "",
+            duedate: chit.duedate ? chit.duedate.split("T")[0] : "",
+            cycleDay: chit.cycleDay,
+            status: chit.status,
+            location: chit.location,
+          }))
+        : [];
 
       setChits(formattedChits);
     } catch (error) {
@@ -153,7 +153,7 @@ export default function ChitsPage() {
       (filters.duration === "" ||
         chit.durationMonths === Number(filters.duration)) &&
       (filters.members === "" ||
-  chit.membersLimit === Number(filters.members)) &&
+        chit.membersLimit === Number(filters.members)) &&
       (filters.startDate === "" || chit.startDate === filters.startDate) &&
       (filters.status === "" || chit.status === filters.status) &&
       (filters.location === "" ||
@@ -202,6 +202,7 @@ export default function ChitsPage() {
       duration: "",
       membersLimit: "",
       startDate: "",
+      duedate: "",
       cycleDay: "",
       status: "Upcoming",
     });
@@ -212,19 +213,18 @@ export default function ChitsPage() {
     if (!chit) return;
     setIsEditMode(true);
     setFormData({
-  chitName: chit.name,
-  location: chit.location,
-  amount: chit.amount,
-  monthlyPayableAmount: chit.monthlyAmount,
-  duration: chit.durationMonths,
-  membersLimit: chit.membersLimit,
-  startDate: chit.startDate,
-  duedate: chit.duedate || "",   // ✅ ADD
-  cycleDay: chit.cycleDay,
-  status: chit.status,
-  id: chit.id,
-});
-
+      chitName: chit.name,
+      location: chit.location,
+      amount: chit.amount,
+      monthlyPayableAmount: chit.monthlyAmount,
+      duration: chit.durationMonths,
+      membersLimit: chit.membersLimit,
+      startDate: chit.startDate,
+      duedate: chit.duedate || "",
+      cycleDay: chit.cycleDay,
+      status: chit.status,
+      id: chit.id,
+    });
     setOpenModal(true);
     closeActions();
   };
@@ -235,20 +235,25 @@ export default function ChitsPage() {
       return;
     }
 
-    try {
-     const payload = {
-  chitName: formData.chitName,
-  location: formData.location,
-  amount: Number(formData.amount),
-  monthlyPayableAmount: Number(formData.monthlyPayableAmount),
-  duration: Number(formData.duration),
-  membersLimit: Number(formData.membersLimit),
-  startDate: formData.startDate,
-  duedate: formData.duedate,   // ✅ ADD THIS
-  cycleDay: Number(formData.cycleDay),
-  status: formData.status,
-};
+    // ✅ VALIDATION: Check cycleDay is between 1-31
+    if (formData.cycleDay && (formData.cycleDay < 1 || formData.cycleDay > 31)) {
+      alert("Cycle Day must be between 1 and 31");
+      return;
+    }
 
+    try {
+      const payload = {
+        chitName: formData.chitName,
+        location: formData.location,
+        amount: Number(formData.amount),
+        monthlyPayableAmount: Number(formData.monthlyPayableAmount),
+        duration: Number(formData.duration),
+        membersLimit: Number(formData.membersLimit),
+        startDate: formData.startDate,
+        duedate: formData.duedate,
+        cycleDay: Number(formData.cycleDay),
+        status: formData.status,
+      };
 
       if (isEditMode) {
         await apiRequest(`/chit/update/${formData.id}`, {
@@ -611,29 +616,50 @@ export default function ChitsPage() {
                   setFormData({ ...formData, startDate: e.target.value })
                 }
               />
-          <TextField
-  label="Due Date"
-  type="date"
-  fullWidth
-  margin="normal"
-  InputLabelProps={{ shrink: true }}
-  value={formData.duedate}
-  onChange={(e) =>
-    setFormData({ ...formData, duedate: e.target.value })
-  }
-/>
-
-
+              <TextField
+                label="Due Date"
+                type="date"
+                fullWidth
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+                value={formData.duedate}
+                onChange={(e) =>
+                  setFormData({ ...formData, duedate: e.target.value })
+                }
+              />
+              {/* ✅ FIXED: Added validation for cycleDay (1-31) */}
               <TextField
                 label="Cycle Day"
                 type="number"
                 fullWidth
                 margin="normal"
                 value={formData.cycleDay}
-                onChange={(e) =>
-                  setFormData({ ...formData, cycleDay: e.target.value })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow values between 1-31
+                  if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
+                    setFormData({ ...formData, cycleDay: value });
+                  }
+                }}
+                inputProps={{ min: 1, max: 31 }}
+                helperText="Day of the month (1-31)"
               />
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
+                  label="Status"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <MUIMenuItem key={status} value={status}>
+                      {status}
+                    </MUIMenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenModal(false)}>Cancel</Button>
@@ -646,4 +672,4 @@ export default function ChitsPage() {
       </div>
     </div>
   );
-}  
+}
