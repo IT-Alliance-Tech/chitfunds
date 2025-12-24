@@ -1,14 +1,13 @@
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
 
-/* ================= HELPERS ================= */
 const calculateStatus = (monthlyAmount, totalPaidForMonth) => {
   if (totalPaidForMonth === 0) return "unpaid";
   if (totalPaidForMonth >= monthlyAmount) return "paid";
   return "partial";
 };
 
-const getPaymentMonthYear = (date = new Date()) => {
+const getMonthYear = (date = new Date()) => {
   const d = new Date(date);
   return {
     paymentMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
@@ -19,33 +18,34 @@ const getPaymentMonthYear = (date = new Date()) => {
   };
 };
 
-/* ================= CREATE PAYMENT (NO UPSERT) ================= */
-const createMonthlyPayment = async (payload) => {
+/**
+ * IMPORTANT:
+ * Function name kept as upsertMonthlyPayment
+ * BUT it always CREATES a new payment
+ */
+const upsertMonthlyPayment = async (payload) => {
   const chit = await Chit.findById(payload.chitId);
   if (!chit) throw new Error("Chit not found");
-
-  const monthlyPayableAmount = chit.monthlyPayableAmount;
-  const paidAmount = Number(payload.paidAmount || 0);
-  const penaltyAmount = Number(payload.penaltyAmount || 0);
 
   const paymentDate = payload.paymentDate
     ? new Date(payload.paymentDate)
     : new Date();
 
-  const { paymentMonth, paymentYear } = getPaymentMonthYear(paymentDate);
+  const { paymentMonth, paymentYear } = getMonthYear(paymentDate);
 
-  // 🔹 Calculate total paid so far in THIS MONTH (before this payment)
-  const existingMonthPayments = await Payment.find({
+  const existingPayments = await Payment.find({
     chitId: payload.chitId,
     memberId: payload.memberId,
     paymentMonth,
   });
 
-  const totalPaidBefore = existingMonthPayments.reduce(
+  const totalPaidBefore = existingPayments.reduce(
     (sum, p) => sum + p.paidAmount,
     0
   );
 
+  const paidAmount = Number(payload.paidAmount || 0);
+  const penaltyAmount = Number(payload.penaltyAmount || 0);
   const totalPaidAfter = totalPaidBefore + paidAmount;
 
   return Payment.create({
@@ -53,21 +53,20 @@ const createMonthlyPayment = async (payload) => {
     memberId: payload.memberId,
     paymentMonth,
     paymentYear,
-    monthlyPayableAmount,
+    monthlyPayableAmount: chit.monthlyPayableAmount,
     paidAmount,
     penaltyAmount,
-    balanceAmount: Math.max(monthlyPayableAmount - totalPaidAfter, 0),
+    balanceAmount: Math.max(chit.monthlyPayableAmount - totalPaidAfter, 0),
     totalPaid: totalPaidAfter + penaltyAmount,
-    status: calculateStatus(monthlyPayableAmount, totalPaidAfter),
+    status: calculateStatus(chit.monthlyPayableAmount, totalPaidAfter),
     dueDate: payload.dueDate,
     paymentMode: payload.paymentMode,
     invoiceNumber: `INV-${Date.now()}`,
-    isAdminConfirmed: false, // admin must confirm each entry
+    isAdminConfirmed: false,
     paymentDate,
   });
 };
 
-/* ================= GET PAYMENT HISTORY ================= */
 const getPaymentsByMemberAndChit = (memberId, chitId) => {
   return Payment.find({ memberId, chitId }).sort({
     paymentYear: 1,
@@ -77,6 +76,6 @@ const getPaymentsByMemberAndChit = (memberId, chitId) => {
 };
 
 module.exports = {
-  createMonthlyPayment,
+  upsertMonthlyPayment,
   getPaymentsByMemberAndChit,
 };

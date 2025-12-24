@@ -37,15 +37,13 @@ const login = asyncHandler(async (req, res) => {
     expiresIn: JWT_EXPIRES_IN,
   });
 
-  const adminData = {
-    _id: admin._id,
-    email: admin.email,
-    createdAt: admin.createdAt,
-    updatedAt: admin.updatedAt,
-  };
-
   return sendResponse(res, 200, true, "Login successful", {
-    admin: adminData,
+    admin: {
+      _id: admin._id,
+      email: admin.email,
+      createdAt: admin.createdAt,
+      updatedAt: admin.updatedAt,
+    },
     token,
   });
 });
@@ -61,7 +59,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
   }
 
   const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
   await AdminOTP.deleteMany({ email: admin.email });
   await AdminOTP.create({
@@ -70,13 +68,14 @@ const forgotPassword = asyncHandler(async (req, res) => {
     expiresAt,
   });
 
-  const subject = "Your OTP for Admin Password Reset";
-  const text = `Your OTP for password reset is: ${otp}. It expires in 5 minutes.`;
-  const html = `<p>Your OTP for password reset is: <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`;
+  await sendEmail({
+    to: admin.email,
+    subject: "Your OTP for Admin Password Reset",
+    text: `Your OTP is ${otp}. It expires in 5 minutes.`,
+    html: `<p>Your OTP is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
+  });
 
-  await sendEmail({ to: admin.email, subject, text, html });
-
-  return sendResponse(res, 200, true, "OTP sent successfully", null);
+  return sendResponse(res, 200, true, "OTP sent successfully");
 });
 
 // verify otp
@@ -86,6 +85,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
   const otpRecord = await AdminOTP.findOne({
     email: email.toLowerCase().trim(),
     otp,
+    expiresAt: { $gte: new Date() },
   });
 
   if (!otpRecord) {
@@ -93,12 +93,10 @@ const verifyOTP = asyncHandler(async (req, res) => {
     throw new Error("Invalid OTP");
   }
 
-  if (otpRecord.expiresAt < new Date()) {
-    res.status(400);
-    throw new Error("OTP expired");
-  }
+  otpRecord.isVerified = true;
+  await otpRecord.save();
 
-  return sendResponse(res, 200, true, "OTP verified successfully", null);
+  return sendResponse(res, 200, true, "OTP verified successfully");
 });
 
 // reset password
@@ -107,23 +105,20 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   const otpRecord = await AdminOTP.findOne({
     email: email.toLowerCase().trim(),
+    isVerified: true,
+    expiresAt: { $gte: new Date() },
   });
 
   if (!otpRecord) {
     res.status(400);
-    throw new Error("No OTP request found for this email");
-  }
-
-  if (otpRecord.expiresAt < new Date()) {
-    res.status(400);
-    throw new Error("OTP expired");
+    throw new Error("OTP not verified or expired");
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
   const updatedAdmin = await Admin.findOneAndUpdate(
     { email: email.toLowerCase().trim() },
-    { $set: { password: hashedPassword } },
+    { password: hashedPassword },
     { new: true }
   );
 
@@ -134,7 +129,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   await AdminOTP.deleteMany({ email: email.toLowerCase().trim() });
 
-  return sendResponse(res, 200, true, "Password reset successful", null);
+  return sendResponse(res, 200, true, "Password reset successful");
 });
 
 module.exports = {
