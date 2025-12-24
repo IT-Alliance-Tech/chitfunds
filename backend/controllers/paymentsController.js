@@ -9,7 +9,7 @@ const sendResponse = require("../utils/responseHandler");
 
 /* ================= CREATE / UPDATE PAYMENT ================= */
 const createPayment = asyncHandler(async (req, res) => {
-  const payment = await paymentService.upsertMonthlyPayment(req.body);
+  const payment = await paymentService.createMonthlyPayment(req.body);
 
   const chit = await Chit.findById(payment.chitId);
   if (!chit) {
@@ -22,14 +22,45 @@ const createPayment = asyncHandler(async (req, res) => {
     memberId: payment.memberId,
   });
 
+  // GROUP BY MONTH
+  const monthlySummary = {};
+
+  payments.forEach((p) => {
+    if (!monthlySummary[p.paymentMonth]) {
+      monthlySummary[p.paymentMonth] = {
+        paymentMonth: p.paymentMonth,
+        payments: [],
+        totalPaid: 0,
+        status: "unpaid",
+      };
+    }
+
+    monthlySummary[p.paymentMonth].payments.push(p);
+    monthlySummary[p.paymentMonth].totalPaid += p.paidAmount;
+  });
+
+  // CALCULATE STATUS PER MONTH
+  Object.values(monthlySummary).forEach((m) => {
+    if (m.totalPaid >= chit.monthlyPayableAmount) m.status = "paid";
+    else if (m.totalPaid > 0) m.status = "partial";
+  });
+
   const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
 
   return sendResponse(res, 201, true, "Payment saved successfully", {
-    ...payment.toObject(),
-    summary: {
+    payment,
+    monthlySummary: Object.values(monthlySummary),
+    chitSummary: {
       totalMonths: chit.duration,
-      paidMonths: payments.length,
-      remainingMonths: Math.max(chit.duration - payments.length, 0),
+      paidMonths: Object.values(monthlySummary).filter(
+        (m) => m.status === "paid"
+      ).length,
+      remainingMonths: Math.max(
+        chit.duration -
+          Object.values(monthlySummary).filter((m) => m.status === "paid")
+            .length,
+        0
+      ),
       totalChitAmount: chit.amount,
       totalPaidForChit,
       remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
