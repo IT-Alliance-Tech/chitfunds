@@ -23,10 +23,11 @@ export const apiRequest = async (endpoint, options = {}) => {
     let errorMessage = "Something went wrong";
     try {
       const errorData = await response.json();
-      errorMessage =
-  errorData?.error ||
+     errorMessage =
+  errorData?.error?.message ||
   errorData?.message ||
   errorMessage;
+
 
     } catch {}
     throw new Error(errorMessage);
