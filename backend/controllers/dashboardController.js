@@ -5,7 +5,7 @@ const Member = require("../models/Member");
 const Payment = require("../models/Payment");
 const sendResponse = require("../utils/responseHandler");
 
-// Dashboard analytics
+// ================= DASHBOARD ANALYTICS =================
 const getDashboardAnalytics = asyncHandler(async (req, res) => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -67,8 +67,11 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
 
   let remainingMonths = 0;
 
+  // Remaining months calculation
   for (const chit of allChits) {
-    const paidMonths = await Payment.countDocuments({ chitId: chit._id });
+    const paidMonths = await Payment.countDocuments({
+      chitId: chit._id,
+    });
     remainingMonths += Math.max(chit.duration - paidMonths, 0);
   }
 

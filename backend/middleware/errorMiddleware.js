@@ -1,18 +1,23 @@
 const { ZodError } = require("zod");
 const sendResponse = require("../utils/responseHandler");
 
-// ❗ MUST have 4 parameters (err, req, res, next)
+// GLOBAL ERROR HANDLER
 const errorHandler = (err, req, res, next) => {
   let statusCode =
     err.statusCode ||
-    (res.statusCode !== 200 ? res.statusCode : 500);
+    (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
 
   let errorMessage = err.message || "Internal Server Error";
 
-  // ✅ Handle Zod validation errors
+  // ✅ Handle Zod validation errors SAFELY
   if (err instanceof ZodError) {
     statusCode = 400;
-    errorMessage = err.errors[0].message;
+
+    const issues = err.issues || err.errors || [];
+    errorMessage =
+      issues.length > 0
+        ? issues[0].message
+        : "Validation error";
   }
 
   if (process.env.NODE_ENV !== "production") {
@@ -29,7 +34,7 @@ const errorHandler = (err, req, res, next) => {
   );
 };
 
-// 404 handler
+// 404 HANDLER
 const notFound = (req, res, next) => {
   res.status(404);
   next(new Error(`Route not found - ${req.originalUrl}`));
