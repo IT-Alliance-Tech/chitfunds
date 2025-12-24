@@ -428,9 +428,13 @@ export default function PaymentsPage() {
                         </TableCell>
                         <TableCell>₹{p.paidAmount}</TableCell>
                         <TableCell>₹{p.penaltyAmount}</TableCell>
-                        <TableCell>₹{p.totalPaid}</TableCell>
+                       <TableCell>
+  ₹{p.totalPaid ?? (Number(p.paidAmount || 0) + Number(p.penaltyAmount || 0))}
+</TableCell>
                         <TableCell>{p.paymentMode}</TableCell>
-                        <TableCell>{p.status}</TableCell>
+                        <TableCell>
+  {p.status ?? "-"}
+</TableCell>
                         <TableCell>
                           <Button
                             size="small"
