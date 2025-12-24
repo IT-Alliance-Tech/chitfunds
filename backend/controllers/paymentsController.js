@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+
 const paymentService = require("../services/paymentService");
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
@@ -6,7 +7,7 @@ const Member = require("../models/Member");
 const { generateInvoicePDF } = require("../utils/invoicePdf");
 const sendResponse = require("../utils/responseHandler");
 
-// create or update payment
+/* ================= CREATE / UPDATE PAYMENT ================= */
 const createPayment = asyncHandler(async (req, res) => {
   const payment = await paymentService.upsertMonthlyPayment(req.body);
 
@@ -30,14 +31,13 @@ const createPayment = asyncHandler(async (req, res) => {
       paidMonths: payments.length,
       remainingMonths: Math.max(chit.duration - payments.length, 0),
       totalChitAmount: chit.amount,
-      // lateFee: payment.penaltyAmount || 0,
       totalPaidForChit,
       remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
     },
   });
 });
 
-// get all payments
+/* ================= GET ALL PAYMENTS ================= */
 const getPayments = asyncHandler(async (req, res) => {
   const payments = await Payment.find()
     .populate("chitId", "chitName amount duration")
@@ -49,7 +49,7 @@ const getPayments = asyncHandler(async (req, res) => {
   });
 });
 
-// get payment by id
+/* ================= GET PAYMENT BY ID ================= */
 const getPaymentById = asyncHandler(async (req, res) => {
   const payment = await Payment.findById(req.params.id)
     .populate("chitId", "chitName amount duration")
@@ -65,7 +65,7 @@ const getPaymentById = asyncHandler(async (req, res) => {
   });
 });
 
-// get payment history
+/* ================= PAYMENT HISTORY ================= */
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const { memberId, chitId } = req.query;
 
@@ -84,9 +84,9 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
   });
 });
 
-// export invoice pdf
+/* ================= EXPORT INVOICE PDF ================= */
 const exportInvoicePdf = asyncHandler(async (req, res) => {
-  const { id } = req.params; 
+  const { id } = req.params;
 
   const payment = await Payment.findById(id)
     .populate("chitId")
@@ -97,10 +97,11 @@ const exportInvoicePdf = asyncHandler(async (req, res) => {
     throw new Error("Payment not found");
   }
 
+  // PDF stream response (no sendResponse here)
   generateInvoicePDF(res, payment);
 });
 
-// admin confirm payment
+/* ================= ADMIN CONFIRM PAYMENT ================= */
 const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
   const { paymentId } = req.params;
 
@@ -118,9 +119,11 @@ const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
   payment.isAdminConfirmed = true;
   await payment.save();
 
-  return sendResponse(res, 200, true, "Payment confirmed by admin", payment);
+  return sendResponse(res, 200, true, "Payment confirmed by admin", {
+    payment,
+  });
 });
-// Additional functions to be implemented
+
 module.exports = {
   createPayment,
   getPayments,

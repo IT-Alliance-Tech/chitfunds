@@ -5,7 +5,7 @@ const Member = require("../models/Member");
 const Chit = require("../models/Chit");
 const sendResponse = require("../utils/responseHandler");
 
-// add member
+/* ================= ADD MEMBER ================= */
 const addMember = asyncHandler(async (req, res) => {
   const {
     name,
@@ -65,12 +65,12 @@ const addMember = asyncHandler(async (req, res) => {
   });
 });
 
-// get members with pagination and filters
+/* ================= GET MEMBERS ================= */
 const getMembers = asyncHandler(async (req, res) => {
   const { chitId, page = 1, limit = 10, search, status } = req.query;
 
-  const pageNum = parseInt(page, 10);
-  const limitNum = parseInt(limit, 10);
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.max(parseInt(limit, 10) || 10, 1);
   const skip = (pageNum - 1) * limitNum;
 
   const query = {};
@@ -111,7 +111,7 @@ const getMembers = asyncHandler(async (req, res) => {
   });
 });
 
-// get member by id
+/* ================= GET MEMBER BY ID ================= */
 const getMemberById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -135,19 +135,21 @@ const getMemberById = asyncHandler(async (req, res) => {
   });
 });
 
-// update member
+/* ================= UPDATE MEMBER ================= */
 const updateMember = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, phone, email, address, securityDocuments, status, chitIds } =
     req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return sendResponse(res, 400, false, "Invalid Member ID", null);
+    res.status(400);
+    throw new Error("Invalid Member ID");
   }
 
   const member = await Member.findById(id);
   if (!member) {
-    return sendResponse(res, 404, false, "Member not found", null);
+    res.status(404);
+    throw new Error("Member not found");
   }
 
   if (Array.isArray(chitIds)) {
@@ -155,12 +157,14 @@ const updateMember = asyncHandler(async (req, res) => {
 
     for (const cid of chitIds) {
       if (!mongoose.Types.ObjectId.isValid(cid)) {
-        return sendResponse(res, 400, false, "Invalid Chit ID", null);
+        res.status(400);
+        throw new Error("Invalid Chit ID");
       }
 
       const chit = await Chit.findById(cid);
       if (!chit) {
-        return sendResponse(res, 404, false, "Chit not found", null);
+        res.status(404);
+        throw new Error("Chit not found");
       }
 
       const count = await Member.countDocuments({
@@ -171,13 +175,8 @@ const updateMember = asyncHandler(async (req, res) => {
         count >= chit.membersLimit &&
         !member.chits.some((c) => c.chitId.toString() === cid)
       ) {
-        return sendResponse(
-          res,
-          400,
-          false,
-          `Chit member limit reached for ${chit.chitName}`,
-          null
-        );
+        res.status(400);
+        throw new Error(`Chit member limit reached for ${chit.chitName}`);
       }
 
       newChits.push({
@@ -204,7 +203,7 @@ const updateMember = asyncHandler(async (req, res) => {
   });
 });
 
-// delete member
+/* ================= DELETE MEMBER ================= */
 const deleteMember = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -221,7 +220,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 
   await Member.deleteOne({ _id: id });
 
-  return sendResponse(res, 200, true, "Member deleted successfully", null);
+  return sendResponse(res, 200, true, "Member deleted successfully");
 });
 
 module.exports = {
