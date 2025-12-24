@@ -18,12 +18,7 @@ const getMonthYear = (date = new Date()) => {
   };
 };
 
-/**
- * IMPORTANT:
- * Function name kept as upsertMonthlyPayment
- * BUT it always CREATES a new payment
- */
-const upsertMonthlyPayment = async (payload) => {
+const createMonthlyPayment = async (payload) => {
   const chit = await Chit.findById(payload.chitId);
   if (!chit) throw new Error("Chit not found");
 
@@ -33,37 +28,18 @@ const upsertMonthlyPayment = async (payload) => {
 
   const { paymentMonth, paymentYear } = getMonthYear(paymentDate);
 
-  const existingPayments = await Payment.find({
-    chitId: payload.chitId,
-    memberId: payload.memberId,
-    paymentMonth,
-  });
-
-  const totalPaidBefore = existingPayments.reduce(
-    (sum, p) => sum + p.paidAmount,
-    0
-  );
-
-  const paidAmount = Number(payload.paidAmount || 0);
-  const penaltyAmount = Number(payload.penaltyAmount || 0);
-  const totalPaidAfter = totalPaidBefore + paidAmount;
-
   return Payment.create({
     chitId: payload.chitId,
     memberId: payload.memberId,
     paymentMonth,
     paymentYear,
-    monthlyPayableAmount: chit.monthlyPayableAmount,
-    paidAmount,
-    penaltyAmount,
-    balanceAmount: Math.max(chit.monthlyPayableAmount - totalPaidAfter, 0),
-    totalPaid: totalPaidAfter + penaltyAmount,
-    status: calculateStatus(chit.monthlyPayableAmount, totalPaidAfter),
+    paidAmount: Number(payload.paidAmount),
+    penaltyAmount: Number(payload.penaltyAmount || 0),
     dueDate: payload.dueDate,
     paymentMode: payload.paymentMode,
+    paymentDate,
     invoiceNumber: `INV-${Date.now()}`,
     isAdminConfirmed: false,
-    paymentDate,
   });
 };
 
@@ -76,6 +52,6 @@ const getPaymentsByMemberAndChit = (memberId, chitId) => {
 };
 
 module.exports = {
-  upsertMonthlyPayment,
+  createMonthlyPayment,
   getPaymentsByMemberAndChit,
 };
