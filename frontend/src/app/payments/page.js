@@ -70,6 +70,9 @@ export default function PaymentsPage() {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
+  const [openViewModal, setOpenViewModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+
   /* ================= FETCH PAYMENTS ================= */
   const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
     const queryParams = new URLSearchParams({
