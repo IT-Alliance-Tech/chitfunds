@@ -19,7 +19,7 @@ exports.generateInvoicePDF = (res, payment) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename=invoice-${payment.invoiceNumber}.pdf`
+    `inline; filename=invoice-${payment.invoiceNumber}.pdf`
   );
 
   doc.pipe(res);

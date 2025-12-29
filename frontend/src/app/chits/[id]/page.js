@@ -14,6 +14,8 @@ import {
   TableRow,
   TableHead,
   Box,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
@@ -38,6 +40,21 @@ export default function ChitDetailsPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ===================== NOTIFICATION STATE ====================== */
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success | error | warning | info
+  });
+
+  const showNotification = (message, severity = "success") => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+
   useEffect(() => {
     if (!id) return;
 
@@ -45,13 +62,22 @@ export default function ChitDetailsPage() {
       try {
         const res = await apiRequest(`/chit/details/${id}`);
 
+<<<<<<< HEAD
         /* ✅ CORRECT DATA EXTRACTION */
         const chitData = res?.data?.chit || null;
+=======
+        // ✅ Extract data from response structure
+        const chitData = res?.data?.chit || res?.data || null;
+>>>>>>> 0095b1b (updated filter with UI)
         const membersData = res?.data?.members || [];
 
         setChit(chitData);
         setMembers(membersData);
       } catch (err) {
+        showNotification(
+          err.message || "Failed to fetch chit details",
+          "error"
+        );
         console.error("Failed to fetch chit details", err);
         setChit(null);
         setMembers([]);
@@ -85,13 +111,18 @@ export default function ChitDetailsPage() {
 
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
+<<<<<<< HEAD
 
       {/* HEADER */}
+=======
+      {/* ================= HEADER ================= */}
+>>>>>>> 0095b1b (updated filter with UI)
       <Box className="space-y-3">
         <Button variant="outlined" onClick={() => router.back()}>
           Back
         </Button>
 
+<<<<<<< HEAD
        <Typography
   variant="h4"
   fontWeight={600}
@@ -101,6 +132,11 @@ export default function ChitDetailsPage() {
   {chit.chitName}
 </Typography>
 
+=======
+        <Typography variant="h4" fontWeight={600} align="center" color="black">
+          {chit.chitName}
+        </Typography>
+>>>>>>> 0095b1b (updated filter with UI)
       </Box>
 
       {/* STATS */}
@@ -128,7 +164,10 @@ export default function ChitDetailsPage() {
           value={`${members.length}/${chit.membersLimit}`}
           label="Members"
         />
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0095b1b (updated filter with UI)
         <StatCard
           icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
           value={chit.status}
@@ -136,7 +175,12 @@ export default function ChitDetailsPage() {
         />
       </div>
 
+<<<<<<< HEAD
       {/* OVERVIEW */}
+=======
+      {/* ================= OVERVIEW ================= */}
+      {/* ================= OVERVIEW ================= */}
+>>>>>>> 0095b1b (updated filter with UI)
       <Card>
         <CardContent>
           <Typography fontWeight={600} mb={2}>
@@ -144,6 +188,7 @@ export default function ChitDetailsPage() {
           </Typography>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<<<<<<< HEAD
             <p><b>Chit Amount:</b> ₹{chit.amount}</p>
             <p><b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}</p>
             <p><b>Duration:</b> {chit.duration} months</p>
@@ -162,6 +207,52 @@ export default function ChitDetailsPage() {
       </Card>
 
       {/* MEMBERS LIST */}
+=======
+            <p>
+              <b>Chit Amount:</b> ₹{chit.amount}
+            </p>
+
+            <p>
+              <b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}
+            </p>
+
+            <p>
+              <b>Duration:</b> {chit.duration} months
+            </p>
+
+            <p>
+              <b>Total Members:</b> {members.length} / {chit.membersLimit}
+            </p>
+
+            <p>
+              <b>Start Date:</b>{" "}
+              {chit.startDate
+                ? new Date(chit.startDate).toLocaleDateString()
+                : "-"}
+            </p>
+
+            <p>
+              <b>Due Date:</b> {chit.dueDate}
+            </p>
+
+            <p>
+              <b>Location:</b> {chit.location}
+            </p>
+
+            <p>
+              <b>Status:</b>{" "}
+              <span
+                className={`px-2 py-1 rounded text-sm ${badge(chit.status)}`}
+              >
+                {chit.status}
+              </span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ================= MEMBERS LIST ================= */}
+>>>>>>> 0095b1b (updated filter with UI)
       <Card>
         <CardContent className="p-0">
           <Typography fontWeight={600} sx={{ p: 2 }}>
@@ -189,13 +280,27 @@ export default function ChitDetailsPage() {
                   </TableRow>
                 )}
 
+<<<<<<< HEAD
                 {members.map((m) => (
                   <TableRow key={m._id}>
+=======
+                {members.map((m, index) => (
+                  <TableRow key={m.memberId || m._id || index}>
+                    <TableCell>{m.memberId || m._id}</TableCell>
+>>>>>>> 0095b1b (updated filter with UI)
                     <TableCell>{m.name}</TableCell>
                     <TableCell>{m.phone}</TableCell>
                     <TableCell>{m.address || "-"}</TableCell>
                     <TableCell>
+<<<<<<< HEAD
                       <span className={`px-2 py-1 rounded-full text-xs ${badge(m.status)}`}>
+=======
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm ${badge(
+                          m.status
+                        )}`}
+                      >
+>>>>>>> 0095b1b (updated filter with UI)
                         {m.status}
                       </span>
                     </TableCell>
@@ -203,9 +308,17 @@ export default function ChitDetailsPage() {
                       <Button
                         size="small"
                         variant="outlined"
+<<<<<<< HEAD
                         onClick={() => router.push(`/members/${m._id}`)}
                       >
                         View
+=======
+                        onClick={() =>
+                          router.push(`/members/${m.memberId || m._id}`)
+                        }
+                      >
+                        View Details
+>>>>>>> 0095b1b (updated filter with UI)
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -215,6 +328,23 @@ export default function ChitDetailsPage() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* NOTIFICATION SNACKBAR */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: "100%", boxShadow: 3 }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </main>
   );
 }

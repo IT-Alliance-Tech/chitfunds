@@ -25,6 +25,8 @@ import {
   Box,
   Checkbox,
   FormControlLabel,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
@@ -165,6 +167,10 @@ export default function MembersPage() {
   const [openModal, setOpenModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
 
+  /* ================= CONFIRM DIALOG STATE ================= */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState(null);
+
   /* FILTER STATES */
   const [searchName, setSearchName] = useState("");
   const [searchPhone, setSearchPhone] = useState("");
@@ -183,8 +189,26 @@ export default function MembersPage() {
     sendEmail: false,
   });
 
+<<<<<<< HEAD
   const [chitLimitError, setChitLimitError] = useState("");
   
+=======
+  /* ===================== NOTIFICATION STATE ====================== */
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success | error | warning | info
+  });
+
+  const showNotification = (message, severity = "success") => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+
+>>>>>>> 0095b1b (updated filter with UI)
   // Debug formData changes
   useEffect(() => {
     console.log("💾 FORM DATA UPDATED:", formData);
@@ -262,26 +286,29 @@ export default function MembersPage() {
   };
 
   /* DELETE */
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!selectedMember) return;
+    setMemberToDelete(selectedMember);
+    setConfirmOpen(true);
+    handleMenuClose(); // Close the action menu
+  };
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${selectedMember.name}?`
-    );
-
-    if (!confirmDelete) return;
+  const confirmDeleteAction = async () => {
+    if (!memberToDelete) return;
 
     try {
-      await apiRequest(`/member/delete/${selectedMember.id}`, {
+      await apiRequest(`/member/delete/${memberToDelete.id}`, {
         method: "DELETE",
       });
 
-      alert("Member deleted successfully");
+      showNotification("Member deleted successfully");
       // 🔥 REFETCH DATA AFTER DELETE
       fetchMembers();
-      handleMenuClose();
     } catch (err) {
-      alert(err.message || "Failed to delete member");
+      showNotification(err.message || "Failed to delete member", "error");
+    } finally {
+      setConfirmOpen(false);
+      setMemberToDelete(null);
     }
   };
 
@@ -292,7 +319,7 @@ export default function MembersPage() {
     console.log("🔍 DOCUMENTS:", formData.documents);
 
     if (!formData.name || !formData.phone || formData.chitIds.length === 0) {
-      alert("Name, Phone & at least one Chit required");
+      showNotification("Name, Phone & at least one Chit required", "warning");
       return;
     }
 
@@ -314,13 +341,13 @@ export default function MembersPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        alert("Member updated successfully!");
+        showNotification("Member updated successfully!");
       } else {
         await apiRequest("/member/create", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        alert("Member created successfully!");
+        showNotification("Member created successfully!");
       }
 
       setOpenModal(false);
@@ -328,6 +355,7 @@ export default function MembersPage() {
       // 🔥 REFETCH DATA AFTER SAVE
       fetchMembers();
     } catch (err) {
+<<<<<<< HEAD
   console.error("❌ ERROR:", err);
 
   // ✅ If chit member limit reached
@@ -338,6 +366,11 @@ export default function MembersPage() {
   }
 }
 
+=======
+      console.error("❌ ERROR:", err);
+      showNotification(err.message || "Failed to save member", "error");
+    }
+>>>>>>> 0095b1b (updated filter with UI)
   };
 
   /* FILTERED MEMBERS */
@@ -818,33 +851,82 @@ export default function MembersPage() {
                 />
               </div>
 
-              {/* WELCOME EMAIL TOGGLE */}
-              <Box sx={{ mt: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.sendEmail}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          sendEmail: e.target.checked,
-                        })
-                      }
-                    />
-                  }
-                  label={
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      Send Welcome Email with PDF Package
-                    </Typography>
-                  }
-                />
-              </Box>
+              {/* SEND EMAIL CHECKBOX */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.sendEmail || false}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sendEmail: e.target.checked })
+                    }
+                    color="primary"
+                  />
+                }
+                label="Send Email Notification with PDF"
+                sx={{ mb: 1 }}
+              />
+              {!formData.email && formData.sendEmail && (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  sx={{ display: "block", mb: 2 }}
+                >
+                  * Please provide an email address to send notifications.
+                </Typography>
+              )}
             </DialogContent>
 
             <DialogActions>
               <Button onClick={() => setOpenModal(false)}>Cancel</Button>
               <Button variant="contained" onClick={handleSaveMember}>
                 Save
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* NOTIFICATION SNACKBAR */}
+          <Snackbar
+            open={notification.open}
+            autoHideDuration={4000}
+            onClose={handleCloseNotification}
+            anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <Alert
+              onClose={handleCloseNotification}
+              severity={notification.severity}
+              variant="filled"
+              sx={{ width: "100%", boxShadow: 3 }}
+            >
+              {notification.message}
+            </Alert>
+          </Snackbar>
+
+          {/* DELETE CONFIRMATION DIALOG */}
+          <Dialog
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            aria-labelledby="delete-dialog-title"
+          >
+            <DialogTitle id="delete-dialog-title">
+              Delete Confirmation
+            </DialogTitle>
+            <DialogContent>
+              <Typography>
+                Are you sure you want to delete "<b>{memberToDelete?.name}</b>
+                "? This action cannot be undone.
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setConfirmOpen(false)} variant="outlined">
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteAction}
+                variant="contained"
+                color="error"
+                autoFocus
+              >
+                Delete
               </Button>
             </DialogActions>
           </Dialog>

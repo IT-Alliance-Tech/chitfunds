@@ -7,6 +7,13 @@ const sendResponse = require("../utils/responseHandler");
 const sendEmail = require("../utils/sendEmail");
 const { generateWelcomePDFBuffer } = require("../utils/welcomePdf");
 
+const formatFileName = (name) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+
 /* ================= ADD MEMBER ================= */
 const addMember = asyncHandler(async (req, res) => {
   const {
@@ -71,7 +78,7 @@ const addMember = asyncHandler(async (req, res) => {
         "chits.chitId"
       );
       const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
-
+      const safeName = formatFileName(member.name);
       await sendEmail({
         to: member.email,
         subject: "Welcome to IT ALLIANCE TECH - Chit Assignment Details",
@@ -83,7 +90,7 @@ const addMember = asyncHandler(async (req, res) => {
         `,
         attachments: [
           {
-            filename: "Welcome_Package.pdf",
+            filename: `${safeName}.pdf`,
             content: pdfBuffer,
           },
         ],
@@ -248,7 +255,7 @@ const updateMember = asyncHandler(async (req, res) => {
         "chits.chitId"
       );
       const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
-
+      const safeName = formatFileName(member.name);
       await sendEmail({
         to: member.email,
         subject: "Updated Membership Details - IT ALLIANCE TECH",
@@ -260,7 +267,7 @@ const updateMember = asyncHandler(async (req, res) => {
         `,
         attachments: [
           {
-            filename: "Updated_Welcome_Package.pdf",
+            filename: `${safeName}.pdf`,
             content: pdfBuffer,
           },
         ],

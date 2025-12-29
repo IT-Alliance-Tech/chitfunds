@@ -29,11 +29,21 @@ const computeStatus = (startDate, requestedStatus) => {
 
 /* ================= CREATE CHIT ================= */
 const createChit = asyncHandler(async (req, res) => {
-  const finalStatus = computeStatus(req.body.startDate, req.body.status);
+  const { startDate, dueDate, status } = req.body;
+  const finalStatus = computeStatus(startDate, status);
+
+  // If calculatedDueDate is missing, calculate it from startDate and dueDate (day of month)
+  let calculatedDueDate = req.body.calculatedDueDate;
+  if (!calculatedDueDate && startDate && dueDate) {
+    const d = new Date(startDate);
+    d.setDate(Number(dueDate));
+    calculatedDueDate = d;
+  }
 
   const chit = await Chit.create({
     ...req.body,
     status: finalStatus,
+    calculatedDueDate: calculatedDueDate || startDate, // Fallback to startDate if calculation fails
   });
 
   return sendResponse(res, 201, true, "Chit created successfully", {
