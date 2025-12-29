@@ -51,7 +51,6 @@ const initialFilterState = {
   status: "",
 };
 
-
 export default function PaymentsPage() {
   const isMobile = useMediaQuery("(max-width:600px)");
 
@@ -66,19 +65,40 @@ export default function PaymentsPage() {
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   /* ================= FETCH PAYMENTS ================= */
-  const fetchPayments = async () => {
-    const res = await apiRequest("/payment/list");
-    const paymentData = res?.data?.payments || [];
-    setPayments(paymentData);
-    setFilteredPayments(paymentData);
+  const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
+    const queryParams = new URLSearchParams({
+      page: pageNum + 1,
+      limit: pageSize,
+      ...(filters.chitId && { chitId: filters.chitId }),
+      ...(filters.memberId && { memberId: filters.memberId }),
+      ...(filters.paymentMode && { paymentMode: filters.paymentMode }),
+      ...(filters.status && { status: filters.status }),
+    });
+
+    try {
+      const res = await apiRequest(`/payment/list?${queryParams.toString()}`);
+      const paymentData = res?.data?.items || [];
+      const pagination = res?.data?.pagination || { totalItems: 0 };
+
+      setPayments(paymentData);
+      setFilteredPayments(paymentData); // Now same as payments due to server filtering
+      setTotalCount(pagination.totalItems);
+    } catch (error) {
+      console.error("Failed to fetch payments", error);
+    }
   };
 
   /* ================= FETCH CHITS ================= */
   const fetchChits = async () => {
-    const res = await apiRequest("/chit/list");
-    setChits(res?.data?.chits || []);
+    try {
+      const res = await apiRequest("/chit/list?limit=1000"); // Fetch all for dropdowns
+      setChits(res?.data?.items || []);
+    } catch {
+      setChits([]);
+    }
   };
 
   /* ================= FETCH ALL MEMBERS ================= */
@@ -103,38 +123,28 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
     fetchChits();
     fetchAllMembers();
   }, []);
 
-  /* ================= APPLY FILTERS ================= */
   useEffect(() => {
-    let filtered = [...payments];
+    fetchPayments(page, rowsPerPage);
+  }, [page, rowsPerPage, filters]);
 
-    if (filters.chitId) {
-      filtered = filtered.filter((p) => p.chitId?.id === filters.chitId);
-    }
-
-    if (filters.memberId) {
-      filtered = filtered.filter((p) => p.memberId?._id === filters.memberId);
-    }
-
-    if (filters.paymentMode) {
-      filtered = filtered.filter((p) => p.paymentMode === filters.paymentMode);
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter((p) => p.status === filters.status);
-    }
-
-    setFilteredPayments(filtered);
-    setPage(0);
-  }, [filters, payments]);
+  /* ================= CHIT-TO-MEMBER DROPDOWN LOGIC (For Filters) ================= */
+  // Filtered members for the filter dropdown
+  const membersForFilterDropdown = filters.chitId
+    ? allMembers.filter((m) =>
+        m.chits?.some(
+          (c) => String(c.chitId?._id || c.chitId) === String(filters.chitId)
+        )
+      )
+    : [];
 
   /* ================= RESET FILTERS ================= */
   const resetFilters = () => {
     setFilters(initialFilterState);
+    setPage(0);
   };
 
   /* ================= SAVE PAYMENT ================= */
@@ -168,8 +178,7 @@ export default function PaymentsPage() {
   );
 
   const [openViewModal, setOpenViewModal] = useState(false);
-const [selectedPayment, setSelectedPayment] = useState(null);
-
+  const [selectedPayment, setSelectedPayment] = useState(null);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
@@ -225,117 +234,112 @@ const [selectedPayment, setSelectedPayment] = useState(null);
                 mb: 3,
               }}
             >
-              <Typography fontWeight={600} fontSize="1.1rem">Filters</Typography>
-              <Button 
-                size="small" 
+              <Typography fontWeight={600} fontSize="1.1rem">
+                Filters
+              </Typography>
+              <Button
+                size="small"
                 onClick={resetFilters}
-                sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}
+                sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
               >
                 Reset Filters
               </Button>
             </Box>
 
-<Grid container spacing={2}>
-  <Grid item xs={12} sm={6} md={6} lg={3}>
-    <FormControl
-      fullWidth
-      size="small"
-      sx={{ minWidth: 260 }}
-    >
-      <InputLabel>Chit</InputLabel>
-      <Select
-        label="Chit"
-        value={filters.chitId}
-        sx={{ height: 44 }}
-        onChange={(e) =>
-          setFilters((p) => ({ ...p, chitId: e.target.value }))
-        }
-      >
-        <MenuItem value="">All Chits</MenuItem>
-        {chits.map((c) => (
-          <MenuItem key={c.id} value={c.id}>
-            {c.chitName}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={6} lg={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
+                  <InputLabel>Chit</InputLabel>
+                  <Select
+                    label="Chit"
+                    value={filters.chitId}
+                    sx={{ height: 44 }}
+                    onChange={(e) => {
+                      const cid = e.target.value;
+                      setFilters((p) => ({
+                        ...p,
+                        chitId: cid,
+                        memberId: "", // Reset member when chit changes
+                      }));
+                    }}
+                  >
+                    <MenuItem value="">All Chits</MenuItem>
+                    {chits.map((c) => (
+                      <MenuItem key={c._id} value={c._id}>
+                        {c.chitName}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
 
-  <Grid item xs={12} sm={6} md={6} lg={3}>
-    <FormControl
-      fullWidth
-      size="small"
-      sx={{ minWidth: 260 }}
-    >
-      <InputLabel>Member</InputLabel>
-      <Select
-        label="Member"
-        value={filters.memberId}
-        sx={{ height: 44 }}
-        onChange={(e) =>
-          setFilters((p) => ({ ...p, memberId: e.target.value }))
-        }
-      >
-        <MenuItem value="">All Members</MenuItem>
-        {allMembers.map((m) => (
-          <MenuItem key={m._id} value={m._id}>
-            {m.name}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  </Grid>
+              <Grid item xs={12} sm={6} md={6} lg={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
+                  <InputLabel>Member</InputLabel>
+                  <Select
+                    label="Member"
+                    value={filters.memberId}
+                    sx={{ height: 44 }}
+                    disabled={!filters.chitId}
+                    onChange={(e) =>
+                      setFilters((p) => ({ ...p, memberId: e.target.value }))
+                    }
+                  >
+                    <MenuItem value="">
+                      {!filters.chitId ? "Select Chit First" : "All Members"}
+                    </MenuItem>
+                    {membersForFilterDropdown.map((m) => (
+                      <MenuItem key={m._id} value={m._id}>
+                        {m.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
 
-  <Grid item xs={12} sm={6} md={6} lg={3}>
-    <FormControl
-      fullWidth
-      size="small"
-      sx={{ minWidth: 260 }}
-    >
-      <InputLabel>Payment Mode</InputLabel>
-      <Select
-        label="Payment Mode"
-        value={filters.paymentMode}
-        sx={{ height: 44 }}
-        onChange={(e) =>
-          setFilters((p) => ({ ...p, paymentMode: e.target.value }))
-        }
-      >
-        <MenuItem value="">All Modes</MenuItem>
-        <MenuItem value="cash">Cash</MenuItem>
-        <MenuItem value="online">Online</MenuItem>
-      </Select>
-    </FormControl>
-  </Grid>
+              <Grid item xs={12} sm={6} md={6} lg={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
+                  <InputLabel>Payment Mode</InputLabel>
+                  <Select
+                    label="Payment Mode"
+                    value={filters.paymentMode}
+                    sx={{ height: 44 }}
+                    onChange={(e) =>
+                      setFilters((p) => ({ ...p, paymentMode: e.target.value }))
+                    }
+                  >
+                    <MenuItem value="">All Modes</MenuItem>
+                    <MenuItem value="cash">Cash</MenuItem>
+                    <MenuItem value="online">Online</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
 
-  <Grid item xs={12} sm={6} md={6} lg={3}>
-    <FormControl
-      fullWidth
-      size="small"
-      sx={{ minWidth: 260 }}
-    >
-      <InputLabel>Status</InputLabel>
-      <Select
-        label="Status"
-        value={filters.status}
-        sx={{ height: 44 }}
-        onChange={(e) =>
-          setFilters((p) => ({ ...p, status: e.target.value }))
-        }
-      >
-        <MenuItem value="">All Status</MenuItem>
-        <MenuItem value="paid">Paid</MenuItem>
-        <MenuItem value="pending">Pending</MenuItem>
-        <MenuItem value="overdue">Overdue</MenuItem>
-        <MenuItem value="partial">Partial</MenuItem>
-      </Select>
-    </FormControl>
-  </Grid>
-</Grid>
+              <Grid item xs={12} sm={6} md={6} lg={3}>
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    label="Status"
+                    value={filters.status}
+                    sx={{ height: 44 }}
+                    onChange={(e) =>
+                      setFilters((p) => ({ ...p, status: e.target.value }))
+                    }
+                  >
+                    <MenuItem value="">All Status</MenuItem>
+                    <MenuItem value="paid">Paid</MenuItem>
+                    <MenuItem value="pending">Pending</MenuItem>
+                    <MenuItem value="overdue">Overdue</MenuItem>
+                    <MenuItem value="partial">Partial</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
 
-
-
-            <Typography variant="body2" sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}>
+            <Typography
+              variant="body2"
+              sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}
+            >
               Showing {filteredPayments.length} of {payments.length} payments
             </Typography>
           </CardContent>
@@ -364,7 +368,7 @@ const [selectedPayment, setSelectedPayment] = useState(null);
                       "Total",
                       "Mode",
                       "Status",
-                       "Action",
+                      "Action",
                     ].map((h) => (
                       <TableCell key={h} sx={{ fontWeight: 600 }}>
                         {h}
@@ -398,18 +402,17 @@ const [selectedPayment, setSelectedPayment] = useState(null);
                         <TableCell>{p.paymentMode}</TableCell>
                         <TableCell>{p.status}</TableCell>
                         <TableCell>
-  <Button
-    size="small"
-    variant="outlined"
-    onClick={() => {
-      setSelectedPayment(p);
-      setOpenViewModal(true);
-    }}
-  >
-    View
-  </Button>
-</TableCell>
-
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              setSelectedPayment(p);
+                              setOpenViewModal(true);
+                            }}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -417,10 +420,10 @@ const [selectedPayment, setSelectedPayment] = useState(null);
               </Table>
             </div>
 
-            {filteredPayments.length > 0 && (
+            {totalCount > 0 && (
               <TablePagination
                 component="div"
-                count={filteredPayments.length}
+                count={totalCount}
                 page={page}
                 onPageChange={(e, n) => setPage(n)}
                 rowsPerPage={rowsPerPage}
@@ -441,12 +444,7 @@ const [selectedPayment, setSelectedPayment] = useState(null);
         </Card>
 
         {/* ================= ADD PAYMENT MODAL ================= */}
-        <Dialog
-          open={openModal}
-          fullWidth
-          maxWidth="sm"
-          fullScreen={isMobile}
-        >
+        <Dialog open={openModal} fullWidth maxWidth="sm" fullScreen={isMobile}>
           <DialogTitle>Add Payment</DialogTitle>
 
           <DialogContent
@@ -593,293 +591,275 @@ const [selectedPayment, setSelectedPayment] = useState(null);
           </DialogActions>
         </Dialog>
         <Dialog
-  open={openViewModal}
-  onClose={() => setOpenViewModal(false)}
-  fullWidth
-  maxWidth="md"
->
-  <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>
-    Payment Details
-  </DialogTitle>
+          open={openViewModal}
+          onClose={() => setOpenViewModal(false)}
+          fullWidth
+          maxWidth="md"
+        >
+          <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>
+            Payment Details
+          </DialogTitle>
 
-  <DialogContent dividers sx={{ px: 4, py: 3 }}>
-    {selectedPayment && (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <DialogContent dividers sx={{ px: 4, py: 3 }}>
+            {selectedPayment && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {/* ================= BASIC INFO ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Basic Information
+                  </Typography>
 
-        {/* ================= BASIC INFO ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Basic Information
-          </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Invoice Number</Typography>
+                      <Typography>
+                        {selectedPayment.invoiceNumber || "-"}
+                      </Typography>
+                    </Grid>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Invoice Number</Typography>
-              <Typography>{selectedPayment.invoiceNumber || "-"}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Status</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.status}
+                      </Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Status</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.status}
-              </Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Mode</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.paymentMode}
+                      </Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Mode</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.paymentMode}
-              </Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Date</Typography>
+                      <Typography>
+                        {new Date(
+                          selectedPayment.paymentDate
+                        ).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Date</Typography>
-              <Typography>
-                {new Date(selectedPayment.paymentDate).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
+                {/* ================= CHIT & MEMBER ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Chit & Member Details
+                  </Typography>
 
-        {/* ================= CHIT & MEMBER ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Chit & Member Details
-          </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Chit Name</Typography>
+                      <Typography>
+                        {selectedPayment.chitId?.chitName}
+                      </Typography>
+                    </Grid>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Chit Name</Typography>
-              <Typography>{selectedPayment.chitId?.chitName}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Member Name</Typography>
+                      <Typography>{selectedPayment.memberId?.name}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Member Name</Typography>
-              <Typography>{selectedPayment.memberId?.name}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Phone</Typography>
+                      <Typography>{selectedPayment.memberId?.phone}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Phone</Typography>
-              <Typography>{selectedPayment.memberId?.phone}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Location</Typography>
+                      <Typography>
+                        {selectedPayment.memberId?.address || "-"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Location</Typography>
-              <Typography>
-                {selectedPayment.memberId?.address || "-"}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
+                {/* ================= AMOUNT DETAILS ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Amount Details
+                  </Typography>
 
-        {/* ================= AMOUNT DETAILS ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Amount Details
-          </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Paid Amount</Typography>
+                      <Typography>₹{selectedPayment.paidAmount}</Typography>
+                    </Grid>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Paid Amount</Typography>
-              <Typography>₹{selectedPayment.paidAmount}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Penalty Amount</Typography>
+                      <Typography>₹{selectedPayment.penaltyAmount}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Penalty Amount</Typography>
-              <Typography>₹{selectedPayment.penaltyAmount}</Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Total Paid</Typography>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        ₹{selectedPayment.totalPaid}
+                      </Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Total Paid</Typography>
-              <Typography sx={{ fontWeight: 600 }}>
-                ₹{selectedPayment.totalPaid}
-              </Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Due Date</Typography>
+                      <Typography>
+                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Due Date</Typography>
-              <Typography>
-                {new Date(selectedPayment.dueDate).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
+          <DialogActions sx={{ px: 4, py: 2 }}>
+            <Button onClick={() => setOpenViewModal(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
 
-      </Box>
-    )}
-  </DialogContent>
+        <Dialog
+          open={openViewModal}
+          onClose={() => setOpenViewModal(false)}
+          fullWidth
+          maxWidth="md"
+        >
+          <DialogTitle
+            sx={{
+              fontWeight: 600,
+              pb: 1,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            Payment Details
+            {selectedPayment && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() =>
+                  window.open(`/payments/pdf/${selectedPayment._id}`, "_blank")
+                }
+              >
+                View as PDF
+              </Button>
+            )}
+          </DialogTitle>
 
-  <DialogActions sx={{ px: 4, py: 2 }}>
-    <Button onClick={() => setOpenViewModal(false)}>
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
+          <DialogContent dividers sx={{ px: 4, py: 3 }}>
+            {selectedPayment && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {/* ================= BASIC INFO ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Basic Information
+                  </Typography>
 
-<Dialog
-  open={openViewModal}
-  onClose={() => setOpenViewModal(false)}
-  fullWidth
-  maxWidth="md"
->
-  <DialogTitle
-    sx={{
-      fontWeight: 600,
-      pb: 1,
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    Payment Details
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Invoice Number</Typography>
+                      <Typography>
+                        {selectedPayment.invoiceNumber || "-"}
+                      </Typography>
+                    </Grid>
 
-    {selectedPayment && (
-      <Button
-        size="small"
-        variant="outlined"
-        onClick={() =>
-          window.open(
-            `/payments/pdf/${selectedPayment._id}`,
-            "_blank"
-          )
-        }
-      >
-        View as PDF
-      </Button>
-    )}
-  </DialogTitle>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Status</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.status}
+                      </Typography>
+                    </Grid>
 
-  <DialogContent dividers sx={{ px: 4, py: 3 }}>
-    {selectedPayment && (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Mode</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.paymentMode}
+                      </Typography>
+                    </Grid>
 
-        {/* ================= BASIC INFO ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Basic Information
-          </Typography>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Date</Typography>
+                      <Typography>
+                        {new Date(
+                          selectedPayment.paymentDate
+                        ).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Invoice Number</Typography>
-              <Typography>
-                {selectedPayment.invoiceNumber || "-"}
-              </Typography>
-            </Grid>
+                {/* ================= CHIT & MEMBER ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Chit & Member Details
+                  </Typography>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Status</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.status}
-              </Typography>
-            </Grid>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Chit Name</Typography>
+                      <Typography>
+                        {selectedPayment.chitId?.chitName}
+                      </Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Mode</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.paymentMode}
-              </Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Member Name</Typography>
+                      <Typography>{selectedPayment.memberId?.name}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Date</Typography>
-              <Typography>
-                {new Date(
-                  selectedPayment.paymentDate
-                ).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Phone</Typography>
+                      <Typography>{selectedPayment.memberId?.phone}</Typography>
+                    </Grid>
 
-        {/* ================= CHIT & MEMBER ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Chit & Member Details
-          </Typography>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Location</Typography>
+                      <Typography>
+                        {selectedPayment.memberId?.address || "-"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Chit Name</Typography>
-              <Typography>
-                {selectedPayment.chitId?.chitName}
-              </Typography>
-            </Grid>
+                {/* ================= AMOUNT DETAILS ================= */}
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Amount Details
+                  </Typography>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Member Name</Typography>
-              <Typography>
-                {selectedPayment.memberId?.name}
-              </Typography>
-            </Grid>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Paid Amount</Typography>
+                      <Typography>₹{selectedPayment.paidAmount}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Phone</Typography>
-              <Typography>
-                {selectedPayment.memberId?.phone}
-              </Typography>
-            </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Penalty Amount</Typography>
+                      <Typography>₹{selectedPayment.penaltyAmount}</Typography>
+                    </Grid>
 
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Location</Typography>
-              <Typography>
-                {selectedPayment.memberId?.address || "-"}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Total Paid</Typography>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        ₹{selectedPayment.totalPaid}
+                      </Typography>
+                    </Grid>
 
-        {/* ================= AMOUNT DETAILS ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Amount Details
-          </Typography>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Due Date</Typography>
+                      <Typography>
+                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Paid Amount</Typography>
-              <Typography>
-                ₹{selectedPayment.paidAmount}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Penalty Amount</Typography>
-              <Typography>
-                ₹{selectedPayment.penaltyAmount}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Total Paid</Typography>
-              <Typography sx={{ fontWeight: 600 }}>
-                ₹{selectedPayment.totalPaid}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Due Date</Typography>
-              <Typography>
-                {new Date(
-                  selectedPayment.dueDate
-                ).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-
-      </Box>
-    )}
-  </DialogContent>
-
-  <DialogActions sx={{ px: 4, py: 2 }}>
-    <Button onClick={() => setOpenViewModal(false)}>
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
+          <DialogActions sx={{ px: 4, py: 2 }}>
+            <Button onClick={() => setOpenViewModal(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );
