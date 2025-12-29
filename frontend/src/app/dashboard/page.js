@@ -171,37 +171,218 @@ export default function Dashboard() {
           elevation={1}
           sx={{
             mt: 3,
-            px: 4,
+            px: { xs: 2, md: 4 },
             py: 3,
             width: "100%",
           }}
         >
-          <Typography variant="h6" fontWeight={700} mb={2}>
+          <Typography variant="h6" fontWeight={700} mb={3}>
             Recent Activities
           </Typography>
 
-          <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
-            <RecentBlock
-              title="Recent Payments"
-              items={data.recentActivities.filter(
-                (item) => item.type === "PAYMENT"
-              )}
-            />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* 1. RECENT PAYMENTS */}
+            <Box>
+              <Typography fontWeight={600} mb={2}>
+                Recent Payments
+              </Typography>
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        "& th": {
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "text.secondary",
+                        },
+                      }}
+                    >
+                      <TableCell>Member Name</TableCell>
+                      <TableCell>Chit Name</TableCell>
+                      <TableCell>Location</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(data.recentPayments || []).map((p, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {p.memberId?.name || "Unknown"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {p.chitId?.chitName || "Unknown"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {p.chitId?.location || "-"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          ₹{p.paidAmount?.toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                              p.status === "paid"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {(p.status || "paid").toUpperCase()}
+                          </span>
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {formatDate(p.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!data.recentPayments ||
+                      data.recentPayments.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">
+                          No recent payments
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
 
-            <RecentBlock
-              title="Recent Members"
-              items={data.recentActivities.filter(
-                (item) => item.type === "MEMBER"
-              )}
-            />
+            {/* 2. RECENT MEMBERS */}
+            <Box>
+              <Typography fontWeight={600} mb={2}>
+                Recent Members
+              </Typography>
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        "& th": {
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "text.secondary",
+                        },
+                      }}
+                    >
+                      <TableCell>Name</TableCell>
+                      <TableCell>Chit</TableCell>
+                      <TableCell>Location</TableCell>
+                      <TableCell>Chit Amount</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Date of Joining</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(data.recentMembers || []).map((m, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {m.name}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {m.chitName}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {m.location}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {m.chitAmount !== "-" ? `₹${m.chitAmount}` : "-"}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                              m.status === "Active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {m.status}
+                          </span>
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {formatDate(m.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!data.recentMembers ||
+                      data.recentMembers.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">
+                          No recent members
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
 
-            <RecentBlock
-              title="Recent Chits"
-              items={data.recentActivities.filter(
-                (item) => item.type === "CHIT"
-              )}
-            />
-          </Grid>
+            {/* 3. RECENT CHITS */}
+            <Box>
+              <Typography fontWeight={600} mb={2}>
+                Recent Chits
+              </Typography>
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow
+                      sx={{
+                        "& th": {
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          color: "text.secondary",
+                        },
+                      }}
+                    >
+                      <TableCell>Chit Name</TableCell>
+                      <TableCell>Location</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Members Limit</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Created Date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(data.recentChits || []).map((c, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {c.chitName}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {c.location}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          ₹{c.amount?.toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {c.membersLimit}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-700`}
+                          >
+                            {c.status}
+                          </span>
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "13px" }}>
+                          {formatDate(c.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!data.recentChits || data.recentChits.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center">
+                          No recent chits
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
+            </Box>
+          </Box>
         </Paper>
       </Box>
 
@@ -243,61 +424,6 @@ function StatCard({ icon, label, value }) {
           </Box>
         </CardContent>
       </Card>
-    </Grid>
-  );
-}
-
-function RecentBlock({ title, items }) {
-  return (
-    <Grid item xs={12}>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: "14px 16px",
-          borderRadius: 2,
-        }}
-      >
-        <Typography fontWeight={600} mb={1.5} fontSize={15}>
-          {title}
-        </Typography>
-
-        {/* Header */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1.5fr",
-            fontSize: 12,
-            fontWeight: 600,
-            color: "text.secondary",
-            mb: 1,
-          }}
-        >
-          <span>Type</span>
-          <span>Action</span>
-          <span>Amount</span>
-          <span>Date</span>
-        </Box>
-
-        {items.map((item, index) => (
-          <Box
-            key={index}
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1.5fr",
-              fontSize: 13,
-              borderBottom: "1px solid #eee",
-              py: 0.8,
-            }}
-          >
-            <span>{item.type}</span>
-            <span>{item.action}</span>
-            <span>
-              {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : "-"}
-            </span>
-            <span>{formatDate(item.date)}</span>
-          </Box>
-        ))}
-      </Paper>
     </Grid>
   );
 }

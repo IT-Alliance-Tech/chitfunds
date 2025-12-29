@@ -127,9 +127,15 @@ const getPayments = asyncHandler(async (req, res) => {
             then: "paid",
             else: {
               $cond: {
-                if: { $gt: ["$paidAmount", 0] },
-                then: "partial",
-                else: "pending",
+                if: { $lt: ["$dueDate", new Date()] },
+                then: "overdue",
+                else: {
+                  $cond: {
+                    if: { $gt: ["$paidAmount", 0] },
+                    then: "partial",
+                    else: "pending",
+                  },
+                },
               },
             },
           },
@@ -170,11 +176,13 @@ const getPayments = asyncHandler(async (req, res) => {
         chitName: "$chitDetails.chitName",
         amount: "$chitDetails.amount",
         duration: "$chitDetails.duration",
+        location: "$chitDetails.location",
       },
       memberId: {
         _id: "$memberDetails._id",
         name: "$memberDetails.name",
         phone: "$memberDetails.phone",
+        address: "$memberDetails.address",
       },
     },
   });
@@ -202,7 +210,10 @@ const getPaymentById = asyncHandler(async (req, res) => {
   }
 
   const payment = await Payment.findById(id)
-    .populate("chitId", "chitName amount duration monthlyPayableAmount")
+    .populate(
+      "chitId",
+      "chitName amount duration monthlyPayableAmount location"
+    )
     .populate("memberId", "name phone address");
 
   if (!payment) {
@@ -213,6 +224,8 @@ const getPaymentById = asyncHandler(async (req, res) => {
   // Status calculation (same as aggregation)
   if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
     payment.status = "paid";
+  } else if (new Date(payment.dueDate) < new Date()) {
+    payment.status = "overdue";
   } else if (payment.paidAmount > 0) {
     payment.status = "partial";
   } else {
@@ -227,6 +240,7 @@ const getPaymentById = asyncHandler(async (req, res) => {
 });
 
 /* ================= PAYMENT HISTORY ================= */
+/* ================= PAYMENT HISTORY ================= */
 const getPaymentHistory = asyncHandler(async (req, res) => {
   const { memberId, chitId } = req.query;
 
@@ -235,13 +249,42 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     throw new Error("memberId and chitId are required");
   }
 
-  const payments = await paymentService.getPaymentsByMemberAndChit(
-    memberId,
-    chitId
-  );
+  const chit = await Chit.findById(chitId);
+  if (!chit) {
+    res.status(404);
+    throw new Error("Chit not found");
+  }
+
+  const payments = await Payment.find({ memberId, chitId }).sort({
+    paymentYear: -1,
+    paymentMonth: -1,
+  });
+
+  // Enrich payments with computed fields
+  const enrichedPayments = payments.map((p) => {
+    const payment = p.toObject();
+    payment.totalPaid =
+      (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+
+    // Provide monthly payable for frontend reference
+    payment.monthlyPayableAmount = chit.monthlyPayableAmount;
+
+    // Calculate Status
+    if (payment.paidAmount >= chit.monthlyPayableAmount) {
+      payment.status = "paid";
+    } else if (new Date(payment.dueDate) < new Date()) {
+      payment.status = "overdue";
+    } else if (payment.paidAmount > 0) {
+      payment.status = "partial";
+    } else {
+      payment.status = "pending";
+    }
+
+    return payment;
+  });
 
   return sendResponse(res, 200, true, "Payment history fetched successfully", {
-    payments,
+    payments: enrichedPayments,
   });
 });
 
@@ -262,6 +305,8 @@ const exportInvoicePdf = asyncHandler(async (req, res) => {
   payment.totalPaid = (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
   if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
     payment.status = "paid";
+  } else if (new Date(payment.dueDate) < new Date()) {
+    payment.status = "overdue";
   } else if (payment.paidAmount > 0) {
     payment.status = "partial";
   } else {

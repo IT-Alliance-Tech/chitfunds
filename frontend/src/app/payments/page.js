@@ -24,6 +24,8 @@ import {
   useMediaQuery,
   Grid,
   Box,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 import { apiRequest, BASE_URL } from "@/config/api";
@@ -58,10 +60,21 @@ export default function PaymentsPage() {
   const [filteredPayments, setFilteredPayments] = useState([]);
   const [chits, setChits] = useState([]);
   const [members, setMembers] = useState([]);
-  const [allMembers, setAllMembers] = useState([]);
+  const [filterMembers, setFilterMembers] = useState([]); // Members for filter dropdown
   const [openModal, setOpenModal] = useState(false);
   const [form, setForm] = useState(initialFormState);
   const [filters, setFilters] = useState(initialFilterState);
+
+  const [openPreviewModal, setOpenPreviewModal] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -114,16 +127,6 @@ export default function PaymentsPage() {
     }
   };
 
-  /* ================= FETCH ALL MEMBERS ================= */
-  const fetchAllMembers = async () => {
-    try {
-      const res = await apiRequest("/member/list");
-      setAllMembers(res?.data?.members || []);
-    } catch {
-      setAllMembers([]);
-    }
-  };
-
   /* ================= FETCH MEMBERS BY CHIT ================= */
   const fetchMembersByChit = async (chitId) => {
     if (!chitId) return;
@@ -137,25 +140,30 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchChits();
-    fetchAllMembers();
   }, []);
 
   useEffect(() => {
     fetchPayments(page, rowsPerPage);
   }, [page, rowsPerPage, filters]);
 
-  /* ================= CHIT-TO-MEMBER DROPDOWN LOGIC (For Filters) ================= */
-  const membersForFilterDropdown = filters.chitId
-    ? allMembers.filter((m) =>
-        m.chits?.some(
-          (c) => String(c.chitId?._id || c.chitId) === String(filters.chitId)
-        )
-      )
-    : [];
+  /* ================= FETCH MEMBERS FOR FILTER ================= */
+  const fetchFilterMembers = async (chitId) => {
+    if (!chitId) {
+      setFilterMembers([]);
+      return;
+    }
+    try {
+      const res = await apiRequest(`/chit/details/${chitId}`);
+      setFilterMembers(res?.data?.members || []);
+    } catch {
+      setFilterMembers([]);
+    }
+  };
 
   /* ================= RESET FILTERS ================= */
   const resetFilters = () => {
     setFilters(initialFilterState);
+    setFilterMembers([]);
     setPage(0);
   };
 
@@ -180,8 +188,14 @@ export default function PaymentsPage() {
       });
 
       setOpenModal(false);
+      setOpenPreviewModal(false); // Close preview
       setForm(initialFormState);
       setMembers([]);
+      setSnackbar({
+        open: true,
+        message: "Payment successful!",
+        severity: "success",
+      });
       fetchPayments();
 
       // ✅ OPEN PDF AUTOMATICALLY AFTER SAVE
@@ -194,6 +208,11 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error("Failed to save payment", error);
+      setSnackbar({
+        open: true,
+        message: error.message || "Failed to save payment",
+        severity: "error",
+      });
     }
   };
 
@@ -278,6 +297,7 @@ export default function PaymentsPage() {
                         chitId: cid,
                         memberId: "", // Reset member when chit changes
                       }));
+                      fetchFilterMembers(cid);
                     }}
                   >
                     <MenuItem value="">All Chits</MenuItem>
@@ -305,7 +325,7 @@ export default function PaymentsPage() {
                     <MenuItem value="">
                       {!filters.chitId ? "Select Chit First" : "All Members"}
                     </MenuItem>
-                    {membersForFilterDropdown.map((m) => (
+                    {filterMembers.map((m) => (
                       <MenuItem key={m._id} value={m._id}>
                         {m.name}
                       </MenuItem>
@@ -615,8 +635,11 @@ export default function PaymentsPage() {
             >
               Cancel
             </Button>
-            <Button variant="contained" onClick={savePayment}>
-              Save Payment
+            <Button
+              variant="contained"
+              onClick={() => setOpenPreviewModal(true)}
+            >
+              Preview & Save
             </Button>
           </DialogActions>
         </Dialog>
@@ -703,6 +726,12 @@ export default function PaymentsPage() {
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Chit Location</Typography>
+                      <Typography>
+                        {selectedPayment.chitId?.location || "-"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Member Name</Typography>
                       <Typography>{selectedPayment.memberId?.name}</Typography>
                     </Grid>
@@ -711,7 +740,7 @@ export default function PaymentsPage() {
                       <Typography>{selectedPayment.memberId?.phone}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Location</Typography>
+                      <Typography variant="caption">Member Location</Typography>
                       <Typography>
                         {selectedPayment.memberId?.address || "-"}
                       </Typography>
@@ -754,6 +783,114 @@ export default function PaymentsPage() {
           </DialogActions>
         </Dialog>
       </div>
+
+      {/* ================= PREVIEW PAYMENT MODAL ================= */}
+      <Dialog
+        open={openPreviewModal}
+        onClose={() => setOpenPreviewModal(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Confirm Payment Details
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography variant="subtitle1" fontWeight={600} color="primary">
+              Please review the details before confirming.
+            </Typography>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Chit Name
+                </Typography>
+                <Typography fontWeight={500}>
+                  {chits.find((c) => c.id === form.chitId)?.chitName}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Member Name
+                </Typography>
+                <Typography fontWeight={500}>
+                  {members.find((m) => m._id === form.memberId)?.name}
+                </Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Payment Month
+                </Typography>
+                <Typography fontWeight={500}>{form.paymentMonth}</Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Payment Date
+                </Typography>
+                <Typography fontWeight={500}>{form.paymentDate}</Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Paid Amount
+                </Typography>
+                <Typography fontWeight={500}>₹{form.paidAmount}</Typography>
+              </Grid>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary">
+                  Penalty
+                </Typography>
+                <Typography fontWeight={500}>
+                  ₹{form.penaltyAmount || 0}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Total Payable
+                </Typography>
+                <Typography fontWeight={700} fontSize="1.1rem">
+                  ₹{Number(form.paidAmount) + Number(form.penaltyAmount || 0)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="caption" color="text.secondary">
+                  Payment Mode
+                </Typography>
+                <Typography
+                  fontWeight={500}
+                  sx={{ textTransform: "capitalize" }}
+                >
+                  {form.paymentMode}
+                </Typography>
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setOpenPreviewModal(false)} color="inherit">
+            Edit
+          </Button>
+          <Button onClick={savePayment} variant="contained" color="primary">
+            Confirm & Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ================= SNACKBAR ================= */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
