@@ -67,6 +67,9 @@ export default function PaymentsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
+  const [openViewModal, setOpenViewModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+
   /* ================= FETCH PAYMENTS ================= */
   const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
     const queryParams = new URLSearchParams({
@@ -95,8 +98,18 @@ export default function PaymentsPage() {
   const fetchChits = async () => {
     try {
       const res = await apiRequest("/chit/list?limit=1000"); // Fetch all for dropdowns
-      setChits(res?.data?.items || []);
-    } catch {
+      const items = res?.data?.items || [];
+
+      const formatted = items.map((c) => ({
+        id: c._id,
+        _id: c._id,
+        chitName: c.chitName,
+        duedate: c.calculatedDueDate || c.startDate, // Use calculated or startDate as fallback
+      }));
+
+      setChits(formatted);
+    } catch (error) {
+      console.error("Failed to fetch chits", error);
       setChits([]);
     }
   };
@@ -132,7 +145,6 @@ export default function PaymentsPage() {
   }, [page, rowsPerPage, filters]);
 
   /* ================= CHIT-TO-MEMBER DROPDOWN LOGIC (For Filters) ================= */
-  // Filtered members for the filter dropdown
   const membersForFilterDropdown = filters.chitId
     ? allMembers.filter((m) =>
         m.chits?.some(
@@ -161,24 +173,20 @@ export default function PaymentsPage() {
       paymentMode: form.paymentMode,
     };
 
-    await apiRequest("/payment/create", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    try {
+      await apiRequest("/payment/create", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-    setOpenModal(false);
-    setForm(initialFormState);
-    setMembers([]);
-    fetchPayments();
+      setOpenModal(false);
+      setForm(initialFormState);
+      setMembers([]);
+      fetchPayments();
+    } catch (error) {
+      console.error("Failed to save payment", error);
+    }
   };
-
-  const paginatedPayments = filteredPayments.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
-  const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState(null);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
@@ -265,7 +273,7 @@ export default function PaymentsPage() {
                   >
                     <MenuItem value="">All Chits</MenuItem>
                     {chits.map((c) => (
-                      <MenuItem key={c._id} value={c._id}>
+                      <MenuItem key={c.id} value={c.id}>
                         {c.chitName}
                       </MenuItem>
                     ))}
@@ -340,7 +348,7 @@ export default function PaymentsPage() {
               variant="body2"
               sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}
             >
-              Showing {filteredPayments.length} of {payments.length} payments
+              Showing {payments.length} of {totalCount} payments
             </Typography>
           </CardContent>
         </Card>
@@ -352,7 +360,6 @@ export default function PaymentsPage() {
               Payments List
             </Typography>
 
-            {/* Responsive table wrapper */}
             <div style={{ width: "100%", overflowX: "auto" }}>
               <Table>
                 <TableHead>
@@ -378,14 +385,14 @@ export default function PaymentsPage() {
                 </TableHead>
 
                 <TableBody>
-                  {paginatedPayments.length === 0 ? (
+                  {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} align="center">
+                      <TableCell colSpan={11} align="center">
                         No payments found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedPayments.map((p) => (
+                    payments.map((p) => (
                       <TableRow key={p._id}>
                         <TableCell sx={{ whiteSpace: "nowrap" }}>
                           {p.invoiceNumber || "-"}
@@ -398,9 +405,16 @@ export default function PaymentsPage() {
                         </TableCell>
                         <TableCell>₹{p.paidAmount}</TableCell>
                         <TableCell>₹{p.penaltyAmount}</TableCell>
-                        <TableCell>₹{p.totalPaid}</TableCell>
+                        <TableCell>
+                          ₹
+                          {p.totalPaid ??
+                            Number(p.paidAmount || 0) +
+                              Number(p.penaltyAmount || 0)}
+                        </TableCell>
                         <TableCell>{p.paymentMode}</TableCell>
-                        <TableCell>{p.status}</TableCell>
+                        <TableCell sx={{ textTransform: "capitalize" }}>
+                          {p.status || "-"}
+                        </TableCell>
                         <TableCell>
                           <Button
                             size="small"
@@ -431,13 +445,7 @@ export default function PaymentsPage() {
                   setRowsPerPage(parseInt(e.target.value, 10))
                 }
                 rowsPerPageOptions={[5, 10, 25, 50]}
-                sx={{
-                  mt: 2,
-                  "& .MuiTablePagination-toolbar": {
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                  },
-                }}
+                sx={{ mt: 2 }}
               />
             )}
           </CardContent>
@@ -446,13 +454,8 @@ export default function PaymentsPage() {
         {/* ================= ADD PAYMENT MODAL ================= */}
         <Dialog open={openModal} fullWidth maxWidth="sm" fullScreen={isMobile}>
           <DialogTitle>Add Payment</DialogTitle>
-
           <DialogContent
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
+            sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
           >
             <FormControl fullWidth>
               <InputLabel>Select Chit</InputLabel>
@@ -461,12 +464,26 @@ export default function PaymentsPage() {
                 value={form.chitId}
                 onChange={(e) => {
                   const chitId = e.target.value;
+                  const selectedChit = chits.find((c) => c.id === chitId);
+
+                  let dueDateValue = "";
+                  if (selectedChit?.duedate) {
+                    try {
+                      dueDateValue = new Date(selectedChit.duedate)
+                        .toISOString()
+                        .split("T")[0];
+                    } catch (error) {
+                      console.error("Error formatting date:", error);
+                    }
+                  }
+
                   setForm((p) => ({
                     ...p,
                     chitId,
                     memberId: "",
                     phone: "",
                     location: "",
+                    dueDate: dueDateValue,
                   }));
                   fetchMembersByChit(chitId);
                 }}
@@ -522,10 +539,9 @@ export default function PaymentsPage() {
             <TextField
               type="date"
               label="Due Date"
+              value={form.dueDate}
               InputLabelProps={{ shrink: true }}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, dueDate: e.target.value }))
-              }
+              disabled
             />
 
             <TextField
@@ -568,19 +584,11 @@ export default function PaymentsPage() {
             </FormControl>
           </DialogContent>
 
-          <DialogActions
-            sx={{
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 1,
-              px: 3,
-              pb: 2,
-            }}
-          >
+          <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button
               onClick={() => {
                 setOpenModal(false);
                 setForm(initialFormState);
-                setMembers([]);
               }}
             >
               Cancel
@@ -590,132 +598,8 @@ export default function PaymentsPage() {
             </Button>
           </DialogActions>
         </Dialog>
-        <Dialog
-          open={openViewModal}
-          onClose={() => setOpenViewModal(false)}
-          fullWidth
-          maxWidth="md"
-        >
-          <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>
-            Payment Details
-          </DialogTitle>
 
-          <DialogContent dividers sx={{ px: 4, py: 3 }}>
-            {selectedPayment && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {/* ================= BASIC INFO ================= */}
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Basic Information
-                  </Typography>
-
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Invoice Number</Typography>
-                      <Typography>
-                        {selectedPayment.invoiceNumber || "-"}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Status</Typography>
-                      <Typography sx={{ textTransform: "capitalize" }}>
-                        {selectedPayment.status}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Payment Mode</Typography>
-                      <Typography sx={{ textTransform: "capitalize" }}>
-                        {selectedPayment.paymentMode}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Payment Date</Typography>
-                      <Typography>
-                        {new Date(
-                          selectedPayment.paymentDate
-                        ).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                {/* ================= CHIT & MEMBER ================= */}
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Chit & Member Details
-                  </Typography>
-
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Chit Name</Typography>
-                      <Typography>
-                        {selectedPayment.chitId?.chitName}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Member Name</Typography>
-                      <Typography>{selectedPayment.memberId?.name}</Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Phone</Typography>
-                      <Typography>{selectedPayment.memberId?.phone}</Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Location</Typography>
-                      <Typography>
-                        {selectedPayment.memberId?.address || "-"}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                {/* ================= AMOUNT DETAILS ================= */}
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Amount Details
-                  </Typography>
-
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Paid Amount</Typography>
-                      <Typography>₹{selectedPayment.paidAmount}</Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Penalty Amount</Typography>
-                      <Typography>₹{selectedPayment.penaltyAmount}</Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Total Paid</Typography>
-                      <Typography sx={{ fontWeight: 600 }}>
-                        ₹{selectedPayment.totalPaid}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Due Date</Typography>
-                      <Typography>
-                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </Box>
-            )}
-          </DialogContent>
-
-          <DialogActions sx={{ px: 4, py: 2 }}>
-            <Button onClick={() => setOpenViewModal(false)}>Close</Button>
-          </DialogActions>
-        </Dialog>
-
+        {/* ================= VIEW PAYMENT DETAILS MODAL ================= */}
         <Dialog
           open={openViewModal}
           onClose={() => setOpenViewModal(false)}
@@ -725,7 +609,6 @@ export default function PaymentsPage() {
           <DialogTitle
             sx={{
               fontWeight: 600,
-              pb: 1,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -748,12 +631,10 @@ export default function PaymentsPage() {
           <DialogContent dividers sx={{ px: 4, py: 3 }}>
             {selectedPayment && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {/* ================= BASIC INFO ================= */}
                 <Box>
                   <Typography sx={{ fontWeight: 600, mb: 2 }}>
                     Basic Information
                   </Typography>
-
                   <Grid container spacing={4}>
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Invoice Number</Typography>
@@ -761,21 +642,18 @@ export default function PaymentsPage() {
                         {selectedPayment.invoiceNumber || "-"}
                       </Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Status</Typography>
                       <Typography sx={{ textTransform: "capitalize" }}>
                         {selectedPayment.status}
                       </Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Payment Mode</Typography>
                       <Typography sx={{ textTransform: "capitalize" }}>
                         {selectedPayment.paymentMode}
                       </Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Payment Date</Typography>
                       <Typography>
@@ -787,12 +665,10 @@ export default function PaymentsPage() {
                   </Grid>
                 </Box>
 
-                {/* ================= CHIT & MEMBER ================= */}
                 <Box>
                   <Typography sx={{ fontWeight: 600, mb: 2 }}>
                     Chit & Member Details
                   </Typography>
-
                   <Grid container spacing={4}>
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Chit Name</Typography>
@@ -800,17 +676,14 @@ export default function PaymentsPage() {
                         {selectedPayment.chitId?.chitName}
                       </Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Member Name</Typography>
                       <Typography>{selectedPayment.memberId?.name}</Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Phone</Typography>
                       <Typography>{selectedPayment.memberId?.phone}</Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Location</Typography>
                       <Typography>
@@ -820,30 +693,25 @@ export default function PaymentsPage() {
                   </Grid>
                 </Box>
 
-                {/* ================= AMOUNT DETAILS ================= */}
                 <Box>
                   <Typography sx={{ fontWeight: 600, mb: 2 }}>
                     Amount Details
                   </Typography>
-
                   <Grid container spacing={4}>
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Paid Amount</Typography>
                       <Typography>₹{selectedPayment.paidAmount}</Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Penalty Amount</Typography>
                       <Typography>₹{selectedPayment.penaltyAmount}</Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Total Paid</Typography>
                       <Typography sx={{ fontWeight: 600 }}>
                         ₹{selectedPayment.totalPaid}
                       </Typography>
                     </Grid>
-
                     <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Due Date</Typography>
                       <Typography>
@@ -855,7 +723,6 @@ export default function PaymentsPage() {
               </Box>
             )}
           </DialogContent>
-
           <DialogActions sx={{ px: 4, py: 2 }}>
             <Button onClick={() => setOpenViewModal(false)}>Close</Button>
           </DialogActions>
