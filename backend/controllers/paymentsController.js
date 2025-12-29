@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 
 const paymentService = require("../services/paymentService");
 const Payment = require("../models/Payment");
@@ -70,26 +71,155 @@ const createPayment = asyncHandler(async (req, res) => {
 
 /* ================= GET ALL PAYMENTS ================= */
 const getPayments = asyncHandler(async (req, res) => {
-  const payments = await Payment.find()
-    .populate("chitId", "chitName amount duration")
-    .populate("memberId", "name phone")
-    .sort({ createdAt: -1 });
+  const {
+    chitId,
+    memberId,
+    paymentMode,
+    status,
+    page = 1,
+    limit = 10,
+  } = req.query;
+
+  const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+  const limitNum = Math.max(parseInt(limit, 10) || 10, 1);
+  const skip = (pageNum - 1) * limitNum;
+
+  const matchStage = {};
+
+  if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+    matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+  }
+
+  if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+    matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+  }
+
+  if (paymentMode) {
+    matchStage.paymentMode = paymentMode;
+  }
+
+  const pipeline = [
+    { $match: matchStage },
+    {
+      $lookup: {
+        from: "chits",
+        localField: "chitId",
+        foreignField: "_id",
+        as: "chitDetails",
+      },
+    },
+    { $unwind: "$chitDetails" },
+    {
+      $lookup: {
+        from: "members",
+        localField: "memberId",
+        foreignField: "_id",
+        as: "memberDetails",
+      },
+    },
+    { $unwind: "$memberDetails" },
+    {
+      $addFields: {
+        totalPaid: { $add: ["$paidAmount", "$penaltyAmount"] },
+        computedStatus: {
+          $cond: {
+            if: { $gte: ["$paidAmount", "$chitDetails.monthlyPayableAmount"] },
+            then: "paid",
+            else: {
+              $cond: {
+                if: { $gt: ["$paidAmount", 0] },
+                then: "partial",
+                else: "pending",
+              },
+            },
+          },
+        },
+      },
+    },
+  ];
+
+  // Add status filter to pipeline if provided
+  if (status) {
+    pipeline.push({ $match: { computedStatus: status } });
+  }
+
+  // Count before pagination but after status filter
+  const countPipeline = [...pipeline, { $count: "total" }];
+  const countResult = await Payment.aggregate(countPipeline);
+  const total = countResult[0]?.total || 0;
+
+  // Final pipeline with sorting and pagination
+  pipeline.push({ $sort: { createdAt: -1 } });
+  pipeline.push({ $skip: skip });
+  pipeline.push({ $limit: limitNum });
+  pipeline.push({
+    $project: {
+      _id: 1,
+      invoiceNumber: 1,
+      paidAmount: 1,
+      penaltyAmount: 1,
+      totalPaid: 1,
+      paymentMonth: 1,
+      paymentYear: 1,
+      paymentDate: 1,
+      dueDate: 1,
+      paymentMode: 1,
+      status: "$computedStatus",
+      chitId: {
+        _id: "$chitDetails._id",
+        chitName: "$chitDetails.chitName",
+        amount: "$chitDetails.amount",
+        duration: "$chitDetails.duration",
+      },
+      memberId: {
+        _id: "$memberDetails._id",
+        name: "$memberDetails.name",
+        phone: "$memberDetails.phone",
+      },
+    },
+  });
+
+  const payments = await Payment.aggregate(pipeline);
 
   return sendResponse(res, 200, true, "Payments fetched successfully", {
-    payments,
+    items: payments,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      totalItems: total,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    },
   });
 });
 
 /* ================= GET PAYMENT BY ID ================= */
 const getPaymentById = asyncHandler(async (req, res) => {
-  const payment = await Payment.findById(req.params.id)
-    .populate("chitId", "chitName amount duration")
-    .populate("memberId", "name phone");
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error("Invalid Payment ID");
+  }
+
+  const payment = await Payment.findById(id)
+    .populate("chitId", "chitName amount duration monthlyPayableAmount")
+    .populate("memberId", "name phone address");
 
   if (!payment) {
     res.status(404);
     throw new Error("Payment not found");
   }
+
+  // Status calculation (same as aggregation)
+  if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
+    payment.status = "paid";
+  } else if (payment.paidAmount > 0) {
+    payment.status = "partial";
+  } else {
+    payment.status = "pending";
+  }
+
+  payment.totalPaid = (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
 
   return sendResponse(res, 200, true, "Payment fetched successfully", {
     payment,
@@ -126,6 +256,16 @@ const exportInvoicePdf = asyncHandler(async (req, res) => {
   if (!payment) {
     res.status(404);
     throw new Error("Payment not found");
+  }
+
+  // Calculate missing fields for PDF generator
+  payment.totalPaid = (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+  if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
+    payment.status = "paid";
+  } else if (payment.paidAmount > 0) {
+    payment.status = "partial";
+  } else {
+    payment.status = "pending";
   }
 
   // PDF stream response (no sendResponse here)

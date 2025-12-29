@@ -26,7 +26,7 @@ import {
   Box,
 } from "@mui/material";
 
-import { apiRequest } from "@/config/api";
+import { apiRequest, BASE_URL } from "@/config/api";
 
 /* ================= INITIAL FORM STATE ================= */
 const initialFormState = {
@@ -51,7 +51,6 @@ const initialFilterState = {
   status: "",
 };
 
-
 export default function PaymentsPage() {
   const isMobile = useMediaQuery("(max-width:600px)");
 
@@ -66,31 +65,53 @@ export default function PaymentsPage() {
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
   /* ================= FETCH PAYMENTS ================= */
-  const fetchPayments = async () => {
-    const res = await apiRequest("/payment/list");
-    const paymentData = res?.data?.payments || [];
-    setPayments(paymentData);
-    setFilteredPayments(paymentData);
+  const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
+    const queryParams = new URLSearchParams({
+      page: pageNum + 1,
+      limit: pageSize,
+      ...(filters.chitId && { chitId: filters.chitId }),
+      ...(filters.memberId && { memberId: filters.memberId }),
+      ...(filters.paymentMode && { paymentMode: filters.paymentMode }),
+      ...(filters.status && { status: filters.status }),
+    });
+
+    try {
+      const res = await apiRequest(`/payment/list?${queryParams.toString()}`);
+      const paymentData = res?.data?.items || [];
+      const pagination = res?.data?.pagination || { totalItems: 0 };
+
+      setPayments(paymentData);
+      setFilteredPayments(paymentData); // Now same as payments due to server filtering
+      setTotalCount(pagination.totalItems);
+    } catch (error) {
+      console.error("Failed to fetch payments", error);
+    }
   };
 
   /* ================= FETCH CHITS ================= */
   const fetchChits = async () => {
-    const res = await apiRequest("/chit/list");
+    try {
+      const res = await apiRequest("/chit/list?limit=1000"); // Fetch all for dropdowns
+      const items = res?.data?.items || [];
 
-    // Store full chit data including duedate
-    const formatted = (res?.data?.items || []).map((c) => ({
-      id: c._id,
-      chitName: c.chitName,
-      duedate: c.duedate || c.startDate, // Fallback to startDate if duedate is not available
-    }));
+      const formatted = items.map((c) => ({
+        id: c._id,
+        _id: c._id,
+        chitName: c.chitName,
+        duedate: c.calculatedDueDate || c.startDate, // Use calculated or startDate as fallback
+      }));
 
-    console.log('Fetched chits:', formatted); // Debug log
-    setChits(formatted);
+      setChits(formatted);
+    } catch (error) {
+      console.error("Failed to fetch chits", error);
+      setChits([]);
+    }
   };
 
   /* ================= FETCH ALL MEMBERS ================= */
@@ -115,40 +136,27 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => {
-    fetchPayments();
     fetchChits();
     fetchAllMembers();
   }, []);
 
-  /* ================= APPLY FILTERS ================= */
   useEffect(() => {
-    let filtered = [...payments];
+    fetchPayments(page, rowsPerPage);
+  }, [page, rowsPerPage, filters]);
 
-    if (filters.chitId) {
-      filtered = filtered.filter(
-        (p) => p.chitId?._id === filters.chitId
-      );
-    }
-
-    if (filters.memberId) {
-      filtered = filtered.filter((p) => p.memberId?._id === filters.memberId);
-    }
-
-    if (filters.paymentMode) {
-      filtered = filtered.filter((p) => p.paymentMode === filters.paymentMode);
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter((p) => p.status === filters.status);
-    }
-
-    setFilteredPayments(filtered);
-    setPage(0);
-  }, [filters, payments]);
+  /* ================= CHIT-TO-MEMBER DROPDOWN LOGIC (For Filters) ================= */
+  const membersForFilterDropdown = filters.chitId
+    ? allMembers.filter((m) =>
+        m.chits?.some(
+          (c) => String(c.chitId?._id || c.chitId) === String(filters.chitId)
+        )
+      )
+    : [];
 
   /* ================= RESET FILTERS ================= */
   const resetFilters = () => {
     setFilters(initialFilterState);
+    setPage(0);
   };
 
   /* ================= SAVE PAYMENT ================= */
@@ -165,47 +173,29 @@ export default function PaymentsPage() {
       paymentMode: form.paymentMode,
     };
 
-    await apiRequest("/payment/create", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await apiRequest("/payment/create", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-    setOpenModal(false);
-    setForm(initialFormState);
-    setMembers([]);
-    fetchPayments();
-  };
+      setOpenModal(false);
+      setForm(initialFormState);
+      setMembers([]);
+      fetchPayments();
 
-  const paginatedPayments = filteredPayments.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
-
-  const openInvoicePdf = async (paymentId) => {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/payment/invoice/${paymentId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+      // ✅ OPEN PDF AUTOMATICALLY AFTER SAVE
+      if (res?.data?.payment?._id) {
+        const token = localStorage.getItem("token");
+        window.open(
+          `${BASE_URL}/payment/invoice/${res.data.payment._id}?token=${token}`,
+          "_blank"
+        );
       }
-    );
-
-    if (!res.ok) {
-      throw new Error("Failed to fetch PDF");
+    } catch (error) {
+      console.error("Failed to save payment", error);
     }
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  } catch (err) {
-    console.error("PDF open error:", err);
-    alert("Unable to open invoice PDF");
-  }
-};
-
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
@@ -261,11 +251,13 @@ export default function PaymentsPage() {
                 mb: 3,
               }}
             >
-              <Typography fontWeight={600} fontSize="1.1rem">Filters</Typography>
-              <Button 
-                size="small" 
+              <Typography fontWeight={600} fontSize="1.1rem">
+                Filters
+              </Typography>
+              <Button
+                size="small"
                 onClick={resetFilters}
-                sx={{ textTransform: 'uppercase', fontSize: '0.75rem' }}
+                sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
               >
                 Reset Filters
               </Button>
@@ -273,19 +265,20 @@ export default function PaymentsPage() {
 
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl
-                  fullWidth
-                  size="small"
-                  sx={{ minWidth: 260 }}
-                >
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
                   <InputLabel>Chit</InputLabel>
                   <Select
                     label="Chit"
                     value={filters.chitId}
                     sx={{ height: 44 }}
-                    onChange={(e) =>
-                      setFilters((p) => ({ ...p, chitId: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const cid = e.target.value;
+                      setFilters((p) => ({
+                        ...p,
+                        chitId: cid,
+                        memberId: "", // Reset member when chit changes
+                      }));
+                    }}
                   >
                     <MenuItem value="">All Chits</MenuItem>
                     {chits.map((c) => (
@@ -298,22 +291,21 @@ export default function PaymentsPage() {
               </Grid>
 
               <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl
-                  fullWidth
-                  size="small"
-                  sx={{ minWidth: 260 }}
-                >
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
                   <InputLabel>Member</InputLabel>
                   <Select
                     label="Member"
                     value={filters.memberId}
                     sx={{ height: 44 }}
+                    disabled={!filters.chitId}
                     onChange={(e) =>
                       setFilters((p) => ({ ...p, memberId: e.target.value }))
                     }
                   >
-                    <MenuItem value="">All Members</MenuItem>
-                    {allMembers.map((m) => (
+                    <MenuItem value="">
+                      {!filters.chitId ? "Select Chit First" : "All Members"}
+                    </MenuItem>
+                    {membersForFilterDropdown.map((m) => (
                       <MenuItem key={m._id} value={m._id}>
                         {m.name}
                       </MenuItem>
@@ -323,11 +315,7 @@ export default function PaymentsPage() {
               </Grid>
 
               <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl
-                  fullWidth
-                  size="small"
-                  sx={{ minWidth: 260 }}
-                >
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
                   <InputLabel>Payment Mode</InputLabel>
                   <Select
                     label="Payment Mode"
@@ -345,11 +333,7 @@ export default function PaymentsPage() {
               </Grid>
 
               <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl
-                  fullWidth
-                  size="small"
-                  sx={{ minWidth: 260 }}
-                >
+                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
                   <InputLabel>Status</InputLabel>
                   <Select
                     label="Status"
@@ -369,8 +353,11 @@ export default function PaymentsPage() {
               </Grid>
             </Grid>
 
-            <Typography variant="body2" sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}>
-              Showing {filteredPayments.length} of {payments.length} payments
+            <Typography
+              variant="body2"
+              sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}
+            >
+              Showing {payments.length} of {totalCount} payments
             </Typography>
           </CardContent>
         </Card>
@@ -382,7 +369,6 @@ export default function PaymentsPage() {
               Payments List
             </Typography>
 
-            {/* Responsive table wrapper */}
             <div style={{ width: "100%", overflowX: "auto" }}>
               <Table>
                 <TableHead>
@@ -408,14 +394,14 @@ export default function PaymentsPage() {
                 </TableHead>
 
                 <TableBody>
-                  {paginatedPayments.length === 0 ? (
+                  {payments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={11} align="center">
                         No payments found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedPayments.map((p) => (
+                    payments.map((p) => (
                       <TableRow key={p._id}>
                         <TableCell sx={{ whiteSpace: "nowrap" }}>
                           {p.invoiceNumber || "-"}
@@ -428,14 +414,30 @@ export default function PaymentsPage() {
                         </TableCell>
                         <TableCell>₹{p.paidAmount}</TableCell>
                         <TableCell>₹{p.penaltyAmount}</TableCell>
-                       <TableCell>
-  ₹{p.totalPaid ?? (Number(p.paidAmount || 0) + Number(p.penaltyAmount || 0))}
-</TableCell>
+                        <TableCell>
+                          ₹
+                          {p.totalPaid ??
+                            Number(p.paidAmount || 0) +
+                              Number(p.penaltyAmount || 0)}
+                        </TableCell>
                         <TableCell>{p.paymentMode}</TableCell>
+                        <TableCell sx={{ textTransform: "capitalize" }}>
+                          {p.status || "-"}
+                        </TableCell>
                         <TableCell>
-  {p.status ?? "-"}
-</TableCell>
-                        <TableCell>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              const token = localStorage.getItem("token");
+                              window.open(
+                                `${BASE_URL}/payment/invoice/${p._id}?token=${token}`,
+                                "_blank"
+                              );
+                            }}
+                          >
+                            PDF
+                          </Button>
                           <Button
                             size="small"
                             variant="outlined"
@@ -454,10 +456,10 @@ export default function PaymentsPage() {
               </Table>
             </div>
 
-            {filteredPayments.length > 0 && (
+            {totalCount > 0 && (
               <TablePagination
                 component="div"
-                count={filteredPayments.length}
+                count={totalCount}
                 page={page}
                 onPageChange={(e, n) => setPage(n)}
                 rowsPerPage={rowsPerPage}
@@ -465,34 +467,17 @@ export default function PaymentsPage() {
                   setRowsPerPage(parseInt(e.target.value, 10))
                 }
                 rowsPerPageOptions={[5, 10, 25, 50]}
-                sx={{
-                  mt: 2,
-                  "& .MuiTablePagination-toolbar": {
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                  },
-                }}
+                sx={{ mt: 2 }}
               />
             )}
           </CardContent>
         </Card>
 
         {/* ================= ADD PAYMENT MODAL ================= */}
-        <Dialog
-          open={openModal}
-          fullWidth
-          maxWidth="sm"
-          fullScreen={isMobile}
-        >
+        <Dialog open={openModal} fullWidth maxWidth="sm" fullScreen={isMobile}>
           <DialogTitle>Add Payment</DialogTitle>
-
           <DialogContent
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              pt: 3, // Add top padding to prevent label cutoff
-            }}
+            sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
           >
             <FormControl fullWidth>
               <InputLabel>Select Chit</InputLabel>
@@ -502,27 +487,25 @@ export default function PaymentsPage() {
                 onChange={(e) => {
                   const chitId = e.target.value;
                   const selectedChit = chits.find((c) => c.id === chitId);
-                  
-                  console.log('Selected chit:', selectedChit); // Debug log
-                  
-                  // Auto-fill dueDate from selected chit
-                  let dueDateValue = '';
+
+                  let dueDateValue = "";
                   if (selectedChit?.duedate) {
                     try {
-                      dueDateValue = new Date(selectedChit.duedate).toISOString().split('T')[0];
-                      console.log('Formatted due date:', dueDateValue); // Debug log
+                      dueDateValue = new Date(selectedChit.duedate)
+                        .toISOString()
+                        .split("T")[0];
                     } catch (error) {
-                      console.error('Error formatting date:', error);
+                      console.error("Error formatting date:", error);
                     }
                   }
-                  
+
                   setForm((p) => ({
                     ...p,
                     chitId,
                     memberId: "",
                     phone: "",
                     location: "",
-                    dueDate: dueDateValue, // Auto-fill due date
+                    dueDate: dueDateValue,
                   }));
                   fetchMembersByChit(chitId);
                 }}
@@ -623,19 +606,11 @@ export default function PaymentsPage() {
             </FormControl>
           </DialogContent>
 
-          <DialogActions
-            sx={{
-              flexDirection: { xs: "column", sm: "row" },
-              gap: 1,
-              px: 3,
-              pb: 2,
-            }}
-          >
+          <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button
               onClick={() => {
                 setOpenModal(false);
                 setForm(initialFormState);
-                setMembers([]);
               }}
             >
               Cancel
@@ -647,171 +622,137 @@ export default function PaymentsPage() {
         </Dialog>
 
         {/* ================= VIEW PAYMENT DETAILS MODAL ================= */}
-       <Dialog
-  open={openViewModal}
-  onClose={() => setOpenViewModal(false)}
-  fullWidth
-  maxWidth="md"
->
-  {/* ================= TITLE ================= */}
-  <DialogTitle sx={{ fontWeight: 600 }}>
-    Payment Details
-  </DialogTitle>
+        <Dialog
+          open={openViewModal}
+          onClose={() => setOpenViewModal(false)}
+          fullWidth
+          maxWidth="md"
+        >
+          <DialogTitle
+            sx={{
+              fontWeight: 600,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            Payment Details
+            {selectedPayment && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  const token = localStorage.getItem("token");
+                  window.open(
+                    `${BASE_URL}/payment/invoice/${selectedPayment._id}?token=${token}`,
+                    "_blank"
+                  );
+                }}
+              >
+                View as PDF
+              </Button>
+            )}
+          </DialogTitle>
 
-  {/* ================= CONTENT ================= */}
-  <DialogContent dividers sx={{ px: 4, py: 3 }}>
-    {selectedPayment && (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <DialogContent dividers sx={{ px: 4, py: 3 }}>
+            {selectedPayment && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Basic Information
+                  </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Invoice Number</Typography>
+                      <Typography>
+                        {selectedPayment.invoiceNumber || "-"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Status</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.status}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Mode</Typography>
+                      <Typography sx={{ textTransform: "capitalize" }}>
+                        {selectedPayment.paymentMode}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Payment Date</Typography>
+                      <Typography>
+                        {new Date(
+                          selectedPayment.paymentDate
+                        ).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-        {/* ================= BASIC INFO ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Basic Information
-          </Typography>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Chit & Member Details
+                  </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Chit Name</Typography>
+                      <Typography>
+                        {selectedPayment.chitId?.chitName}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Member Name</Typography>
+                      <Typography>{selectedPayment.memberId?.name}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Phone</Typography>
+                      <Typography>{selectedPayment.memberId?.phone}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Location</Typography>
+                      <Typography>
+                        {selectedPayment.memberId?.address || "-"}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
 
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Invoice Number</Typography>
-              <Typography>
-                {selectedPayment.invoiceNumber || "-"}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Status</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.status}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Mode</Typography>
-              <Typography sx={{ textTransform: "capitalize" }}>
-                {selectedPayment.paymentMode}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Payment Date</Typography>
-              <Typography>
-                {new Date(
-                  selectedPayment.paymentDate
-                ).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-
-        {/* ================= CHIT & MEMBER ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Chit & Member Details
-          </Typography>
-
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Chit Name</Typography>
-              <Typography>
-                {selectedPayment.chitId?.chitName}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Member Name</Typography>
-              <Typography>
-                {selectedPayment.memberId?.name}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Phone</Typography>
-              <Typography>
-                {selectedPayment.memberId?.phone}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Location</Typography>
-              <Typography>
-                {selectedPayment.memberId?.address || "-"}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-
-        {/* ================= AMOUNT DETAILS ================= */}
-        <Box>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            Amount Details
-          </Typography>
-
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Paid Amount</Typography>
-              <Typography>
-                ₹{selectedPayment.paidAmount}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Penalty Amount</Typography>
-              <Typography>
-                ₹{selectedPayment.penaltyAmount}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Total Paid</Typography>
-              <Typography sx={{ fontWeight: 600 }}>
-                ₹{selectedPayment.totalPaid}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12} sm={3}>
-              <Typography variant="caption">Due Date</Typography>
-              <Typography>
-                {new Date(
-                  selectedPayment.dueDate
-                ).toLocaleDateString()}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Box>
-
-      </Box>
-    )}
-  </DialogContent>
-
-  {/* ================= ACTIONS (BOTTOM) ================= */}
-  <DialogActions
-    sx={{
-      px: 4,
-      py: 2,
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: 1,
-    }}
-  >
-    {selectedPayment && (
-      <Button
-        size="small"
-        variant="outlined"
-        onClick={() => openInvoicePdf(selectedPayment._id)}
-      >
-        Export PDF
-      </Button>
-    )}
-
-    <Button
-      variant="contained"
-      onClick={() => setOpenViewModal(false)}
-    >
-      Close
-    </Button>
-  </DialogActions>
-</Dialog>
-
-
+                <Box>
+                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
+                    Amount Details
+                  </Typography>
+                  <Grid container spacing={4}>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Paid Amount</Typography>
+                      <Typography>₹{selectedPayment.paidAmount}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Penalty Amount</Typography>
+                      <Typography>₹{selectedPayment.penaltyAmount}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Total Paid</Typography>
+                      <Typography sx={{ fontWeight: 600 }}>
+                        ₹{selectedPayment.totalPaid}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Due Date</Typography>
+                      <Typography>
+                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ px: 4, py: 2 }}>
+            <Button onClick={() => setOpenViewModal(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </div>
   );

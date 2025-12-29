@@ -12,12 +12,14 @@ const memberSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
 
     email: {
       type: String,
       trim: true,
       lowercase: true,
+      index: true,
     },
 
     address: {
@@ -32,6 +34,7 @@ const memberSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "Chit",
           required: true,
+          index: true,
         },
         joinedAt: {
           type: Date,
@@ -56,6 +59,7 @@ const memberSchema = new mongoose.Schema(
       type: String,
       enum: ["Active", "Inactive"],
       default: "Active",
+      index: true,
     },
   },
   {
