@@ -32,11 +32,19 @@ const createChit = asyncHandler(async (req, res) => {
   const { startDate, dueDate, status } = req.body;
   const finalStatus = computeStatus(startDate, status);
 
-  // If calculatedDueDate is missing, calculate it from startDate and dueDate (day of month)
+  // Calculate calculatedDueDate from startDate and dueDate (day of month)
+  // Logic: Move to next month, then set the day to dueDate
   let calculatedDueDate = req.body.calculatedDueDate;
-  if (!calculatedDueDate && startDate && dueDate) {
+  if (startDate && dueDate) {
     const d = new Date(startDate);
+    // ✅ CRITICAL: Set date to 1st first to avoid month-skipping logic if today is 31st
+    d.setDate(1);
+    // Add 1 month to start date
+    d.setMonth(d.getMonth() + 1);
+    // Set the actual due day of the month
     d.setDate(Number(dueDate));
+    // Zero out time
+    d.setHours(0, 0, 0, 0);
     calculatedDueDate = d;
   }
 
@@ -129,6 +137,22 @@ const updateChit = asyncHandler(async (req, res) => {
 
   if (req.body.startDate || req.body.status) {
     chit.status = computeStatus(chit.startDate, req.body.status);
+  }
+
+  // Recalculate calculatedDueDate if startDate or dueDate changes
+  if (req.body.startDate || req.body.dueDate) {
+    const startDate = req.body.startDate || chit.startDate;
+    const dueDate = req.body.dueDate || chit.dueDate;
+
+    if (startDate && dueDate) {
+      const d = new Date(startDate);
+      // ✅ CRITICAL: Set date to 1st first to avoid month-skipping logic
+      d.setDate(1);
+      d.setMonth(d.getMonth() + 1);
+      d.setDate(Number(dueDate));
+      d.setHours(0, 0, 0, 0);
+      chit.calculatedDueDate = d;
+    }
   }
 
   await chit.save();

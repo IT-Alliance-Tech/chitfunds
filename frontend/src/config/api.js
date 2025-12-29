@@ -22,17 +22,8 @@ export const apiRequest = async (endpoint, options = {}) => {
     let errorMessage = "Something went wrong";
     try {
       const errorData = await response.json();
-<<<<<<< HEAD
-     errorMessage =
-  errorData?.error?.message ||
-  errorData?.message ||
-  errorMessage;
-
-
-=======
       errorMessage =
-        errorData.error?.message || errorData.message || errorMessage;
->>>>>>> 0095b1b (updated filter with UI)
+        errorData?.error?.message || errorData?.message || errorMessage;
     } catch {}
     throw new Error(errorMessage);
   }

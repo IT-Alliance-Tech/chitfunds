@@ -59,7 +59,6 @@ export default function MembersPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-
   /* ===================== LOAD CHITS ====================== */
   const [chits, setChits] = useState([]);
 
@@ -189,10 +188,8 @@ export default function MembersPage() {
     sendEmail: false,
   });
 
-<<<<<<< HEAD
   const [chitLimitError, setChitLimitError] = useState("");
-  
-=======
+
   /* ===================== NOTIFICATION STATE ====================== */
   const [notification, setNotification] = useState({
     open: false,
@@ -208,7 +205,6 @@ export default function MembersPage() {
     setNotification({ ...notification, open: false });
   };
 
->>>>>>> 0095b1b (updated filter with UI)
   // Debug formData changes
   useEffect(() => {
     console.log("💾 FORM DATA UPDATED:", formData);
@@ -235,7 +231,7 @@ export default function MembersPage() {
   /* ADD */
   const handleAddMember = () => {
     setIsEdit(false);
-  setChitLimitError(""); // ✅ clear old backend error
+    setChitLimitError(""); // ✅ clear old backend error
 
     setFormData({
       name: "",
@@ -254,7 +250,7 @@ export default function MembersPage() {
   /* EDIT */
   const handleEditMember = () => {
     setIsEdit(true);
-     setChitLimitError(""); // ✅ clear error
+    setChitLimitError(""); // ✅ clear error
 
     // Ensure chitIds are strings
     const cleanChitIds = (selectedMember.chitIds || [])
@@ -355,22 +351,16 @@ export default function MembersPage() {
       // 🔥 REFETCH DATA AFTER SAVE
       fetchMembers();
     } catch (err) {
-<<<<<<< HEAD
-  console.error("❌ ERROR:", err);
-
-  // ✅ If chit member limit reached
-  if (err.message?.includes("Chit member limit reached")) {
-    setChitLimitError(err.message);
-  } else {
-    alert(err.message || "Failed to save member");
-  }
-}
-
-=======
       console.error("❌ ERROR:", err);
-      showNotification(err.message || "Failed to save member", "error");
+
+      // ✅ If chit member limit reached
+      if (err.message?.includes("Chit member limit reached")) {
+        setChitLimitError(err.message);
+        showNotification(err.message, "error");
+      } else {
+        showNotification(err.message || "Failed to save member", "error");
+      }
     }
->>>>>>> 0095b1b (updated filter with UI)
   };
 
   /* FILTERED MEMBERS */
@@ -729,18 +719,17 @@ export default function MembersPage() {
                       : []
                   }
                   onChange={(selected) => {
-  const newChitIds = selected
-    ? selected.map((s) => s.value)
-    : [];
+                    const newChitIds = selected
+                      ? selected.map((s) => s.value)
+                      : [];
 
-  setChitLimitError(""); // ✅ clear error when user changes chit
+                    setChitLimitError(""); // ✅ clear error when user changes chit
 
-  setFormData({
-    ...formData,
-    chitIds: newChitIds,
-  });
-}}
-
+                    setFormData({
+                      ...formData,
+                      chitIds: newChitIds,
+                    });
+                  }}
                   placeholder="Select chits..."
                   styles={{
                     control: (base, state) => ({
@@ -772,18 +761,17 @@ export default function MembersPage() {
                   }}
                 />
                 {chitLimitError && (
-  <Typography
-    variant="body2"
-    sx={{
-      mt: 1,
-      color: "error.main",
-      fontWeight: 500,
-    }}
-  >
-    {chitLimitError}
-  </Typography>
-)}
-
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      mt: 1,
+                      color: "error.main",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {chitLimitError}
+                  </Typography>
+                )}
               </div>
 
               {/* SECURITY DOCUMENTS - REACT SELECT */}

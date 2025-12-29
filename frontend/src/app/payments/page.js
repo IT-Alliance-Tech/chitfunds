@@ -26,7 +26,7 @@ import {
   Box,
 } from "@mui/material";
 
-import { apiRequest } from "@/config/api";
+import { apiRequest, BASE_URL } from "@/config/api";
 
 /* ================= INITIAL FORM STATE ================= */
 const initialFormState = {
@@ -66,9 +66,6 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
-
-  const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState(null);
 
   const [openViewModal, setOpenViewModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -177,7 +174,7 @@ export default function PaymentsPage() {
     };
 
     try {
-      await apiRequest("/payment/create", {
+      const res = await apiRequest("/payment/create", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -186,6 +183,15 @@ export default function PaymentsPage() {
       setForm(initialFormState);
       setMembers([]);
       fetchPayments();
+
+      // ✅ OPEN PDF AUTOMATICALLY AFTER SAVE
+      if (res?.data?.payment?._id) {
+        const token = localStorage.getItem("token");
+        window.open(
+          `${BASE_URL}/payment/invoice/${res.data.payment._id}?token=${token}`,
+          "_blank"
+        );
+      }
     } catch (error) {
       console.error("Failed to save payment", error);
     }
@@ -423,6 +429,19 @@ export default function PaymentsPage() {
                             size="small"
                             variant="outlined"
                             onClick={() => {
+                              const token = localStorage.getItem("token");
+                              window.open(
+                                `${BASE_URL}/payment/invoice/${p._id}?token=${token}`,
+                                "_blank"
+                              );
+                            }}
+                          >
+                            PDF
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
                               setSelectedPayment(p);
                               setOpenViewModal(true);
                             }}
@@ -622,9 +641,13 @@ export default function PaymentsPage() {
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() =>
-                  window.open(`/payments/pdf/${selectedPayment._id}`, "_blank")
-                }
+                onClick={() => {
+                  const token = localStorage.getItem("token");
+                  window.open(
+                    `${BASE_URL}/payment/invoice/${selectedPayment._id}?token=${token}`,
+                    "_blank"
+                  );
+                }}
               >
                 View as PDF
               </Button>

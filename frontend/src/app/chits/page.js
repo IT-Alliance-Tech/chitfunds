@@ -110,13 +110,7 @@ export default function ChitsPage() {
     duration: "",
     membersLimit: "",
     startDate: "",
-<<<<<<< HEAD
-    duedate: "",
-    cycleDay: "",
-=======
     dueDate: "",
->>>>>>> 0095b1b (updated filter with UI)
-    status: "Upcoming",
   });
 
   useEffect(() => {
@@ -136,22 +130,13 @@ export default function ChitsPage() {
         { method: "GET" }
       );
 
-<<<<<<< HEAD
-      // ✅ FIXED: Changed from data.chits to data.items
-      const chitArray = response?.data?.items || [];
-      
-      // 🔥 EXTRACT PAGINATION DATA
-      const paginationData = response?.data?.pagination || {};
-      // ✅ FIXED: Changed from 'total' to 'totalItems'
-      setTotalChits(paginationData.totalItems || 0);
-=======
+      // ✅ FIXED: Changed from data.chits to data.items/chits
       const chitArray =
         response?.data?.items || response?.data?.chits || response?.data || [];
 
       // 🔥 EXTRACT PAGINATION DATA
       const paginationData = response?.data?.pagination || {};
       setTotalChits(paginationData.totalItems || paginationData.total || 0);
->>>>>>> 0095b1b (updated filter with UI)
       setTotalPages(paginationData.totalPages || 0);
 
       const formattedChits = Array.isArray(chitArray)
@@ -164,12 +149,7 @@ export default function ChitsPage() {
             membersLimit: chit.membersLimit,
             membersCount: chit.membersCount || 0,
             startDate: chit.startDate ? chit.startDate.split("T")[0] : "",
-<<<<<<< HEAD
-            duedate: chit.duedate ? chit.duedate.split("T")[0] : "",
-            cycleDay: chit.cycleDay,
-=======
             dueDate: chit.dueDate,
->>>>>>> 0095b1b (updated filter with UI)
             status: chit.status,
             location: chit.location,
           }))
@@ -240,13 +220,7 @@ export default function ChitsPage() {
       duration: "",
       membersLimit: "",
       startDate: "",
-<<<<<<< HEAD
-      duedate: "",
-      cycleDay: "",
-=======
       dueDate: "",
->>>>>>> 0095b1b (updated filter with UI)
-      status: "Upcoming",
     });
     setOpenModal(true);
   };
@@ -262,13 +236,7 @@ export default function ChitsPage() {
       duration: chit.durationMonths,
       membersLimit: chit.membersLimit,
       startDate: chit.startDate,
-<<<<<<< HEAD
-      duedate: chit.duedate || "",
-      cycleDay: chit.cycleDay,
-=======
       dueDate: chit.dueDate,
->>>>>>> 0095b1b (updated filter with UI)
-      status: chit.status,
       id: chit.id,
     });
     setOpenModal(true);
@@ -281,9 +249,9 @@ export default function ChitsPage() {
       return;
     }
 
-    // ✅ VALIDATION: Check cycleDay is between 1-31
-    if (formData.cycleDay && (formData.cycleDay < 1 || formData.cycleDay > 31)) {
-      alert("Cycle Day must be between 1 and 31");
+    // ✅ VALIDATION: Check dueDate is between 1-31
+    if (formData.dueDate && (formData.dueDate < 1 || formData.dueDate > 31)) {
+      alert("Due Date must be between 1 and 31");
       return;
     }
 
@@ -296,13 +264,7 @@ export default function ChitsPage() {
         duration: Number(formData.duration),
         membersLimit: Number(formData.membersLimit),
         startDate: formData.startDate,
-<<<<<<< HEAD
-        duedate: formData.duedate,
-        cycleDay: Number(formData.cycleDay),
-=======
         dueDate: Number(formData.dueDate),
->>>>>>> 0095b1b (updated filter with UI)
-        status: formData.status,
       };
 
       if (isEditMode) {
@@ -360,7 +322,12 @@ export default function ChitsPage() {
           <div className="relative mb-6">
             {/* MOBILE VIEW */}
             <div className="flex flex-col items-center gap-3 sm:hidden">
-              <Typography variant="h5" fontWeight={600} textAlign="center" sx={{ color: "#000" }}>
+              <Typography
+                variant="h5"
+                fontWeight={600}
+                textAlign="center"
+                sx={{ color: "#000" }}
+              >
                 Chit Management
               </Typography>
               <Button
@@ -692,59 +659,24 @@ export default function ChitsPage() {
                 }
               />
               <TextField
-                label="Due Date"
-<<<<<<< HEAD
-                type="date"
-                fullWidth
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-                value={formData.duedate}
-                onChange={(e) =>
-                  setFormData({ ...formData, duedate: e.target.value })
-                }
-              />
-              {/* ✅ FIXED: Added validation for cycleDay (1-31) */}
-              <TextField
-                label="Cycle Day"
-                type="number"
-                fullWidth
-                margin="normal"
-                value={formData.cycleDay}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow values between 1-31
-                  if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
-                    setFormData({ ...formData, cycleDay: value });
-                  }
-                }}
-                inputProps={{ min: 1, max: 31 }}
-                helperText="Day of the month (1-31)"
-=======
+                label="Due Date / Cycle Day"
                 type="number"
                 fullWidth
                 margin="normal"
                 value={formData.dueDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, dueDate: e.target.value })
-                }
->>>>>>> 0095b1b (updated filter with UI)
-              />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow values between 1-31
+                  if (
+                    value === "" ||
+                    (Number(value) >= 1 && Number(value) <= 31)
+                  ) {
+                    setFormData({ ...formData, dueDate: value });
                   }
-                  label="Status"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <MUIMenuItem key={status} value={status}>
-                      {status}
-                    </MUIMenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                }}
+                inputProps={{ min: 1, max: 31 }}
+                helperText="Day of the month for installments (1-31)"
+              />
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenModal(false)}>Cancel</Button>
@@ -804,8 +736,4 @@ export default function ChitsPage() {
       </div>
     </div>
   );
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 0095b1b (updated filter with UI)
