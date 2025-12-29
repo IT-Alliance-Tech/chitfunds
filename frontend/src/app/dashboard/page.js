@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Grid,
   Card,
-  CardContent, 
+  CardContent,
   Typography,
   Table,
   TableBody,
@@ -13,6 +13,8 @@ import {
   TableRow,
   Paper,
   Box,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 // Icons
@@ -32,19 +34,31 @@ const formatDate = (date) =>
     year: "numeric",
   });
 
-
 const handleLogout = () => {
-  
   localStorage.removeItem("token");
-  localStorage.removeItem("user"); 
+  localStorage.removeItem("user");
 
-  
   window.location.href = "/login";
 };
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  /* ===================== NOTIFICATION STATE ====================== */
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success | error | warning | info
+  });
+
+  const showNotification = (message, severity = "success") => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
 
   useEffect(() => {
     fetchDashboard();
@@ -55,6 +69,10 @@ export default function Dashboard() {
       const res = await apiRequest("/dashboard/analytics");
       setData(res?.data || null);
     } catch (err) {
+      showNotification(
+        err.message || "Failed to load dashboard analytics",
+        "error"
+      );
       console.error("Failed to fetch dashboard analytics", err);
       setData(null);
     } finally {
@@ -82,17 +100,15 @@ export default function Dashboard() {
     <Box className="min-h-screen bg-gray-100">
       <Box component="main" sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
         {/* ================= STATS GRID ================= */}
-      <Grid
-  container
-  spacing={2}
-  padding="1rem"
-  justifyContent={{
-    xs: "center",
-    md: "flex-start",
-  }}
->
-
-
+        <Grid
+          container
+          spacing={2}
+          padding="1rem"
+          justifyContent={{
+            xs: "center",
+            md: "flex-start",
+          }}
+        >
           <StatCard
             icon={<AccountBalanceIcon sx={iconStyle("#0ea5e9")} />}
             label="Total Chits"
@@ -152,48 +168,59 @@ export default function Dashboard() {
 
         {/* ================= RECENT ACTIVITIES ================= */}
         <Paper
-  elevation={1}
-  sx={{
-    mt: 3,
-    px: 4,
-    py: 3,
-    width: "100%",
-  }}
->
-  <Typography variant="h6" fontWeight={700} mb={2}>
-    Recent Activities
-  </Typography>
+          elevation={1}
+          sx={{
+            mt: 3,
+            px: 4,
+            py: 3,
+            width: "100%",
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            Recent Activities
+          </Typography>
 
-  <Grid
-    container
-    direction="column"
-    spacing={2}
-    sx={{ mt: 1 }}
-  >
-    <RecentBlock
-      title="Recent Payments"
-      items={data.recentActivities.filter(
-        (item) => item.type === "PAYMENT"
-      )}
-    />
+          <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
+            <RecentBlock
+              title="Recent Payments"
+              items={data.recentActivities.filter(
+                (item) => item.type === "PAYMENT"
+              )}
+            />
 
-    <RecentBlock
-      title="Recent Members"
-      items={data.recentActivities.filter(
-        (item) => item.type === "MEMBER"
-      )}
-    />
+            <RecentBlock
+              title="Recent Members"
+              items={data.recentActivities.filter(
+                (item) => item.type === "MEMBER"
+              )}
+            />
 
-    <RecentBlock
-      title="Recent Chits"
-      items={data.recentActivities.filter(
-        (item) => item.type === "CHIT"
-      )}
-    />
-  </Grid>
-</Paper>
-
+            <RecentBlock
+              title="Recent Chits"
+              items={data.recentActivities.filter(
+                (item) => item.type === "CHIT"
+              )}
+            />
+          </Grid>
+        </Paper>
       </Box>
+
+      {/* NOTIFICATION SNACKBAR */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: "100%", boxShadow: 3 }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
@@ -208,12 +235,11 @@ function StatCard({ icon, label, value }) {
 
           <Box sx={textWrapper}>
             <Typography variant="h6" fontWeight={700}>
-             {value}
+              {value}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-             {label}
+              {label}
             </Typography>
-
           </Box>
         </CardContent>
       </Card>
@@ -266,9 +292,7 @@ function RecentBlock({ title, items }) {
             <span>{item.type}</span>
             <span>{item.action}</span>
             <span>
-              {item.amount
-                ? `₹${item.amount.toLocaleString("en-IN")}`
-                : "-"}
+              {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : "-"}
             </span>
             <span>{formatDate(item.date)}</span>
           </Box>
@@ -281,7 +305,7 @@ function RecentBlock({ title, items }) {
 /* ================= STYLES ================= */
 
 const cardStyle = {
-   width: 230,
+  width: 230,
   height: 120,
   minHeight: 120,
   maxHeight: 120,
@@ -301,7 +325,6 @@ const cardContentStyle = {
   },
 };
 
-
 const iconWrapper = {
   display: "flex",
   alignItems: "center",
@@ -315,7 +338,6 @@ const textWrapper = {
   alignItems: "flex-start",
 };
 
-
 const iconStyle = (color) => ({
   color,
   fontSize: {
@@ -323,5 +345,3 @@ const iconStyle = (color) => ({
     md: 45,
   },
 });
-
-

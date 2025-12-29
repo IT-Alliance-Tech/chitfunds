@@ -6,16 +6,17 @@ const chitBody = z.object({
   amount: z.number().min(0, "Amount must be positive"),
   monthlyPayableAmount: z.number().min(0),
   duration: z.number().min(1),
-  duedate: z
+  calculatedDueDate: z
     .string()
     .or(z.date())
-    .transform((v) => new Date(v)),
+    .optional()
+    .transform((v) => (v ? new Date(v) : undefined)),
   membersLimit: z.number().min(1),
   startDate: z
     .string()
     .or(z.date())
     .transform((v) => new Date(v)),
-  cycleDay: z.number().min(1).max(31),
+  dueDate: z.number().min(1).max(31),
   status: z
     .enum(["Upcoming", "Ongoing", "Active", "Closed", "Completed"])
     .optional(),

@@ -6,11 +6,13 @@ const chitSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     location: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     amount: {
       type: Number,
@@ -27,9 +29,8 @@ const chitSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
-    duedate: {
+    calculatedDueDate: {
       type: Date,
-      required: true,
     },
     membersLimit: {
       type: Number,
@@ -40,7 +41,7 @@ const chitSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    cycleDay: {
+    dueDate: {
       type: Number,
       required: true,
       min: 1,
@@ -50,6 +51,7 @@ const chitSchema = new mongoose.Schema(
       type: String,
       enum: ["Upcoming", "Ongoing", "Active", "Closed", "Completed"],
       default: "Upcoming",
+      index: true,
     },
   },
   {

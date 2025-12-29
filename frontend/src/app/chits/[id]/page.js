@@ -14,6 +14,8 @@ import {
   TableRow,
   TableHead,
   Box,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
@@ -38,20 +40,38 @@ export default function ChitDetailsPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ===================== NOTIFICATION STATE ====================== */
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const showNotification = (message, severity = "success") => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+
   useEffect(() => {
     if (!id) return;
 
     const fetchChitDetails = async () => {
       try {
         const res = await apiRequest(`/chit/details/${id}`);
-
-        /* ✅ CORRECT DATA EXTRACTION */
-        const chitData = res?.data?.chit || null;
+        // Extract data accurately based on API response structure
+        const chitData = res?.data?.chit || res?.data || null;
         const membersData = res?.data?.members || [];
 
         setChit(chitData);
         setMembers(membersData);
       } catch (err) {
+        showNotification(
+          err.message || "Failed to fetch chit details",
+          "error"
+        );
         console.error("Failed to fetch chit details", err);
         setChit(null);
         setMembers([]);
@@ -85,22 +105,13 @@ export default function ChitDetailsPage() {
 
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
-
-      {/* HEADER */}
       <Box className="space-y-3">
         <Button variant="outlined" onClick={() => router.back()}>
           Back
         </Button>
-
-       <Typography
-  variant="h4"
-  fontWeight={600}
-  align="center"
-  sx={{ color: "#000" }}
->
-  {chit.chitName}
-</Typography>
-
+        <Typography variant="h4" fontWeight={600} align="center" color="black">
+          {chit.chitName}
+        </Typography>
       </Box>
 
       {/* STATS */}
@@ -110,25 +121,21 @@ export default function ChitDetailsPage() {
           value={`₹${chit.amount}`}
           label="Amount"
         />
-
         <StatCard
           icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />}
           value={`₹${chit.monthlyPayableAmount}`}
           label="Monthly Payable"
         />
-
         <StatCard
           icon={<CalendarMonthIcon sx={{ fontSize: 34, color: "#9c27b0" }} />}
           value={chit.duration}
           label="Months"
         />
-
         <StatCard
           icon={<GroupsIcon sx={{ fontSize: 34, color: "green" }} />}
           value={`${members.length}/${chit.membersLimit}`}
           label="Members"
         />
-
         <StatCard
           icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
           value={chit.status}
@@ -144,16 +151,35 @@ export default function ChitDetailsPage() {
           </Typography>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <p><b>Chit Amount:</b> ₹{chit.amount}</p>
-            <p><b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}</p>
-            <p><b>Duration:</b> {chit.duration} months</p>
-            <p><b>Total Members:</b> {members.length} / {chit.membersLimit}</p>
-            <p><b>Start Date:</b> {new Date(chit.startDate).toLocaleDateString()}</p>
-            <p><b>Cycle Day:</b> {chit.cycleDay}</p>
-            <p><b>Location:</b> {chit.location}</p>
+            <p>
+              <b>Chit Amount:</b> ₹{chit.amount}
+            </p>
+            <p>
+              <b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}
+            </p>
+            <p>
+              <b>Duration:</b> {chit.duration} months
+            </p>
+            <p>
+              <b>Total Members:</b> {members.length} / {chit.membersLimit}
+            </p>
+            <p>
+              <b>Start Date:</b>{" "}
+              {chit.startDate
+                ? new Date(chit.startDate).toLocaleDateString()
+                : "-"}
+            </p>
+            <p>
+              <b>Due Date:</b> {chit.dueDate || "-"}
+            </p>
+            <p>
+              <b>Location:</b> {chit.location}
+            </p>
             <p>
               <b>Status:</b>{" "}
-              <span className={`px-2 py-1 rounded text-sm ${badge(chit.status)}`}>
+              <span
+                className={`px-2 py-1 rounded text-sm ${badge(chit.status)}`}
+              >
                 {chit.status}
               </span>
             </p>
@@ -189,13 +215,17 @@ export default function ChitDetailsPage() {
                   </TableRow>
                 )}
 
-                {members.map((m) => (
-                  <TableRow key={m._id}>
+                {members.map((m, index) => (
+                  <TableRow key={m.memberId || m._id || index}>
                     <TableCell>{m.name}</TableCell>
                     <TableCell>{m.phone}</TableCell>
                     <TableCell>{m.address || "-"}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs ${badge(m.status)}`}>
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm ${badge(
+                          m.status
+                        )}`}
+                      >
                         {m.status}
                       </span>
                     </TableCell>
@@ -203,9 +233,11 @@ export default function ChitDetailsPage() {
                       <Button
                         size="small"
                         variant="outlined"
-                        onClick={() => router.push(`/members/${m._id}`)}
+                        onClick={() =>
+                          router.push(`/members/${m.memberId || m._id}`)
+                        }
                       >
-                        View
+                        View Details
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -215,6 +247,23 @@ export default function ChitDetailsPage() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* NOTIFICATION SNACKBAR */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: "100%", boxShadow: 3 }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </main>
   );
 }

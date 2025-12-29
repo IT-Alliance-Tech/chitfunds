@@ -20,12 +20,12 @@ router.post("/create", validate(createPaymentSchema), createPayment);
 // List payments
 router.get("/list", getPayments);
 // Payment details
-router.get("/payement/:id", getPaymentById);
+router.get("/details/:id", getPaymentById);
 // Invoice placeholder
 router.get("/invoice/:id", exportInvoicePdf);
 // Payment history
 router.get("/history", getPaymentHistory);
 //  Admin confirm payment
-router.put("/confirm/:paymentId" ,confirmPaymentByAdmin);
+router.put("/confirm/:paymentId", confirmPaymentByAdmin);
 
 module.exports = router;

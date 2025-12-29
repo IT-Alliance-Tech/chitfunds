@@ -26,6 +26,8 @@ import {
   MenuItem as MUIMenuItem,
   TablePagination,
   Box,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
@@ -59,7 +61,7 @@ export default function ChitsPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [chits, setChits] = useState([]);
-  
+
   // 🔥 PAGINATION STATE
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -76,10 +78,29 @@ export default function ChitsPage() {
     location: "",
   });
 
+  /* ===================== NOTIFICATION STATE ====================== */
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "success", // success | error | warning | info
+  });
+
+  const showNotification = (message, severity = "success") => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedChit, setSelectedChit] = useState(null);
   const [openModal, setOpenModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  /* ================= CONFIRM DIALOG STATE ================= */
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [chitToDelete, setChitToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     chitName: "",
@@ -89,9 +110,7 @@ export default function ChitsPage() {
     duration: "",
     membersLimit: "",
     startDate: "",
-    duedate: "",
-    cycleDay: "",
-    status: "Upcoming",
+    dueDate: "",
   });
 
   useEffect(() => {
@@ -111,13 +130,13 @@ export default function ChitsPage() {
         { method: "GET" }
       );
 
-      // ✅ FIXED: Changed from data.chits to data.items
-      const chitArray = response?.data?.items || [];
-      
+      // ✅ FIXED: Changed from data.chits to data.items/chits
+      const chitArray =
+        response?.data?.items || response?.data?.chits || response?.data || [];
+
       // 🔥 EXTRACT PAGINATION DATA
       const paginationData = response?.data?.pagination || {};
-      // ✅ FIXED: Changed from 'total' to 'totalItems'
-      setTotalChits(paginationData.totalItems || 0);
+      setTotalChits(paginationData.totalItems || paginationData.total || 0);
       setTotalPages(paginationData.totalPages || 0);
 
       const formattedChits = Array.isArray(chitArray)
@@ -130,8 +149,7 @@ export default function ChitsPage() {
             membersLimit: chit.membersLimit,
             membersCount: chit.membersCount || 0,
             startDate: chit.startDate ? chit.startDate.split("T")[0] : "",
-            duedate: chit.duedate ? chit.duedate.split("T")[0] : "",
-            cycleDay: chit.cycleDay,
+            dueDate: chit.dueDate,
             status: chit.status,
             location: chit.location,
           }))
@@ -202,9 +220,7 @@ export default function ChitsPage() {
       duration: "",
       membersLimit: "",
       startDate: "",
-      duedate: "",
-      cycleDay: "",
-      status: "Upcoming",
+      dueDate: "",
     });
     setOpenModal(true);
   };
@@ -220,9 +236,7 @@ export default function ChitsPage() {
       duration: chit.durationMonths,
       membersLimit: chit.membersLimit,
       startDate: chit.startDate,
-      duedate: chit.duedate || "",
-      cycleDay: chit.cycleDay,
-      status: chit.status,
+      dueDate: chit.dueDate,
       id: chit.id,
     });
     setOpenModal(true);
@@ -231,13 +245,13 @@ export default function ChitsPage() {
 
   const handleSaveChit = async () => {
     if (!formData.chitName || !formData.amount || !formData.duration) {
-      alert("Please fill required fields");
+      showNotification("Please fill required fields", "warning");
       return;
     }
 
-    // ✅ VALIDATION: Check cycleDay is between 1-31
-    if (formData.cycleDay && (formData.cycleDay < 1 || formData.cycleDay > 31)) {
-      alert("Cycle Day must be between 1 and 31");
+    // ✅ VALIDATION: Check dueDate is between 1-31
+    if (formData.dueDate && (formData.dueDate < 1 || formData.dueDate > 31)) {
+      alert("Due Date must be between 1 and 31");
       return;
     }
 
@@ -250,9 +264,7 @@ export default function ChitsPage() {
         duration: Number(formData.duration),
         membersLimit: Number(formData.membersLimit),
         startDate: formData.startDate,
-        duedate: formData.duedate,
-        cycleDay: Number(formData.cycleDay),
-        status: formData.status,
+        dueDate: Number(formData.dueDate),
       };
 
       if (isEditMode) {
@@ -260,41 +272,44 @@ export default function ChitsPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        alert("Chit updated successfully");
+        showNotification("Chit updated successfully");
       } else {
         await apiRequest("/chit/create", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        alert("Chit created successfully");
+        showNotification("Chit created successfully");
       }
 
       setOpenModal(false);
       // 🔥 REFETCH DATA AFTER SAVE
       fetchChits();
     } catch (error) {
-      alert(error.message || "Operation failed");
+      showNotification(error.message || "Operation failed", "error");
     }
   };
 
-  const handleDelete = async (chit) => {
+  const handleDelete = (chit) => {
     if (!chit) return;
+    setChitToDelete(chit);
+    setConfirmOpen(true);
+  };
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete "${chit.name}"?`
-    );
-    if (!confirmDelete) return;
+  const confirmDeleteAction = async () => {
+    if (!chitToDelete) return;
 
     try {
-      await apiRequest(`/chit/delete/${chit.id}`, {
+      await apiRequest(`/chit/delete/${chitToDelete.id}`, {
         method: "DELETE",
       });
-      alert("Chit deleted successfully");
+      showNotification("Chit deleted successfully");
       // 🔥 REFETCH DATA AFTER DELETE
       fetchChits();
     } catch (error) {
-      alert(error.message || "Failed to delete chit");
+      showNotification(error.message || "Failed to delete chit", "error");
     } finally {
+      setConfirmOpen(false);
+      setChitToDelete(null);
       closeActions();
     }
   };
@@ -307,7 +322,12 @@ export default function ChitsPage() {
           <div className="relative mb-6">
             {/* MOBILE VIEW */}
             <div className="flex flex-col items-center gap-3 sm:hidden">
-              <Typography variant="h5" fontWeight={600} textAlign="center" sx={{ color: "#000" }}>
+              <Typography
+                variant="h5"
+                fontWeight={600}
+                textAlign="center"
+                sx={{ color: "#000" }}
+              >
                 Chit Management
               </Typography>
               <Button
@@ -435,16 +455,36 @@ export default function ChitsPage() {
                 <Table className="min-w-max">
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>ID</strong></TableCell>
-                      <TableCell><strong>Name</strong></TableCell>
-                      <TableCell><strong>Amount</strong></TableCell>
-                      <TableCell><strong>Monthly</strong></TableCell>
-                      <TableCell><strong>Duration</strong></TableCell>
-                      <TableCell><strong>Members</strong></TableCell>
-                      <TableCell><strong>Start Date</strong></TableCell>
-                      <TableCell><strong>Location</strong></TableCell>
-                      <TableCell><strong>Status</strong></TableCell>
-                      <TableCell><strong>Actions</strong></TableCell>
+                      <TableCell>
+                        <strong>ID</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Name</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Amount</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Monthly</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Duration</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Members</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Start Date</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Location</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Status</strong>
+                      </TableCell>
+                      <TableCell>
+                        <strong>Actions</strong>
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -490,7 +530,9 @@ export default function ChitsPage() {
                   rowsPerPageOptions={[5, 10, 25, 50]}
                   labelRowsPerPage="Rows per page:"
                   labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                    `${from}-${to} of ${
+                      count !== -1 ? count : `more than ${to}`
+                    }`
                   }
                 />
               </Box>
@@ -617,54 +659,76 @@ export default function ChitsPage() {
                 }
               />
               <TextField
-                label="Due Date"
-                type="date"
-                fullWidth
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-                value={formData.duedate}
-                onChange={(e) =>
-                  setFormData({ ...formData, duedate: e.target.value })
-                }
-              />
-              {/* ✅ FIXED: Added validation for cycleDay (1-31) */}
-              <TextField
-                label="Cycle Day"
+                label="Due Date / Cycle Day"
                 type="number"
                 fullWidth
                 margin="normal"
-                value={formData.cycleDay}
+                value={formData.dueDate}
                 onChange={(e) => {
                   const value = e.target.value;
                   // Only allow values between 1-31
-                  if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
-                    setFormData({ ...formData, cycleDay: value });
+                  if (
+                    value === "" ||
+                    (Number(value) >= 1 && Number(value) <= 31)
+                  ) {
+                    setFormData({ ...formData, dueDate: value });
                   }
                 }}
                 inputProps={{ min: 1, max: 31 }}
-                helperText="Day of the month (1-31)"
+                helperText="Day of the month for installments (1-31)"
               />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                  label="Status"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <MUIMenuItem key={status} value={status}>
-                      {status}
-                    </MUIMenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setOpenModal(false)}>Cancel</Button>
               <Button variant="contained" onClick={handleSaveChit}>
                 {isEditMode ? "Save Changes" : "Create Chit"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* NOTIFICATION SNACKBAR */}
+          <Snackbar
+            open={notification.open}
+            autoHideDuration={4000}
+            onClose={handleCloseNotification}
+            anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <Alert
+              onClose={handleCloseNotification}
+              severity={notification.severity}
+              variant="filled"
+              sx={{ width: "100%", boxShadow: 3 }}
+            >
+              {notification.message}
+            </Alert>
+          </Snackbar>
+
+          {/* DELETE CONFIRMATION DIALOG */}
+          <Dialog
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            aria-labelledby="delete-dialog-title"
+          >
+            <DialogTitle id="delete-dialog-title">
+              Delete Confirmation
+            </DialogTitle>
+            <DialogContent>
+              <Typography>
+                Are you sure you want to delete "<b>{chitToDelete?.name}</b>"?
+                This action cannot be undone.
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setConfirmOpen(false)} variant="outlined">
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteAction}
+                variant="contained"
+                color="error"
+                autoFocus
+              >
+                Delete
               </Button>
             </DialogActions>
           </Dialog>

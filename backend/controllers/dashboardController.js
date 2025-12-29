@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 
 const Chit = require("../models/Chit");
@@ -10,81 +11,135 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [totalChits, activeChits, closedChits, allChits, chitAmountAgg] =
-    await Promise.all([
-      Chit.countDocuments(),
-      Chit.countDocuments({ status: "Active" }),
-      Chit.countDocuments({ status: { $in: ["Closed", "Completed"] } }),
-      Chit.find().select("_id amount duration"),
-      Chit.aggregate([
-        {
-          $group: {
-            _id: null,
-            totalChitAmount: { $sum: "$amount" },
+  // 1. COMBINED CHIT AGGREGATION (Counts, Total Amount)
+  const chitStats = await Chit.aggregate([
+    {
+      $facet: {
+        counts: [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              active: {
+                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+              },
+              closed: {
+                $sum: {
+                  $cond: [{ $in: ["$status", ["Closed", "Completed"]] }, 1, 0],
+                },
+              },
+              totalAmount: { $sum: "$amount" },
+            },
           },
-        },
-      ]),
-    ]);
-
-  const totalChitAmount = chitAmountAgg[0]?.totalChitAmount || 0;
-
-  const activeChitIds = await Chit.find({ status: "Active" }).distinct("_id");
-
-  const [totalMembers, activeMembers, inactiveMembers, membersInActiveChits] =
-    await Promise.all([
-      Member.countDocuments(),
-      Member.countDocuments({ status: "Active" }),
-      Member.countDocuments({ status: "Inactive" }),
-      Member.countDocuments({
-        "chits.chitId": { $in: activeChitIds },
-      }),
-    ]);
-
-  const [paymentAgg, monthlyCollectionAgg] = await Promise.all([
-    Payment.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalPaid: { $sum: "$paidAmount" },
-          paymentsMade: { $sum: 1 },
-        },
+        ],
+        activeIds: [{ $match: { status: "Active" } }, { $project: { _id: 1 } }],
       },
-    ]),
-    Payment.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth } } },
-      {
-        $group: {
-          _id: null,
-          collectedThisMonth: { $sum: "$paidAmount" },
-        },
-      },
-    ]),
+    },
   ]);
 
-  const totalPaid = paymentAgg[0]?.totalPaid || 0;
-  const paymentsMade = paymentAgg[0]?.paymentsMade || 0;
-  const collectedThisMonth = monthlyCollectionAgg[0]?.collectedThisMonth || 0;
+  const stats = chitStats[0]?.counts?.[0] || {
+    total: 0,
+    active: 0,
+    closed: 0,
+    totalAmount: 0,
+  };
+  const activeChitIds = (chitStats[0]?.activeIds || [])
+    .map((c) => c?._id)
+    .filter((id) => !!id);
+
+  // 2. COMBINED MEMBER AGGREGATION
+  const memberStats = await Member.aggregate([
+    {
+      $facet: {
+        counts: [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              active: {
+                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+              },
+              inactive: {
+                $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
+              },
+            },
+          },
+        ],
+        activeChitMembers: [
+          { $match: { "chits.chitId": { $in: activeChitIds } } },
+          { $count: "count" },
+        ],
+      },
+    },
+  ]);
+
+  const mStats = memberStats[0]?.counts?.[0] || {
+    total: 0,
+    active: 0,
+    inactive: 0,
+  };
+  const membersInActiveChits =
+    memberStats[0]?.activeChitMembers?.[0]?.count || 0;
+
+  // 3. COMBINED PAYMENT AGGREGATION
+  const paymentStats = await Payment.aggregate([
+    {
+      $facet: {
+        overall: [
+          {
+            $group: {
+              _id: null,
+              totalPaid: { $sum: "$paidAmount" },
+              count: { $sum: 1 },
+            },
+          },
+        ],
+        monthly: [
+          { $match: { createdAt: { $gte: startOfMonth } } },
+          { $group: { _id: null, collected: { $sum: "$paidAmount" } } },
+        ],
+        remainingMonthsAgg: [
+          {
+            $group: {
+              _id: "$chitId",
+              paidMonths: { $sum: 1 },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const pStats = paymentStats[0]?.overall?.[0] || { totalPaid: 0, count: 0 };
+  const collectedThisMonth = paymentStats[0]?.monthly?.[0]?.collected || 0;
+
+  // Optimized Remaining Months Calculation
+  const allChits = await Chit.find().select("_id duration");
+  const paidMonthsMap = (paymentStats[0]?.remainingMonthsAgg || []).reduce(
+    (acc, curr) => {
+      if (curr && curr._id) {
+        acc[String(curr._id)] = curr.paidMonths || 0;
+      }
+      return acc;
+    },
+    {}
+  );
 
   let remainingMonths = 0;
-
-  // Remaining months calculation
   for (const chit of allChits) {
-    const paidMonths = await Payment.countDocuments({
-      chitId: chit._id,
-    });
-    remainingMonths += Math.max(chit.duration - paidMonths, 0);
+    if (chit && chit._id) {
+      const paid = paidMonthsMap[String(chit._id)] || 0;
+      remainingMonths += Math.max((chit.duration || 0) - paid, 0);
+    }
   }
 
-  const remainingTotalChitAmount = Math.max(totalChitAmount - totalPaid, 0);
-
+  // 4. RECENT ACTIVITIES
   const [recentChits, recentMembers, recentPayments] = await Promise.all([
     Chit.find().sort({ createdAt: -1 }).limit(3).select("chitName createdAt"),
-
     Member.find()
       .sort({ createdAt: -1 })
       .limit(3)
       .select("name status createdAt"),
-
     Payment.find()
       .sort({ createdAt: -1 })
       .limit(3)
@@ -116,19 +171,19 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
     .slice(0, 7);
 
   return sendResponse(res, 200, true, "Dashboard analytics fetched", {
-    totalChits,
-    activeChits,
-    closedChits,
-    totalChitAmount,
+    totalChits: stats.total,
+    activeChits: stats.active,
+    closedChits: stats.closed,
+    totalChitAmount: stats.totalAmount,
 
-    totalMembers,
-    activeMembers,
-    inactiveMembers,
+    totalMembers: mStats.total,
+    activeMembers: mStats.active,
+    inactiveMembers: mStats.inactive,
     membersInActiveChits,
 
-    paymentsMade,
-    totalPaid,
-    remainingTotalChitAmount,
+    paymentsMade: pStats.count,
+    totalPaid: pStats.totalPaid,
+    remainingTotalChitAmount: Math.max(stats.totalAmount - pStats.totalPaid, 0),
     remainingMonths,
     collectedThisMonth,
 
