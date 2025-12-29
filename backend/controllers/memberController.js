@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const Member = require("../models/Member");
 const Chit = require("../models/Chit");
 const sendResponse = require("../utils/responseHandler");
+const sendEmail = require("../utils/sendEmail");
+const { generateWelcomePDFBuffer } = require("../utils/welcomePdf");
 
 /* ================= ADD MEMBER ================= */
 const addMember = asyncHandler(async (req, res) => {
@@ -15,6 +17,7 @@ const addMember = asyncHandler(async (req, res) => {
     chitId,
     chitIds = [],
     securityDocuments,
+    sendEmail: shouldSendEmail,
   } = req.body;
 
   const finalChitIds = chitIds.length ? chitIds : chitId ? [chitId] : [];
@@ -59,6 +62,37 @@ const addMember = asyncHandler(async (req, res) => {
     status: "Active",
     chits,
   });
+
+  // Handle Welcome Email
+  if (shouldSendEmail && member.email) {
+    try {
+      // Re-populate member with chit details for the PDF
+      const populatedMember = await Member.findById(member._id).populate(
+        "chits.chitId"
+      );
+      const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
+
+      await sendEmail({
+        to: member.email,
+        subject: "Welcome to IT ALLIANCE TECH - Chit Assignment Details",
+        html: `
+          <p>Dear ${member.name},</p>
+          <p>Welcome to IT ALLIANCE TECH! We are pleased to have you as a member of our Chit Fund.</p>
+          <p>Please find attached your membership details and the information regarding the chits assigned to you.</p>
+          <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+        `,
+        attachments: [
+          {
+            filename: "Welcome_Package.pdf",
+            content: pdfBuffer,
+          },
+        ],
+      });
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // We don't throw error here to not fail the member creation because of email
+    }
+  }
 
   return sendResponse(res, 201, true, "Member added successfully", {
     member,
@@ -138,8 +172,16 @@ const getMemberById = asyncHandler(async (req, res) => {
 /* ================= UPDATE MEMBER ================= */
 const updateMember = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, phone, email, address, securityDocuments, status, chitIds } =
-    req.body;
+  const {
+    name,
+    phone,
+    email,
+    address,
+    securityDocuments,
+    status,
+    chitIds,
+    sendEmail: shouldSendEmail,
+  } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     res.status(400);
@@ -197,6 +239,36 @@ const updateMember = asyncHandler(async (req, res) => {
   if (status) member.status = status;
 
   await member.save();
+
+  // Handle Welcome Email on Update
+  if (shouldSendEmail && member.email) {
+    try {
+      // Re-populate member with all chit details (including updated ones)
+      const populatedMember = await Member.findById(member._id).populate(
+        "chits.chitId"
+      );
+      const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
+
+      await sendEmail({
+        to: member.email,
+        subject: "Updated Membership Details - IT ALLIANCE TECH",
+        html: `
+          <p>Dear ${member.name},</p>
+          <p>Your membership details at IT ALLIANCE TECH have been updated.</p>
+          <p>Please find attached the updated information regarding all chits currently assigned to you.</p>
+          <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+        `,
+        attachments: [
+          {
+            filename: "Updated_Welcome_Package.pdf",
+            content: pdfBuffer,
+          },
+        ],
+      });
+    } catch (emailError) {
+      console.error("Failed to send update email:", emailError);
+    }
+  }
 
   return sendResponse(res, 200, true, "Member updated successfully", {
     member,
