@@ -152,7 +152,7 @@ const getMembers = asyncHandler(async (req, res) => {
   });
 });
 
-/* ================= GET MEMBER BY ID ================= */
+// get member by ID
 const getMemberById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
