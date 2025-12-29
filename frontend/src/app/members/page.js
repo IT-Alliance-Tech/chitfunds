@@ -23,6 +23,8 @@ import {
   FormControl,
   TablePagination,
   Box,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Group, CheckCircle, Cancel } from "@mui/icons-material";
@@ -178,6 +180,7 @@ export default function MembersPage() {
     chitIds: [],
     documents: [],
     status: "Active",
+    sendEmail: false,
   });
 
   const [chitLimitError, setChitLimitError] = useState("");
@@ -218,6 +221,7 @@ export default function MembersPage() {
       chitIds: [],
       documents: [],
       status: "Active",
+      sendEmail: false,
     });
 
     setOpenModal(true);
@@ -247,6 +251,7 @@ export default function MembersPage() {
       chitIds: cleanChitIds,
       documents: selectedMember.documents || [],
       status: selectedMember.status,
+      sendEmail: false,
     };
 
     console.log("📝 CLEAN EDIT DATA:", editData);
@@ -299,6 +304,7 @@ export default function MembersPage() {
         address: formData.address,
         chitIds: formData.chitIds.filter(Boolean),
         securityDocuments: formData.documents.filter(Boolean),
+        sendEmail: formData.sendEmail,
       };
 
       console.log("📤 PAYLOAD BEING SENT:", payload);
@@ -578,7 +584,9 @@ export default function MembersPage() {
                   rowsPerPageOptions={[5, 10, 25, 50]}
                   labelRowsPerPage="Rows per page:"
                   labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                    `${from}-${to} of ${
+                      count !== -1 ? count : `more than ${to}`
+                    }`
                   }
                 />
               </Box>
@@ -663,7 +671,7 @@ export default function MembersPage() {
                   variant="body2"
                   sx={{ mb: 1, fontWeight: 500, color: "#666" }}
                 >
-                  Assigned Chits 
+                  Assigned Chits
                 </Typography>
                 <ReactSelect
                   isMulti
@@ -706,9 +714,7 @@ export default function MembersPage() {
                       ...base,
                       minHeight: "56px",
                       borderColor: state.isFocused ? "#1976d2" : "#c4c4c4",
-                      boxShadow: state.isFocused
-                        ? "0 0 0 1px #1976d2"
-                        : "none",
+                      boxShadow: state.isFocused ? "0 0 0 1px #1976d2" : "none",
                       "&:hover": {
                         borderColor: "#000",
                       },
@@ -786,9 +792,7 @@ export default function MembersPage() {
                       ...base,
                       minHeight: "56px",
                       borderColor: state.isFocused ? "#1976d2" : "#c4c4c4",
-                      boxShadow: state.isFocused
-                        ? "0 0 0 1px #1976d2"
-                        : "none",
+                      boxShadow: state.isFocused ? "0 0 0 1px #1976d2" : "none",
                       "&:hover": {
                         borderColor: "#000",
                       },
@@ -813,6 +817,28 @@ export default function MembersPage() {
                   }}
                 />
               </div>
+
+              {/* WELCOME EMAIL TOGGLE */}
+              <Box sx={{ mt: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.sendEmail}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          sendEmail: e.target.checked,
+                        })
+                      }
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      Send Welcome Email with PDF Package
+                    </Typography>
+                  }
+                />
+              </Box>
             </DialogContent>
 
             <DialogActions>
