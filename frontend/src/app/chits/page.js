@@ -237,6 +237,7 @@ export default function ChitsPage() {
       membersLimit: chit.membersLimit,
       startDate: chit.startDate,
       dueDate: chit.dueDate,
+      status: chit.status,
       id: chit.id,
     });
     setOpenModal(true);
@@ -265,6 +266,7 @@ export default function ChitsPage() {
         membersLimit: Number(formData.membersLimit),
         startDate: formData.startDate,
         dueDate: Number(formData.dueDate),
+        status: formData.status,
       };
 
       if (isEditMode) {
@@ -601,6 +603,24 @@ export default function ChitsPage() {
                   setFormData({ ...formData, location: e.target.value })
                 }
               />
+              {isEditMode && (
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={formData.status || "Active"} // Default to Active if undefined
+                    label="Status"
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        {status}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
               <TextField
                 label="Amount"
                 type="number"

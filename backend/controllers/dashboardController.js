@@ -133,42 +133,51 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
     }
   }
 
-  // 4. RECENT ACTIVITIES
-  const [recentChits, recentMembers, recentPayments] = await Promise.all([
-    Chit.find().sort({ createdAt: -1 }).limit(3).select("chitName createdAt"),
-    Member.find()
-      .sort({ createdAt: -1 })
-      .limit(3)
-      .select("name status createdAt"),
-    Payment.find()
-      .sort({ createdAt: -1 })
-      .limit(3)
-      .select("paidAmount createdAt"),
-  ]);
+  // 4. SEPARATE RECENT ACTIVITIES
+  const recentChitsData = await Chit.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .select("chitName location amount createdAt status membersLimit");
 
-  const recentActivities = [
-    ...recentChits.map((c) => ({
-      type: "CHIT",
-      action: "CREATED",
-      title: c.chitName,
-      date: c.createdAt,
-    })),
-    ...recentMembers.map((m) => ({
-      type: "MEMBER",
-      action: "CREATED",
-      title: m.name,
-      status: m.status,
-      date: m.createdAt,
-    })),
-    ...recentPayments.map((p) => ({
-      type: "PAYMENT",
-      action: "PAID",
-      amount: p.paidAmount,
-      date: p.createdAt,
-    })),
-  ]
-    .sort((a, b) => b.date - a.date)
-    .slice(0, 7);
+  const recentMembersData = await Member.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate("chits.chitId", "chitName amount location")
+    .select("name chits createdAt status");
+
+  const recentPaymentsData = await Payment.find()
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate("chitId", "chitName location")
+    .populate("memberId", "name")
+    .select(
+      "paidAmount penaltyAmount status dueDate createdAt chitId memberId"
+    );
+
+  // Format Payments (Compute Status/Total)
+  const recentPayments = recentPaymentsData.map((p) => {
+    const payment = p.toObject();
+    payment.totalPaid =
+      (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+
+    // Compute Status if not saved
+    if (!payment.status) {
+      // Fallback logic if status isn't persisted securely
+      payment.status = "paid"; // simplified for dashboard display if paidAmount exists
+    }
+    return payment;
+  });
+
+  // Format Members (Extract Chit info)
+  const recentMembers = recentMembersData.map((m) => {
+    const member = m.toObject();
+    // Get primary chit details
+    const primaryChit = member.chits?.[0]?.chitId || {};
+    member.chitName = primaryChit.chitName || "-";
+    member.location = primaryChit.location || "-";
+    member.chitAmount = primaryChit.amount || "-";
+    return member;
+  });
 
   return sendResponse(res, 200, true, "Dashboard analytics fetched", {
     totalChits: stats.total,
@@ -187,7 +196,9 @@ const getDashboardAnalytics = asyncHandler(async (req, res) => {
     remainingMonths,
     collectedThisMonth,
 
-    recentActivities,
+    recentChits: recentChitsData,
+    recentMembers,
+    recentPayments,
   });
 });
 

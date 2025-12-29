@@ -319,12 +319,25 @@ export default function MembersPage() {
       return;
     }
 
+    // ✅ VALIDATION: Phone must be exactly 10 digits
+    if (!/^\d{10}$/.test(formData.phone)) {
+      showNotification("Phone number must be exactly 10 digits", "warning");
+      return;
+    }
+
+    // ✅ VALIDATION: Email format (if provided)
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      showNotification("Invalid email format", "warning");
+      return;
+    }
+
     try {
       const payload = {
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
         address: formData.address,
+        status: formData.status,
         chitIds: formData.chitIds.filter(Boolean),
         securityDocuments: formData.documents.filter(Boolean),
         sendEmail: formData.sendEmail,
@@ -661,9 +674,10 @@ export default function MembersPage() {
                 sx={{ mb: 3 }}
                 label="Phone"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setFormData({ ...formData, phone: val });
+                }}
               />
 
               <TextField
@@ -687,6 +701,22 @@ export default function MembersPage() {
                   setFormData({ ...formData, address: e.target.value })
                 }
               />
+
+              {isEdit && (
+                <FormControl fullWidth sx={{ mb: 3 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={formData.status || "Active"}
+                    label="Status"
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                  >
+                    <MenuItem value="Active">Active</MenuItem>
+                    <MenuItem value="Inactive">Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
 
               {/* ASSIGNED CHITS - REACT SELECT */}
               <div className="mb-6">
