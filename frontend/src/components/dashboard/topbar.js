@@ -1,10 +1,10 @@
 "use client";
 
-export default function Topbar() {
+const Topbar = () => {
   const handleLogout = () => {
     // clear auth data
     localStorage.removeItem("token");
-    localStorage.removeItem("user"); // if you stored user info
+    localStorage.removeItem("admin");
 
     // redirect to login
     window.location.href = "/login";
@@ -22,4 +22,6 @@ export default function Topbar() {
       </button>
     </header>
   );
-}
+};
+
+export default Topbar;

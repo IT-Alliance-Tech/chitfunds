@@ -1,5 +1,4 @@
 const { z } = require("zod");
-const sendResponse = require("../utils/responseHandler");
 
 const validate = (schema) => (req, res, next) => {
   try {

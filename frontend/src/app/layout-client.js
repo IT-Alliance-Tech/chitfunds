@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import Topbar from "@/components/dashboard/topbar";
 import Sidebar from "@/components/dashboard/sidebar";
 
-export default function ClientLayout({ children }) {
+const ClientLayout = ({ children }) => {
   const pathname = usePathname();
 
   // hide layout on login page
@@ -24,4 +24,6 @@ export default function ClientLayout({ children }) {
       </main>
     </>
   );
-}
+};
+
+export default ClientLayout;

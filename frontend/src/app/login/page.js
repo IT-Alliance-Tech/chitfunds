@@ -5,34 +5,68 @@ import { useRouter } from "next/navigation";
 import { apiRequest } from "@/config/api";
 import { Snackbar, Alert } from "@mui/material";
 
-export default function LoginPage() {
+/* ================= REUSABLE UI COMPONENTS ================= */
+
+const Input = (props) => (
+  <input
+    {...props}
+    required
+    className="w-full p-3 rounded-lg border border-gray-300 bg-white
+    text-gray-900 placeholder-gray-500
+    focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+);
+
+const PrimaryButton = ({ label, loading }) => (
+  <button
+    type="submit"
+    disabled={loading}
+    className="w-full p-3 rounded-lg bg-blue-600 hover:bg-blue-700
+    text-white font-semibold transition shadow-md cursor-pointer"
+  >
+    {loading ? "Please wait..." : label}
+  </button>
+);
+
+const BackToLogin = ({ onClick }) => (
+  <p
+    onClick={onClick}
+    className="text-center text-sm text-blue-600 hover:underline cursor-pointer"
+  >
+    Back to Login
+  </p>
+);
+
+/* ================= LOGIN PAGE COMPONENT ================= */
+
+const LoginPage = () => {
   const router = useRouter();
 
-  /* ================= VIEW CONTROL ================= */
+  // View State: login | forgot | otp | reset
   const [view, setView] = useState("login");
-  // login | forgot | otp | reset
 
-  /* ================= LOGIN STATE ================= */
+  // Form State
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     accessKey: "",
   });
 
-  /* ================= FORGOT FLOW STATE ================= */
+  // Forgot Password State
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // UI State
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  /* ===================== NOTIFICATION STATE ====================== */
   const [notification, setNotification] = useState({
     open: false,
     message: "",
-    severity: "success", // success | error | warning | info
+    severity: "success",
   });
+
+  /* ================= HELPERS ================= */
 
   const showNotification = (message, severity = "success") => {
     setNotification({ open: true, message, severity });
@@ -46,17 +80,15 @@ export default function LoginPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  /* ================= LOGIN ================= */
+  /* ================= HANDLERS ================= */
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const response = await apiRequest("/admin/login", {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
+      const response = await apiRequest("/admin/login", "POST", formData);
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("admin", JSON.stringify(response.data.admin));
@@ -69,18 +101,15 @@ export default function LoginPage() {
     }
   };
 
-  /* ================= SEND OTP ================= */
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      await apiRequest("/admin/forgot-password", {
-        method: "POST",
-        body: JSON.stringify({ email: formData.email }),
+      await apiRequest("/admin/forgot-password", "POST", {
+        email: formData.email,
       });
-
       setView("otp");
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -89,21 +118,16 @@ export default function LoginPage() {
     }
   };
 
-  /* ================= VERIFY OTP ================= */
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      await apiRequest("/admin/verify-otp", {
-        method: "POST",
-        body: JSON.stringify({
-          email: formData.email,
-          otp,
-        }),
+      await apiRequest("/admin/verify-otp", "POST", {
+        email: formData.email,
+        otp,
       });
-
       setView("reset");
     } catch (err) {
       setError(err.message || "Invalid OTP");
@@ -112,7 +136,6 @@ export default function LoginPage() {
     }
   };
 
-  /* ================= RESET PASSWORD ================= */
   const handleResetPassword = async (e) => {
     e.preventDefault();
 
@@ -125,13 +148,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await apiRequest("/admin/reset-password", {
-        method: "POST",
-        body: JSON.stringify({
-          email: formData.email,
-          otp,
-          newPassword,
-        }),
+      await apiRequest("/admin/reset-password", "POST", {
+        email: formData.email,
+        otp,
+        newPassword,
       });
 
       showNotification("Password reset successful");
@@ -145,6 +165,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  /* ================= RENDER ================= */
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
@@ -161,7 +183,6 @@ export default function LoginPage() {
 
         {error && <p className="text-red-600 text-center mb-4">{error}</p>}
 
-        {/* ================= LOGIN ================= */}
         {view === "login" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
@@ -201,7 +222,6 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* ================= FORGOT ================= */}
         {view === "forgot" && (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <Input
@@ -218,7 +238,6 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* ================= OTP ================= */}
         {view === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <Input
@@ -232,7 +251,6 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* ================= RESET ================= */}
         {view === "reset" && (
           <form onSubmit={handleResetPassword} className="space-y-4">
             <Input
@@ -254,7 +272,6 @@ export default function LoginPage() {
         )}
       </div>
 
-      {/* NOTIFICATION SNACKBAR */}
       <Snackbar
         open={notification.open}
         autoHideDuration={4000}
@@ -272,42 +289,6 @@ export default function LoginPage() {
       </Snackbar>
     </div>
   );
-}
+};
 
-/* ================= REUSABLE UI COMPONENTS ================= */
-
-function Input(props) {
-  return (
-    <input
-      {...props}
-      required
-      className="w-full p-3 rounded-lg border border-gray-300 bg-white
-      text-gray-900 placeholder-gray-500
-      focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-  );
-}
-
-function PrimaryButton({ label, loading }) {
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="w-full p-3 rounded-lg bg-blue-600 hover:bg-blue-700
-      text-white font-semibold transition shadow-md cursor-pointer"
-    >
-      {loading ? "Please wait..." : label}
-    </button>
-  );
-}
-
-function BackToLogin({ onClick }) {
-  return (
-    <p
-      onClick={onClick}
-      className="text-center text-sm text-blue-600 hover:underline cursor-pointer"
-    >
-      Back to Login
-    </p>
-  );
-}
+export default LoginPage;
