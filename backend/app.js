@@ -30,9 +30,9 @@ app.use("/api/payment", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
 // Health check
-const sendResponse = require("./utils/responseHandler");
+const sendResponse = require("./utils/response");
 app.get("/health", (req, res) => {
-  return sendResponse(res, 200, true, "OK", null);
+  return sendResponse(res, 200, "success", "OK", null);
 });
 
 // 404 & Error Handler

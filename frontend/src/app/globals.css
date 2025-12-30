@@ -29,3 +29,33 @@ body {
   background-color: #1e1e2f;
 }
 
+/* Custom Calendar Icon Styling to match #1E1E2F theme */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(34%) sepia(85%) saturate(1900%) hue-rotate(190deg) brightness(95%) contrast(90%);
+}
+
+/* React International Phone Overrides */
+.react-international-phone-country-selector-dropdown {
+  z-index: 9999 !important;
+  max-width: 300px !important;
+  overflow-x: hidden !important;
+}
+
+.react-international-phone-country-selector-dropdown__list-item {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.react-international-phone-input:focus {
+  border-color: #1976d2 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px #1976d2 !important;
+}
+
+.react-international-phone-country-selector-button:focus-within {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 1px #1976d2 !important;
+}
+

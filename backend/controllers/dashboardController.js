@@ -1,206 +1,223 @@
 const mongoose = require("mongoose");
-const asyncHandler = require("express-async-handler");
-
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const Payment = require("../models/Payment");
-const sendResponse = require("../utils/responseHandler");
+const sendResponse = require("../utils/response");
 
 // ================= DASHBOARD ANALYTICS =================
-const getDashboardAnalytics = asyncHandler(async (req, res) => {
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+const getDashboardAnalytics = async (req, res) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // 1. COMBINED CHIT AGGREGATION (Counts, Total Amount)
-  const chitStats = await Chit.aggregate([
-    {
-      $facet: {
-        counts: [
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              active: {
-                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+    // 1. COMBINED CHIT AGGREGATION (Counts, Total Amount)
+    const chitStats = await Chit.aggregate([
+      {
+        $facet: {
+          counts: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 },
+                active: {
+                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                },
+                closed: {
+                  $sum: {
+                    $cond: [
+                      { $in: ["$status", ["Closed", "Completed"]] },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+                totalAmount: { $sum: "$amount" },
               },
-              closed: {
-                $sum: {
-                  $cond: [{ $in: ["$status", ["Closed", "Completed"]] }, 1, 0],
+            },
+          ],
+          activeIds: [
+            { $match: { status: "Active" } },
+            { $project: { _id: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    const stats = chitStats[0]?.counts?.[0] || {
+      total: 0,
+      active: 0,
+      closed: 0,
+      totalAmount: 0,
+    };
+    const activeChitIds = (chitStats[0]?.activeIds || [])
+      .map((c) => c?._id)
+      .filter((id) => !!id);
+
+    // 2. COMBINED MEMBER AGGREGATION
+    const memberStats = await Member.aggregate([
+      {
+        $facet: {
+          counts: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 },
+                active: {
+                  $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+                },
+                inactive: {
+                  $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
                 },
               },
-              totalAmount: { $sum: "$amount" },
             },
-          },
-        ],
-        activeIds: [{ $match: { status: "Active" } }, { $project: { _id: 1 } }],
+          ],
+          activeChitMembers: [
+            { $match: { "chits.chitId": { $in: activeChitIds } } },
+            { $count: "count" },
+          ],
+        },
       },
-    },
-  ]);
+    ]);
 
-  const stats = chitStats[0]?.counts?.[0] || {
-    total: 0,
-    active: 0,
-    closed: 0,
-    totalAmount: 0,
-  };
-  const activeChitIds = (chitStats[0]?.activeIds || [])
-    .map((c) => c?._id)
-    .filter((id) => !!id);
+    const mStats = memberStats[0]?.counts?.[0] || {
+      total: 0,
+      active: 0,
+      inactive: 0,
+    };
+    const membersInActiveChits =
+      memberStats[0]?.activeChitMembers?.[0]?.count || 0;
 
-  // 2. COMBINED MEMBER AGGREGATION
-  const memberStats = await Member.aggregate([
-    {
-      $facet: {
-        counts: [
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              active: {
-                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-              },
-              inactive: {
-                $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
+    // 3. COMBINED PAYMENT AGGREGATION
+    const paymentStats = await Payment.aggregate([
+      {
+        $facet: {
+          overall: [
+            {
+              $group: {
+                _id: null,
+                totalPaid: { $sum: "$paidAmount" },
+                count: { $sum: 1 },
               },
             },
-          },
-        ],
-        activeChitMembers: [
-          { $match: { "chits.chitId": { $in: activeChitIds } } },
-          { $count: "count" },
-        ],
-      },
-    },
-  ]);
-
-  const mStats = memberStats[0]?.counts?.[0] || {
-    total: 0,
-    active: 0,
-    inactive: 0,
-  };
-  const membersInActiveChits =
-    memberStats[0]?.activeChitMembers?.[0]?.count || 0;
-
-  // 3. COMBINED PAYMENT AGGREGATION
-  const paymentStats = await Payment.aggregate([
-    {
-      $facet: {
-        overall: [
-          {
-            $group: {
-              _id: null,
-              totalPaid: { $sum: "$paidAmount" },
-              count: { $sum: 1 },
+          ],
+          monthly: [
+            { $match: { createdAt: { $gte: startOfMonth } } },
+            { $group: { _id: null, collected: { $sum: "$paidAmount" } } },
+          ],
+          remainingMonthsAgg: [
+            {
+              $group: {
+                _id: "$chitId",
+                paidMonths: { $sum: 1 },
+              },
             },
-          },
-        ],
-        monthly: [
-          { $match: { createdAt: { $gte: startOfMonth } } },
-          { $group: { _id: null, collected: { $sum: "$paidAmount" } } },
-        ],
-        remainingMonthsAgg: [
-          {
-            $group: {
-              _id: "$chitId",
-              paidMonths: { $sum: 1 },
-            },
-          },
-        ],
+          ],
+        },
       },
-    },
-  ]);
+    ]);
 
-  const pStats = paymentStats[0]?.overall?.[0] || { totalPaid: 0, count: 0 };
-  const collectedThisMonth = paymentStats[0]?.monthly?.[0]?.collected || 0;
+    const pStats = paymentStats[0]?.overall?.[0] || { totalPaid: 0, count: 0 };
+    const collectedThisMonth = paymentStats[0]?.monthly?.[0]?.collected || 0;
 
-  // Optimized Remaining Months Calculation
-  const allChits = await Chit.find().select("_id duration");
-  const paidMonthsMap = (paymentStats[0]?.remainingMonthsAgg || []).reduce(
-    (acc, curr) => {
-      if (curr && curr._id) {
-        acc[String(curr._id)] = curr.paidMonths || 0;
-      }
-      return acc;
-    },
-    {}
-  );
-
-  let remainingMonths = 0;
-  for (const chit of allChits) {
-    if (chit && chit._id) {
-      const paid = paidMonthsMap[String(chit._id)] || 0;
-      remainingMonths += Math.max((chit.duration || 0) - paid, 0);
-    }
-  }
-
-  // 4. SEPARATE RECENT ACTIVITIES
-  const recentChitsData = await Chit.find()
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .select("chitName location amount createdAt status membersLimit");
-
-  const recentMembersData = await Member.find()
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .populate("chits.chitId", "chitName amount location")
-    .select("name chits createdAt status");
-
-  const recentPaymentsData = await Payment.find()
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .populate("chitId", "chitName location")
-    .populate("memberId", "name")
-    .select(
-      "paidAmount penaltyAmount status dueDate createdAt chitId memberId"
+    // Optimized Remaining Months Calculation
+    const allChits = await Chit.find().select("_id duration");
+    const paidMonthsMap = (paymentStats[0]?.remainingMonthsAgg || []).reduce(
+      (acc, curr) => {
+        if (curr && curr._id) {
+          acc[String(curr._id)] = curr.paidMonths || 0;
+        }
+        return acc;
+      },
+      {}
     );
 
-  // Format Payments (Compute Status/Total)
-  const recentPayments = recentPaymentsData.map((p) => {
-    const payment = p.toObject();
-    payment.totalPaid =
-      (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
-
-    // Compute Status if not saved
-    if (!payment.status) {
-      // Fallback logic if status isn't persisted securely
-      payment.status = "paid"; // simplified for dashboard display if paidAmount exists
+    let remainingMonths = 0;
+    for (const chit of allChits) {
+      if (chit && chit._id) {
+        const paid = paidMonthsMap[String(chit._id)] || 0;
+        remainingMonths += Math.max((chit.duration || 0) - paid, 0);
+      }
     }
-    return payment;
-  });
 
-  // Format Members (Extract Chit info)
-  const recentMembers = recentMembersData.map((m) => {
-    const member = m.toObject();
-    // Get primary chit details
-    const primaryChit = member.chits?.[0]?.chitId || {};
-    member.chitName = primaryChit.chitName || "-";
-    member.location = primaryChit.location || "-";
-    member.chitAmount = primaryChit.amount || "-";
-    return member;
-  });
+    // 4. SEPARATE RECENT ACTIVITIES
+    const recentChitsData = await Chit.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("chitName location amount createdAt status membersLimit");
 
-  return sendResponse(res, 200, true, "Dashboard analytics fetched", {
-    totalChits: stats.total,
-    activeChits: stats.active,
-    closedChits: stats.closed,
-    totalChitAmount: stats.totalAmount,
+    const recentMembersData = await Member.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("chits.chitId", "chitName amount location")
+      .select("name chits createdAt status");
 
-    totalMembers: mStats.total,
-    activeMembers: mStats.active,
-    inactiveMembers: mStats.inactive,
-    membersInActiveChits,
+    const recentPaymentsData = await Payment.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("chitId", "chitName location")
+      .populate("memberId", "name")
+      .select(
+        "paidAmount penaltyAmount status dueDate createdAt chitId memberId"
+      );
 
-    paymentsMade: pStats.count,
-    totalPaid: pStats.totalPaid,
-    remainingTotalChitAmount: Math.max(stats.totalAmount - pStats.totalPaid, 0),
-    remainingMonths,
-    collectedThisMonth,
+    // Format Payments (Compute Status/Total)
+    const recentPayments = recentPaymentsData.map((p) => {
+      const payment = p.toObject();
+      payment.totalPaid =
+        (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
 
-    recentChits: recentChitsData,
-    recentMembers,
-    recentPayments,
-  });
-});
+      // Compute Status if not saved
+      if (!payment.status) {
+        payment.status = "paid";
+      }
+      return payment;
+    });
+
+    // Format Members (Extract Chit info)
+    const recentMembers = recentMembersData.map((m) => {
+      const member = m.toObject();
+      const primaryChit = member.chits?.[0]?.chitId || {};
+      member.chitName = primaryChit.chitName || "-";
+      member.location = primaryChit.location || "-";
+      member.chitAmount = primaryChit.amount || "-";
+      return member;
+    });
+
+    return sendResponse(res, 200, "success", "Dashboard analytics fetched", {
+      totalChits: stats.total,
+      activeChits: stats.active,
+      closedChits: stats.closed,
+      totalChitAmount: stats.totalAmount,
+
+      totalMembers: mStats.total,
+      activeMembers: mStats.active,
+      inactiveMembers: mStats.inactive,
+      membersInActiveChits,
+
+      paymentsMade: pStats.count,
+      totalPaid: pStats.totalPaid,
+      remainingTotalChitAmount: Math.max(
+        stats.totalAmount - pStats.totalPaid,
+        0
+      ),
+      remainingMonths,
+      collectedThisMonth,
+
+      recentChits: recentChitsData,
+      recentMembers,
+      recentPayments,
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
 
 module.exports = {
   getDashboardAnalytics,
