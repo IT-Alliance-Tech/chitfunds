@@ -27,6 +27,49 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { apiRequest } from "@/config/api";
 
+// Styles
+const cardStyle = {
+  width: 230,
+  height: 120,
+  minHeight: 120,
+  maxHeight: 120,
+  borderRadius: 2,
+  display: "flex",
+  alignItems: "center",
+};
+
+const cardContentStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+  padding: "12px 16px",
+  "&:last-child": {
+    paddingBottom: "12px",
+  },
+};
+
+const iconWrapper = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  width: 45,
+};
+
+const textWrapper = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+};
+
+const iconStyle = (color) => ({
+  color,
+  fontSize: {
+    xs: 40,
+    md: 45,
+  },
+});
+
+// Helper Function
 const formatDate = (date) =>
   new Date(date).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -34,22 +77,35 @@ const formatDate = (date) =>
     year: "numeric",
   });
 
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+/* ================= STAT CARD COMPONENT ================= */
+const StatCard = ({ icon, label, value }) => (
+  <Grid item xs={12} sm={6} md={3}>
+    <Card sx={cardStyle}>
+      <CardContent sx={cardContentStyle}>
+        <Box sx={iconWrapper}>{icon}</Box>
+        <Box sx={textWrapper}>
+          <Typography variant="h6" fontWeight={700}>
+            {value}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {label}
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
+  </Grid>
+);
 
-  window.location.href = "/login";
-};
-
-export default function Dashboard() {
+/* ================= MAIN DASHBOARD COMPONENT ================= */
+const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ===================== NOTIFICATION STATE ====================== */
+  // Notification State
   const [notification, setNotification] = useState({
     open: false,
     message: "",
-    severity: "success", // success | error | warning | info
+    severity: "success",
   });
 
   const showNotification = (message, severity = "success") => {
@@ -61,24 +117,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await apiRequest("/dashboard/analytics");
+        setData(res?.data || null);
+      } catch (err) {
+        showNotification(
+          err.message || "Failed to load dashboard analytics",
+          "error"
+        );
+        console.error("Failed to fetch dashboard analytics", err);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchDashboard();
   }, []);
-
-  const fetchDashboard = async () => {
-    try {
-      const res = await apiRequest("/dashboard/analytics");
-      setData(res?.data || null);
-    } catch (err) {
-      showNotification(
-        err.message || "Failed to load dashboard analytics",
-        "error"
-      );
-      console.error("Failed to fetch dashboard analytics", err);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -99,7 +154,7 @@ export default function Dashboard() {
   return (
     <Box className="min-h-screen bg-gray-100">
       <Box component="main" sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
-        {/* ================= STATS GRID ================= */}
+        {/* STATS GRID */}
         <Grid
           container
           spacing={2}
@@ -166,7 +221,7 @@ export default function Dashboard() {
           />
         </Grid>
 
-        {/* ================= RECENT ACTIVITIES ================= */}
+        {/* RECENT ACTIVITIES */}
         <Paper
           elevation={1}
           sx={{
@@ -404,70 +459,6 @@ export default function Dashboard() {
       </Snackbar>
     </Box>
   );
-}
-
-/* ================= STAT CARD ================= */
-function StatCard({ icon, label, value }) {
-  return (
-    <Grid item xs={12} sm={6} md={3}>
-      <Card sx={cardStyle}>
-        <CardContent sx={cardContentStyle}>
-          <Box sx={iconWrapper}>{icon}</Box>
-
-          <Box sx={textWrapper}>
-            <Typography variant="h6" fontWeight={700}>
-              {value}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {label}
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Grid>
-  );
-}
-
-/* ================= STYLES ================= */
-
-const cardStyle = {
-  width: 230,
-  height: 120,
-  minHeight: 120,
-  maxHeight: 120,
-  borderRadius: 2,
-  display: "flex",
-  alignItems: "center",
-  // justifyContent: "center",
 };
 
-const cardContentStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 2,
-  padding: "12px 16px", // controlled padding
-  "&:last-child": {
-    paddingBottom: "12px",
-  },
-};
-
-const iconWrapper = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "flex-start", // LEFT on all screens
-  width: 45,
-};
-
-const textWrapper = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-};
-
-const iconStyle = (color) => ({
-  color,
-  fontSize: {
-    xs: 40,
-    md: 45,
-  },
-});
+export default Dashboard;

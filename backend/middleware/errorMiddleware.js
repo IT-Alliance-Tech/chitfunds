@@ -1,5 +1,5 @@
 const { ZodError } = require("zod");
-const sendResponse = require("../utils/responseHandler");
+const sendResponse = require("../utils/response");
 
 // GLOBAL ERROR HANDLER
 const errorHandler = (err, req, res, next) => {
@@ -14,10 +14,7 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
 
     const issues = err.issues || err.errors || [];
-    errorMessage =
-      issues.length > 0
-        ? issues[0].message
-        : "Validation error";
+    errorMessage = issues.length > 0 ? issues[0].message : "Validation error";
   }
 
   if (process.env.NODE_ENV !== "production") {
@@ -27,10 +24,10 @@ const errorHandler = (err, req, res, next) => {
   return sendResponse(
     res,
     statusCode,
-    false,
+    "error",
+    errorMessage,
     null,
-    null,
-    errorMessage
+    process.env.NODE_ENV === "development" ? err : null
   );
 };
 
