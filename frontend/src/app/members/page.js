@@ -851,8 +851,8 @@ const MembersPage = () => {
           <DialogTitle>Delete Confirmation</DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to delete "<b>{selectedMember?.name}</b>"?
-              This action cannot be undone.
+              Are you sure you want to delete &quot;
+              <b>{selectedMember?.name}</b>&quot;? This action cannot be undone.
             </Typography>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
