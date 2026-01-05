@@ -480,7 +480,9 @@ const ChitsPage = () => {
                   <TableBody>
                     {chits.map((chit) => (
                       <TableRow key={chit.id}>
-                        <TableCell>{chit.id.slice(-6).toUpperCase()}</TableCell>
+                        <TableCell>
+                          {chit.id ? chit.id.slice(-6).toUpperCase() : "N/A"}
+                        </TableCell>
                         <TableCell>{chit.name}</TableCell>
                         <TableCell>₹{chit.amount}</TableCell>
                         <TableCell>₹{chit.monthlyAmount}</TableCell>
