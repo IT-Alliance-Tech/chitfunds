@@ -134,7 +134,15 @@ const MembersPage = () => {
   useEffect(() => {
     fetchMembers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, filterChit, filterStatus, searchName, searchPhone]);
+  }, [
+    page,
+    rowsPerPage,
+    filterChit,
+    filterStatus,
+    searchName,
+    searchPhone,
+    chits.length,
+  ]);
   // Note: searchName and searchPhone might need debouncing in production,
   // but for now direct dependency is fine if user hits enter or types slow.
   // Ideally, add a debounce or a "Search" button. For now, matching "clean" react.
@@ -166,7 +174,11 @@ const MembersPage = () => {
       // It uses `search` for name OR phone.
       // So I will use `searchName` (or `searchPhone` if name is empty) for the `search` param.
 
-      const querySearch = searchName || searchPhone;
+      // Only use searchPhone if it has actual digits (not just country code like "+91")
+      // PhoneInput may set default country code, we don't want that to filter results
+      const hasPhoneDigits =
+        searchPhone && searchPhone.replace(/[\s\-\+]/g, "").length > 2;
+      const querySearch = searchName || (hasPhoneDigits ? searchPhone : "");
       if (querySearch) params.append("search", querySearch);
 
       if (filterChit) params.append("chitId", filterChit);

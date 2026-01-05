@@ -30,7 +30,7 @@ import {
 
 import { apiRequest, BASE_URL } from "@/config/api";
 
-/* ================= INITIAL FORM STATE ================= */
+// initial form state
 const initialFormState = {
   chitId: "",
   memberId: "",
@@ -47,7 +47,7 @@ const initialFormState = {
   interestPercent: 0,
 };
 
-/* ================= INITIAL FILTER STATE ================= */
+// initial filter state
 const initialFilterState = {
   chitId: "",
   memberId: "",
@@ -90,7 +90,7 @@ const PaymentsPage = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  /* ================= EFFECTS ================= */
+  // effects
 
   useEffect(() => {
     fetchChits();
@@ -101,7 +101,7 @@ const PaymentsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, filters]);
 
-  /* ================= API CALLS ================= */
+// api calls
 
   const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
     const queryParams = new URLSearchParams({

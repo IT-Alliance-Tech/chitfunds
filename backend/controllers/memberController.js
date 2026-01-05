@@ -12,6 +12,10 @@ const formatFileName = (name) =>
     .replace(/\s+/g, "_")
     .replace(/[^a-z0-9_]/g, "");
 
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // $& means the whole matched string
+};
+
 // 1. Add Member
 const addMember = async (req, res) => {
   try {
@@ -91,31 +95,29 @@ const addMember = async (req, res) => {
     });
 
     if (shouldSendEmail && member.email) {
-      try {
-        const populatedMember = await Member.findById(member._id).populate(
-          "chits.chitId"
-        );
-        const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
-        const safeName = formatFileName(member.name);
-        await sendEmail({
-          to: member.email,
-          subject: "Welcome to IT ALLIANCE TECH - Chit Assignment Details",
-          html: `
-            <p>Dear ${member.name},</p>
-            <p>Welcome to IT ALLIANCE TECH! We are pleased to have you as a member of our Chit Fund.</p>
-            <p>Please find attached your membership details and the information regarding the chits assigned to you.</p>
-            <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
-          `,
-          attachments: [
-            {
-              filename: `${safeName}.pdf`,
-              content: pdfBuffer,
-            },
-          ],
-        });
-      } catch (emailError) {
-        console.error("Failed to send welcome email:", emailError);
-      }
+      // Move slow PDF generation and email sending to background
+      setImmediate(async () => {
+        try {
+          const populatedMember = await Member.findById(member._id).populate(
+            "chits.chitId"
+          );
+          const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
+          const safeName = formatFileName(member.name);
+          await sendEmail({
+            to: member.email,
+            subject: "Welcome to IT ALLIANCE TECH - Chit Assignment Details",
+            html: `
+              <p>Dear ${member.name},</p>
+              <p>Welcome to IT ALLIANCE TECH! We are pleased to have you as a member of our Chit Fund.</p>
+              <p>Please find attached your membership details and the information regarding the chits assigned to you.</p>
+              <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+            `,
+            attachments: [{ filename: `${safeName}.pdf`, content: pdfBuffer }],
+          });
+        } catch (delayedError) {
+          console.error("Background welcome email failed:", delayedError);
+        }
+      });
     }
 
     return sendResponse(res, 201, "success", "Member added successfully", {
@@ -150,7 +152,8 @@ const getMembers = async (req, res) => {
       query.status = status;
     }
     if (search) {
-      const regex = { $regex: search, $options: "i" };
+      const escapedSearch = escapeRegExp(search);
+      const regex = { $regex: escapedSearch, $options: "i" };
       query.$or = [{ name: regex }, { phone: regex }, { email: regex }];
     }
 
@@ -338,31 +341,29 @@ const updateMember = async (req, res) => {
     await member.save();
 
     if (shouldSendEmail && member.email) {
-      try {
-        const populatedMember = await Member.findById(member._id).populate(
-          "chits.chitId"
-        );
-        const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
-        const safeName = formatFileName(member.name);
-        await sendEmail({
-          to: member.email,
-          subject: "Updated Membership Details - IT ALLIANCE TECH",
-          html: `
-            <p>Dear ${member.name},</p>
-            <p>Your membership details at IT ALLIANCE TECH have been updated.</p>
-            <p>Please find attached the updated information regarding all chits currently assigned to you.</p>
-            <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
-          `,
-          attachments: [
-            {
-              filename: `${safeName}.pdf`,
-              content: pdfBuffer,
-            },
-          ],
-        });
-      } catch (emailError) {
-        console.error("Failed to send update email:", emailError);
-      }
+      // Move slow PDF generation and email sending to background
+      setImmediate(async () => {
+        try {
+          const populatedMember = await Member.findById(member._id).populate(
+            "chits.chitId"
+          );
+          const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
+          const safeName = formatFileName(member.name);
+          await sendEmail({
+            to: member.email,
+            subject: "Updated Membership Details - IT ALLIANCE TECH",
+            html: `
+              <p>Dear ${member.name},</p>
+              <p>Your membership details at IT ALLIANCE TECH have been updated.</p>
+              <p>Please find attached the updated information regarding all chits currently assigned to you.</p>
+              <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+            `,
+            attachments: [{ filename: `${safeName}.pdf`, content: pdfBuffer }],
+          });
+        } catch (delayedError) {
+          console.error("Background update email failed:", delayedError);
+        }
+      });
     }
 
     return sendResponse(res, 200, "success", "Member updated successfully", {
