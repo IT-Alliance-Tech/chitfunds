@@ -1,7 +1,7 @@
 // utils/sendEmail.js
 const nodemailer = require("nodemailer");
 
-async function sendEmail({ to, subject, text, html }) {
+async function sendEmail({ to, subject, text, html, attachments }) {
   // Create transporter using environment variables
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -19,6 +19,7 @@ async function sendEmail({ to, subject, text, html }) {
     subject,
     text,
     html,
+    attachments: attachments || [],
   };
 
   // send mail

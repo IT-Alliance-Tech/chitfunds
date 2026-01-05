@@ -6,11 +6,13 @@ const chitSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     location: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     amount: {
       type: Number,
@@ -27,6 +29,9 @@ const chitSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    calculatedDueDate: {
+      type: Date,
+    },
     membersLimit: {
       type: Number,
       required: true,
@@ -36,7 +41,7 @@ const chitSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    cycleDay: {
+    dueDate: {
       type: Number,
       required: true,
       min: 1,
@@ -46,29 +51,12 @@ const chitSchema = new mongoose.Schema(
       type: String,
       enum: ["Upcoming", "Ongoing", "Active", "Closed", "Completed"],
       default: "Upcoming",
+      index: true,
     },
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
-    toObject: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
   }
 );
 
-const Chit = mongoose.model("Chit", chitSchema);
-
-module.exports = Chit;
+module.exports = mongoose.model("Chit", chitSchema);

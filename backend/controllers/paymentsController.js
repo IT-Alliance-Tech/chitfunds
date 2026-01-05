@@ -1,175 +1,492 @@
-const asyncHandler = require("express-async-handler");
-const paymentService = require("../services/paymentService");
+const mongoose = require("mongoose");
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 const { generateInvoicePDF } = require("../utils/invoicePdf");
-const sendResponse = require("../utils/responseHandler");
+const sendResponse = require("../utils/response");
 
-// create or update payment
-const createPayment = asyncHandler(async (req, res) => {
-  const payment = await paymentService.upsertMonthlyPayment(req.body);
+// Helper: Get Month and Year
+const getMonthYear = (date = new Date()) => {
+  const d = new Date(date);
+  return {
+    paymentMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`,
+    paymentYear: d.getFullYear(),
+  };
+};
 
-  const chit = await Chit.findById(payment.chitId);
-  if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
-  }
+// create payment
+const createPayment = async (req, res) => {
+  try {
+    const {
+      chitId,
+      memberId,
+      paymentDate: pDate,
+      paidAmount,
+      penaltyAmount,
+      interestPercent,
+      dueDate,
+      paymentMode,
+    } = req.body;
 
-  const payments = await Payment.find({
-    chitId: payment.chitId,
-    memberId: payment.memberId,
-  });
+    const chit = await Chit.findById(chitId);
+    if (!chit) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Chit not found",
+        null,
+        "Resource Missing"
+      );
+    }
 
-  const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
+    let calculatedPenalty = Number(penaltyAmount || 0);
+    if (interestPercent) {
+      calculatedPenalty =
+        (Number(chit.monthlyPayableAmount) * Number(interestPercent)) / 100;
+    }
 
-  return sendResponse(res, 201, true, "Payment saved successfully", {
-    ...payment.toObject(),
-    summary: {
-      totalMonths: chit.duration,
-      paidMonths: payments.length,
-      remainingMonths: Math.max(chit.duration - payments.length, 0),
-      totalChitAmount: chit.amount,
-      // lateFee: payment.penaltyAmount || 0,
-      totalPaidForChit,
-      remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
-    },
-  });
-});
+    const dateObj = pDate ? new Date(pDate) : new Date();
+    const { paymentMonth, paymentYear } = getMonthYear(dateObj);
 
-// get all payments
-const getPayments = asyncHandler(async (req, res) => {
-  const payments = await Payment.find()
-    .populate("chitId", "chitName amount duration")
-    .populate("memberId", "name phone")
-    .sort({ createdAt: -1 });
+    const payment = await Payment.create({
+      chitId,
+      memberId,
+      paymentMonth,
+      paymentYear,
+      paidAmount: Number(paidAmount),
+      penaltyAmount: calculatedPenalty,
+      dueDate,
+      paymentMode,
+      paymentDate: dateObj,
+      invoiceNumber: `INV-${Date.now()}`,
+      isAdminConfirmed: false,
+    });
 
-  return sendResponse(res, 200, true, "Payments fetched successfully", {
-    payments,
-  });
-});
+    const payments = await Payment.find({ chitId, memberId });
 
-// get payment by id
-const getPaymentById = asyncHandler(async (req, res) => {
-  const payment = await Payment.findById(req.params.id)
-    .populate("chitId", "chitName amount duration")
-    .populate("memberId", "name phone");
+    // GROUP BY MONTH
+    const monthlySummary = {};
+    payments.forEach((p) => {
+      if (!monthlySummary[p.paymentMonth]) {
+        monthlySummary[p.paymentMonth] = {
+          paymentMonth: p.paymentMonth,
+          payments: [],
+          totalPaid: 0,
+          status: "unpaid",
+        };
+      }
+      monthlySummary[p.paymentMonth].payments.push(p);
+      monthlySummary[p.paymentMonth].totalPaid += p.paidAmount;
+    });
 
-  if (!payment) {
-    res.status(404);
-    throw new Error("Payment not found");
-  }
+    // CALCULATE STATUS PER MONTH
+    Object.values(monthlySummary).forEach((m) => {
+      if (m.totalPaid >= chit.monthlyPayableAmount) m.status = "paid";
+      else if (m.totalPaid > 0) m.status = "partial";
+    });
 
-  return sendResponse(res, 200, true, "Payment fetched successfully", {
-    payment,
-  });
-});
+    const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
 
-// get payment history
-const getPaymentHistory = asyncHandler(async (req, res) => {
-  const { memberId, chitId } = req.query;
-
-  if (!memberId || !chitId) {
-    res.status(400);
-    throw new Error("memberId and chitId are required");
-  }
-
-  const payments = await paymentService.getPaymentsByMemberAndChit(
-    memberId,
-    chitId
-  );
-
-  return sendResponse(res, 200, true, "Payment history fetched successfully", {
-    payments,
-  });
-});
-// get members list for payment
-const getMembersForPayment = asyncHandler(async (req, res) => {
-  const { chitId, location, name, phone, page = 1, limit = 10 } = req.query;
-
-  const skip = (Number(page) - 1) * Number(limit);
-
-  const memberFilter = {};
-
-  if (location) {
-    memberFilter.location = location;
-  }
-
-  if (name) {
-    memberFilter.name = { $regex: name, $options: "i" };
-  }
-
-  if (phone) {
-    memberFilter.phone = { $regex: phone, $options: "i" };
-  }
-
-  let membersQuery = Member.find(memberFilter)
-    .select("name phone location chits")
-    .lean();
-
-  const totalMembers = await Member.countDocuments(memberFilter);
-
-  let members = await membersQuery.skip(skip).limit(Number(limit));
-
-  if (chitId) {
-    members = members.filter((m) =>
-      m.chits?.some((c) => c.chitId.toString() === chitId)
+    return sendResponse(res, 201, "success", "Payment saved successfully", {
+      payment,
+      monthlySummary: Object.values(monthlySummary),
+      chitSummary: {
+        totalMonths: chit.duration,
+        paidMonths: Object.values(monthlySummary).filter(
+          (m) => m.status === "paid"
+        ).length,
+        remainingMonths: Math.max(
+          chit.duration -
+            Object.values(monthlySummary).filter((m) => m.status === "paid")
+              .length,
+          0
+        ),
+        totalChitAmount: chit.amount,
+        totalPaidForChit,
+        remainingTotalChitAmount: Math.max(chit.amount - totalPaidForChit, 0),
+      },
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
     );
   }
+};
 
-  return sendResponse(res, 200, true, "Members fetched successfully", {
-    members,
-    pagination: {
-      total: totalMembers,
-      page: Number(page),
-      limit: Number(limit),
-      totalPages: Math.ceil(totalMembers / limit),
-    },
-    filters: {
-      chitId: chitId || null,
-      location: location || null,
-      name: name || null,
-      phone: phone || null,
-    },
-  });
-});
+// get payments
+const getPayments = async (req, res) => {
+  try {
+    const {
+      chitId,
+      memberId,
+      paymentMode,
+      status,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.max(parseInt(limit, 10) || 10, 1);
+    const skip = (pageNum - 1) * limitNum;
+
+    const matchStage = {};
+    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+      matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+    }
+    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+      matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+    }
+    if (paymentMode) {
+      matchStage.paymentMode = paymentMode;
+    }
+
+    const pipeline = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: "chits",
+          localField: "chitId",
+          foreignField: "_id",
+          as: "chitDetails",
+        },
+      },
+      { $unwind: "$chitDetails" },
+      {
+        $lookup: {
+          from: "members",
+          localField: "memberId",
+          foreignField: "_id",
+          as: "memberDetails",
+        },
+      },
+      { $unwind: "$memberDetails" },
+      {
+        $addFields: {
+          totalPaid: { $add: ["$paidAmount", "$penaltyAmount"] },
+          computedStatus: {
+            $cond: {
+              if: {
+                $gte: ["$paidAmount", "$chitDetails.monthlyPayableAmount"],
+              },
+              then: "paid",
+              else: {
+                $cond: {
+                  if: { $lt: ["$dueDate", new Date()] },
+                  then: "overdue",
+                  else: {
+                    $cond: {
+                      if: { $gt: ["$paidAmount", 0] },
+                      then: "partial",
+                      else: "pending",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    if (status) {
+      pipeline.push({ $match: { computedStatus: status } });
+    }
+
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await Payment.aggregate(countPipeline);
+    const total = countResult[0]?.total || 0;
+
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limitNum });
+    pipeline.push({
+      $project: {
+        _id: 1,
+        invoiceNumber: 1,
+        paidAmount: 1,
+        penaltyAmount: 1,
+        totalPaid: 1,
+        paymentMonth: 1,
+        paymentYear: 1,
+        paymentDate: 1,
+        dueDate: 1,
+        paymentMode: 1,
+        status: "$computedStatus",
+        chitId: {
+          _id: "$chitDetails._id",
+          chitName: "$chitDetails.chitName",
+          amount: "$chitDetails.amount",
+          monthlyPayableAmount: "$chitDetails.monthlyPayableAmount",
+          duration: "$chitDetails.duration",
+          location: "$chitDetails.location",
+        },
+        memberId: {
+          _id: "$memberDetails._id",
+          name: "$memberDetails.name",
+          phone: "$memberDetails.phone",
+          address: "$memberDetails.address",
+        },
+      },
+    });
+
+    const payments = await Payment.aggregate(pipeline);
+
+    return sendResponse(res, 200, "success", "Payments fetched successfully", {
+      items: payments,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalItems: total,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
+
+// get payment by id
+const getPaymentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "Invalid Payment ID",
+        null,
+        "Bad Request"
+      );
+    }
+
+    const payment = await Payment.findById(id)
+      .populate(
+        "chitId",
+        "chitName amount duration monthlyPayableAmount location"
+      )
+      .populate("memberId", "name phone address");
+
+    if (!payment) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Payment not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
+      payment.status = "paid";
+    } else if (new Date(payment.dueDate) < new Date()) {
+      payment.status = "overdue";
+    } else if (payment.paidAmount > 0) {
+      payment.status = "partial";
+    } else {
+      payment.status = "pending";
+    }
+
+    payment.totalPaid =
+      (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+
+    return sendResponse(res, 200, "success", "Payment fetched successfully", {
+      payment,
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
+
+// get payment history
+const getPaymentHistory = async (req, res) => {
+  try {
+    const { memberId, chitId } = req.query;
+
+    if (!memberId || !chitId) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "memberId and chitId are required",
+        null,
+        "Validation Error"
+      );
+    }
+
+    const chit = await Chit.findById(chitId);
+    if (!chit) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Chit not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    const payments = await Payment.find({ memberId, chitId }).sort({
+      paymentYear: -1,
+      paymentMonth: -1,
+    });
+
+    const enrichedPayments = payments.map((p) => {
+      const payment = p.toObject();
+      payment.totalPaid =
+        (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+      payment.monthlyPayableAmount = chit.monthlyPayableAmount;
+
+      if (payment.paidAmount >= chit.monthlyPayableAmount) {
+        payment.status = "paid";
+      } else if (new Date(payment.dueDate) < new Date()) {
+        payment.status = "overdue";
+      } else if (payment.paidAmount > 0) {
+        payment.status = "partial";
+      } else {
+        payment.status = "pending";
+      }
+
+      return payment;
+    });
+
+    return sendResponse(
+      res,
+      200,
+      "success",
+      "Payment history fetched successfully",
+      {
+        payments: enrichedPayments,
+      }
+    );
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
 
 // export invoice pdf
-const exportInvoicePdf = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+const exportInvoicePdf = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  const payment = await Payment.findById(id)
-    .populate("chitId")
-    .populate("memberId");
+    const payment = await Payment.findById(id)
+      .populate("chitId")
+      .populate("memberId");
 
-  if (!payment) {
-    res.status(404);
-    throw new Error("Payment not found");
+    if (!payment) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Payment not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    payment.totalPaid =
+      (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
+    if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
+      payment.status = "paid";
+    } else if (new Date(payment.dueDate) < new Date()) {
+      payment.status = "overdue";
+    } else if (payment.paidAmount > 0) {
+      payment.status = "partial";
+    } else {
+      payment.status = "pending";
+    }
+
+    return generateInvoicePDF(res, payment);
+  } catch (error) {
+    // For PDF streams, we might want to just log/send simple error if stream hasn't started
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
   }
+};
 
-  generateInvoicePDF(res, payment);
-});
+// confirm payment by admin
+const confirmPaymentByAdmin = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
 
-// admin confirm payment
-const confirmPaymentByAdmin = asyncHandler(async (req, res) => {
-  const { paymentId } = req.params;
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Payment not found",
+        null,
+        "Resource Missing"
+      );
+    }
 
-  const payment = await Payment.findById(paymentId);
-  if (!payment) {
-    res.status(404);
-    throw new Error("Payment not found");
+    if (payment.isAdminConfirmed) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "Payment already confirmed",
+        null,
+        "Validation Error"
+      );
+    }
+
+    payment.isAdminConfirmed = true;
+    await payment.save();
+
+    return sendResponse(res, 200, "success", "Payment confirmed by admin", {
+      payment,
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
   }
-
-  if (payment.isAdminConfirmed) {
-    res.status(400);
-    throw new Error("Payment already confirmed");
-  }
-
-  payment.isAdminConfirmed = true;
-  await payment.save();
-
-  return sendResponse(res, 200, true, "Payment confirmed by admin", payment);
-});
+};
 
 module.exports = {
   createPayment,
@@ -178,5 +495,4 @@ module.exports = {
   getPaymentHistory,
   exportInvoicePdf,
   confirmPaymentByAdmin,
-  getMembersForPayment,
 };

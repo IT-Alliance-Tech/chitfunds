@@ -1,6 +1,10 @@
 const PDFDocument = require("pdfkit");
 
+/**
+ * Format date to DD-MM-YYYY
+ */
 const formatDate = (date) => {
+  if (!date) return "N/A";
   const d = new Date(date);
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -8,143 +12,399 @@ const formatDate = (date) => {
   return `${dd}-${mm}-${yyyy}`;
 };
 
-exports.generateInvoicePDF = (res, payment) => {
-  const doc = new PDFDocument({
-    size: "A4",
-    margin: 50,
-    font: "Helvetica",
+/**
+ * Helper to draw a table row with borders
+ */
+const drawTableRow = (doc, y, columns, options = {}) => {
+  const {
+    height = 18,
+    fontSize = 9,
+    font = "Helvetica",
+    fillColor = "#333",
+    backgroundColor = null,
+    showBorders = true,
+    borderBottom = true,
+  } = options;
+
+  if (backgroundColor) {
+    doc.rect(50, y, 500, height).fill(backgroundColor);
+  }
+
+  doc.fontSize(fontSize).font(font).fillColor(fillColor);
+
+  columns.forEach((col) => {
+    doc.text(col.text, col.x, y + (height - fontSize) / 2, {
+      width: col.width,
+      align: col.align || "left",
+      lineBreak: false,
+    });
   });
 
-  // ===== Headers =====
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename=invoice-${payment.invoiceNumber}.pdf`
+  if (showBorders && borderBottom) {
+    doc
+      .moveTo(50, y + height)
+      .lineTo(550, y + height)
+      .strokeColor("#ccc")
+      .lineWidth(0.5)
+      .stroke();
+  }
+
+  return y + height;
+};
+
+/**
+ * Generates a professional table-based Invoice PDF
+ * @param {Object} res - Express response object
+ * @param {Object} payment - Payment object with populated memberId and chitId
+ */
+exports.generateInvoicePDF = (res, payment) => {
+  console.log(
+    `🚀 [DEBUG] Generating Invoice PDF for ${payment.invoiceNumber} (Multi-Page Fix)`
   );
-
-  doc.pipe(res);
-
-  const paymentDate = formatDate(payment.paymentDate);
-  const dueDate = formatDate(payment.dueDate);
-
-  /* ================= HEADER ================= */
-  doc.fontSize(18).font("Helvetica-Bold").text("IT ALLIANCE TECH");
-
-  doc
-    .fontSize(10)
-    .font("Helvetica")
-    .fillColor("#555")
-    .text("Chit Fund Management System");
-
-  // Invoice meta (TOP RIGHT)
-  doc
-    .fontSize(10)
-    .fillColor("#000")
-    .text(`Invoice No: ${payment.invoiceNumber}`, 350, 50, { align: "right" })
-    .text(`Payment Date: ${paymentDate}`, { align: "right" });
-
-  doc.moveDown(2);
-  doc.moveTo(50, 95).lineTo(550, 95).stroke();
-
-  /* ================= BILL TO & CHIT INFO (2 COLUMNS) ================= */
-
-  const leftX = 50;
-  const rightX = 320;
-  const startY = 110;
-
-  // ----- Bill To -----
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .fillColor("#000")
-    .text("Bill To", leftX, startY);
-
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .text(`Name  : ${payment.memberId.name}`, leftX, startY + 18)
-    .text(`Phone : ${payment.memberId.phone}`, leftX, startY + 34);
-
-  // ----- Chit Info -----
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text("Chit Information", rightX, startY);
-
-  doc
-    .font("Helvetica")
-    .fontSize(10)
-    .text(`Chit Name   : ${payment.chitId.chitName}`, rightX, startY + 18)
-    .text(`Total Amount: ₹${payment.chitId.amount}`, rightX, startY + 34)
-    .text(
-      `Duration    : ${payment.chitId.duration} months`,
-      rightX,
-      startY + 50
-    )
-    .text(`Payment Mode: ${payment.paymentMode}`, rightX, startY + 66)
-    .text(`Due Date    : ${dueDate}`, rightX, startY + 82);
-
-  doc.moveDown(6);
-
-  /* ================= PAYMENT STATUS ================= */
-  const statusColor = payment.status === "paid" ? "#198754" : "#dc3545";
-
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .fillColor(statusColor)
-    .text(`Payment Status: ${payment.status.toUpperCase()}`, {
-      align: "right",
+  try {
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
+      font: "Helvetica",
+      bufferPages: true,
     });
 
-  doc.moveDown(1);
+    // Headers for PDF download/viewing
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename=invoice-${payment.invoiceNumber}.pdf`
+    );
 
-  /* ================= PAYMENT TABLE ================= */
-  const tableTop = doc.y + 10;
+    doc.pipe(res);
 
-  // Table Header
-  doc.rect(50, tableTop, 500, 25).fill("#f1f1f1");
+    const primaryColor = "#000000";
+    const secondaryColor = "#444444";
+    const lightGrey = "#f9f9f9";
 
-  doc
-    .fillColor("#000")
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text("Description", 60, tableTop + 7)
-    .text("Amount (₹)", 430, tableTop + 7);
+    /* ================= 1. HEADER ================= */
+    doc
+      .fontSize(18)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("IT ALLIANCE TECH", { align: "center" });
+    doc
+      .fontSize(10)
+      .font("Helvetica")
+      .fillColor(secondaryColor)
+      .text("Expert Chit Fund Management & Financial Services", {
+        align: "center",
+      });
+    doc.moveDown(0.2);
+    doc
+      .fontSize(8)
+      .fillColor("#999")
+      .text("[Company Logo Placeholder]", { align: "center" });
+    doc.moveDown(0.8);
 
-  doc.font("Helvetica").fontSize(10);
+    /* ================= 2. TITLE ================= */
+    doc
+      .fontSize(13)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("TAX INVOICE / PAYMENT RECEIPT", {
+        align: "center",
+        underline: false,
+      });
+    doc.moveDown(0.8);
 
-  const drawRow = (y, label, value, highlight = false) => {
-    doc.fillColor("#000").text(label, 60, y);
-    doc.fillColor(highlight ? "#dc3545" : "#000").text(`₹${value}`, 430, y);
-  };
+    /* ================= 3. REFERENCE DETAILS ================= */
+    let currentY = doc.y;
+    const refCols = [
+      { x: 50, width: 120, text: "Invoice Number" },
+      { x: 170, width: 10, text: "|" },
+      { x: 185, width: 170, text: payment.invoiceNumber || "N/A" },
+    ];
+    currentY = drawTableRow(doc, currentY, refCols, {
+      font: "Helvetica-Bold",
+      height: 16,
+      borderBottom: false,
+    });
 
-  let y = tableTop + 35;
-  drawRow(y, "Monthly Payable Amount", payment.monthlyPayableAmount);
-  y += 22;
-  drawRow(y, "Paid Amount", payment.paidAmount);
-  y += 22;
-  drawRow(y, "Penalty Amount", payment.penaltyAmount);
-  y += 22;
-  drawRow(y, "Total Paid", payment.totalPaid);
-  y += 22;
-  drawRow(
-    y,
-    "Balance Amount",
-    payment.balanceAmount,
-    payment.balanceAmount > 0
-  );
+    const dateCols = [
+      { x: 50, width: 120, text: "Invoice Date" },
+      { x: 170, width: 10, text: "|" },
+      { x: 185, width: 170, text: formatDate(payment.paymentDate) },
+    ];
+    currentY = drawTableRow(doc, currentY, dateCols, {
+      height: 16,
+      borderBottom: false,
+    });
 
-  doc.moveDown(4);
+    const memberIdCols = [
+      { x: 50, width: 120, text: "Member ID" },
+      { x: 170, width: 10, text: "|" },
+      {
+        x: 185,
+        width: 170,
+        text: payment.memberId?._id
+          ? payment.memberId._id.toString().slice(-8).toUpperCase()
+          : "N/A",
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, memberIdCols, {
+      height: 16,
+      borderBottom: false,
+    });
 
-  /* ================= FOOTER ================= */
-  doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor("#ccc").stroke();
+    const modeCols = [
+      { x: 50, width: 120, text: "Payment Mode" },
+      { x: 170, width: 10, text: "|" },
+      {
+        x: 185,
+        width: 170,
+        text: (payment.paymentMode || "N/A").toUpperCase(),
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, modeCols, {
+      height: 16,
+      borderBottom: true,
+    });
+    doc.moveDown(1.2);
 
-  doc.moveDown(1);
-  doc
-    .fontSize(9)
-    .fillColor("#555")
-    .text("This is a system generated bill.", { align: "center" });
+    /* ================= 4. COMPANY DETAILS ================= */
+    doc
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("COMPANY DETAILS", 50);
+    doc.font("Helvetica").fontSize(9).fillColor(secondaryColor);
+    doc.text("IT ALLIANCE TECH", 50);
+    doc.text(
+      "No. 123, 1st Floor, Main Road, BTM Layout, Bangalore, Karnataka - 560076",
+      50
+    );
+    doc.text("GSTIN: 29ABCDE1234F1Z5 | Email: support@italliancetech.com", 50);
+    doc.moveDown(1.2);
 
-  doc.end();
+    /* ================= 5. BILL TO – MEMBER DETAILS ================= */
+    doc
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("BILL TO (MEMBER DETAILS)", 50);
+    doc.moveDown(0.3);
+    currentY = doc.y;
+    const memberDetails = [
+      ["Name", payment.memberId?.name || "N/A"],
+      ["Phone", payment.memberId?.phone || "N/A"],
+      ["Email", payment.memberId?.email || "N/A"],
+      ["Address", payment.memberId?.address || "N/A"],
+    ];
+    memberDetails.forEach((detail, index) => {
+      const cols = [
+        { x: 50, width: 80, text: detail[0] },
+        { x: 130, width: 10, text: "|" },
+        { x: 145, width: 405, text: detail[1] },
+      ];
+      currentY = drawTableRow(doc, currentY, cols, {
+        height: 16,
+        borderBottom: index === memberDetails.length - 1,
+      });
+    });
+    doc.moveDown(1.5);
+
+    /* ================= 6. DESCRIPTION TABLE ================= */
+    const gridTop = doc.y;
+    const gridCols = [
+      { x: 50, width: 190, text: "DESCRIPTION / CHIT NAME", align: "left" },
+      { x: 240, width: 100, text: "LOCATION", align: "left" },
+      { x: 340, width: 100, text: "DATE", align: "right" },
+      { x: 440, width: 110, text: "AMOUNT (INR)", align: "right" },
+    ];
+
+    // Header
+    currentY = drawTableRow(doc, gridTop, gridCols, {
+      font: "Helvetica-Bold",
+      backgroundColor: lightGrey,
+      fillColor: primaryColor,
+      height: 20,
+    });
+
+    // Body
+    const chit = payment.chitId || {};
+    const bodyCols = [
+      {
+        x: 50,
+        width: 190,
+        text: chit.chitName || "Monthly Installment",
+        align: "left",
+      },
+      { x: 240, width: 100, text: chit.location || "N/A", align: "left" },
+      {
+        x: 340,
+        width: 100,
+        text: formatDate(payment.paymentDate),
+        align: "right",
+      },
+      {
+        x: 440,
+        width: 110,
+        text: `INR ${Number(payment.paidAmount || 0).toLocaleString(
+          "en-IN"
+        )}.00`,
+        align: "right",
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, bodyCols, { height: 20 });
+    doc.moveDown(0.8);
+
+    /* ================= 7. SUMMARY TABLE ================= */
+    const summaryX = 350;
+
+    const subTotalCols = [
+      { x: summaryX, width: 100, text: "Sub Total", align: "left" },
+      { x: summaryX + 100, width: 10, text: "|" },
+      {
+        x: summaryX + 110,
+        width: 90,
+        text: `INR ${Number(payment.paidAmount || 0).toLocaleString(
+          "en-IN"
+        )}.00`,
+        align: "right",
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, subTotalCols, {
+      height: 16,
+      borderBottom: false,
+    });
+
+    const penaltyCols = [
+      { x: summaryX, width: 100, text: "Penalty Charges", align: "left" },
+      { x: summaryX + 100, width: 10, text: "|" },
+      {
+        x: summaryX + 110,
+        width: 90,
+        text: `INR ${Number(payment.penaltyAmount || 0).toLocaleString(
+          "en-IN"
+        )}.00`,
+        align: "right",
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, penaltyCols, {
+      height: 16,
+      borderBottom: false,
+    });
+
+    const grandTotal =
+      Number(payment.paidAmount || 0) + Number(payment.penaltyAmount || 0);
+    const totalCols = [
+      { x: summaryX, width: 100, text: "GRAND TOTAL", align: "left" },
+      { x: summaryX + 100, width: 10, text: "|" },
+      {
+        x: summaryX + 110,
+        width: 90,
+        text: `INR ${grandTotal.toLocaleString("en-IN")}.00`,
+        align: "right",
+      },
+    ];
+    currentY = drawTableRow(doc, currentY, totalCols, {
+      font: "Helvetica-Bold",
+      height: 20,
+      backgroundColor: lightGrey,
+    });
+    doc.moveDown(1.5);
+
+    /* ================= 8. TERMS & CONDITIONS ================= */
+    doc
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("TERMS & CONDITIONS", 50);
+    const terms = [
+      "This receipt is valid only subject to the realization of the payment instrument.",
+      "Monthly installments must be paid on or before the due date.",
+      "Delayed payments attract penalty charges (10%) as per company policy.",
+      "All disputes are subject to the jurisdiction of courts in Bangalore.",
+      "Please preserve this document for all future correspondence.",
+    ];
+    terms.forEach((term, i) => {
+      doc
+        .fontSize(9)
+        .font("Helvetica")
+        .fillColor(secondaryColor)
+        .text(`${i + 1}. ${term}`, 50, doc.y + 1, { width: 500 });
+    });
+    doc.moveDown(1.2);
+
+    /* ================= 9. DECLARATION ================= */
+    doc
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("DECLARATION", 50);
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .fillColor(secondaryColor)
+      .text(
+        "We hereby declare that this invoice shows the actual price of the services described and that all particulars are true and correct.",
+        50,
+        doc.y + 3,
+        { width: 500 }
+      );
+    doc.moveDown(1.5);
+
+    /* ================= 10. SIGNATURE SECTION ================= */
+    const sigY = doc.y;
+    if (sigY > doc.page.height - 120) {
+      doc.addPage();
+    }
+    const finalSigY = doc.y;
+    doc
+      .fontSize(10)
+      .font("Helvetica-Bold")
+      .fillColor(primaryColor)
+      .text("FOR IT ALLIANCE TECH", 400, finalSigY, { align: "right" });
+    doc.moveDown(1.5);
+    doc
+      .fontSize(9)
+      .font("Helvetica")
+      .fillColor(secondaryColor)
+      .text("Authorized Signatory", 400, doc.y + 8, { align: "right" });
+    doc
+      .fontSize(8)
+      .font("Helvetica-Oblique")
+      .text("(Digitally Signed)", 400, doc.y + 2, { align: "right" });
+
+    /* ================= 11. GLOBAL FOOTER (Applied to all pages) ================= */
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      const footerY = doc.page.height - 60;
+      doc
+        .moveTo(50, footerY)
+        .lineTo(550, footerY)
+        .strokeColor("#ccc")
+        .lineWidth(0.5)
+        .stroke();
+      doc.fontSize(8).font("Helvetica").fillColor("#999");
+      doc.text(
+        "IT ALLIANCE TECH | www.italliancetech.com | support@italliancetech.com",
+        50,
+        footerY + 8,
+        { align: "center", width: 500 }
+      );
+      doc.text(
+        `Page ${i + 1} of ${
+          range.count
+        } | E. & O.E. | This is a system-generated document.`,
+        50,
+        footerY + 18,
+        { align: "center", width: 500 }
+      );
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error("PDF Generation Error:", error);
+    if (!res.headersSent) {
+      res.status(500).send("Internal Server Error during PDF generation");
+    }
+  }
 };
