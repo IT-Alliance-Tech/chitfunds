@@ -1,186 +1,249 @@
 const mongoose = require("mongoose");
-const asyncHandler = require("express-async-handler");
-
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
-const sendResponse = require("../utils/responseHandler");
+const sendResponse = require("../utils/response");
 
-/* ================= DATE HELPERS ================= */
+// Helper: Normalize Date
 const normalizeDate = (date) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
 };
 
-// Accepted statuses: Upcoming, Active, Ongoing, Closed, Completed
+// Helper: Compute Status
 const computeStatus = (startDate, requestedStatus) => {
   if (requestedStatus === "Closed" || requestedStatus === "Completed") {
     return requestedStatus;
   }
-
   const today = normalizeDate(new Date());
   const start = normalizeDate(startDate);
 
   if (start.getTime() === today.getTime()) return "Active";
   if (start > today) return "Upcoming";
-
   return "Ongoing";
 };
 
-/* ================= CREATE CHIT ================= */
-const createChit = asyncHandler(async (req, res) => {
-  const { startDate, dueDate, status } = req.body;
-  const finalStatus = computeStatus(startDate, status);
+// 1. Create Chit
+const createChit = async (req, res) => {
+  try {
+    const { startDate, dueDate, status } = req.body;
+    const finalStatus = computeStatus(startDate, status);
 
-  // Calculate calculatedDueDate from startDate and dueDate (day of month)
-  // Logic: Move to next month, then set the day to dueDate
-  let calculatedDueDate = req.body.calculatedDueDate;
-  if (startDate && dueDate) {
-    const d = new Date(startDate);
-    // ✅ CRITICAL: Set date to 1st first to avoid month-skipping logic if today is 31st
-    d.setDate(1);
-    // Add 1 month to start date
-    d.setMonth(d.getMonth() + 1);
-    // Set the actual due day of the month
-    d.setDate(Number(dueDate));
-    // Zero out time
-    d.setHours(0, 0, 0, 0);
-    calculatedDueDate = d;
-  }
-
-  const chit = await Chit.create({
-    ...req.body,
-    status: finalStatus,
-    calculatedDueDate: calculatedDueDate || startDate, // Fallback to startDate if calculation fails
-  });
-
-  return sendResponse(res, 201, true, "Chit created successfully", {
-    chit,
-  });
-});
-
-/* ================= GET CHITS ================= */
-const getChits = asyncHandler(async (req, res) => {
-  const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
-  const skip = (page - 1) * limit;
-
-  const query = {};
-
-  if (req.query.chitName) {
-    query.chitName = { $regex: req.query.chitName, $options: "i" };
-  }
-
-  if (req.query.location) {
-    query.location = { $regex: req.query.location, $options: "i" };
-  }
-
-  if (req.query.status) {
-    query.status = req.query.status;
-  }
-
-  if (req.query.duration) {
-    query.duration = Number(req.query.duration);
-  }
-
-  const [chits, totalItems] = await Promise.all([
-    Chit.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    Chit.countDocuments(query),
-  ]);
-
-  return sendResponse(res, 200, true, "Chits fetched successfully", {
-    items: chits,
-    pagination: {
-      page,
-      limit,
-      totalItems,
-      totalPages: Math.ceil(totalItems / limit),
-    },
-  });
-});
-
-/* ================= GET CHIT BY ID ================= */
-const getChitById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error("Invalid chit ID");
-  }
-
-  const chit = await Chit.findById(id);
-  if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
-  }
-
-  const members = await Member.find({
-    "chits.chitId": chit._id,
-  }).sort({ createdAt: 1 });
-
-  return sendResponse(res, 200, true, "Chit details fetched successfully", {
-    chit,
-    members,
-  });
-});
-
-/* ================= UPDATE CHIT ================= */
-const updateChit = asyncHandler(async (req, res) => {
-  const chit = await Chit.findById(req.params.id);
-
-  if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
-  }
-
-  Object.assign(chit, req.body);
-
-  if (req.body.startDate || req.body.status) {
-    chit.status = computeStatus(chit.startDate, req.body.status);
-  }
-
-  // Recalculate calculatedDueDate if startDate or dueDate changes
-  if (req.body.startDate || req.body.dueDate) {
-    const startDate = req.body.startDate || chit.startDate;
-    const dueDate = req.body.dueDate || chit.dueDate;
-
+    let calculatedDueDate = req.body.calculatedDueDate;
     if (startDate && dueDate) {
       const d = new Date(startDate);
-      // ✅ CRITICAL: Set date to 1st first to avoid month-skipping logic
       d.setDate(1);
       d.setMonth(d.getMonth() + 1);
       d.setDate(Number(dueDate));
       d.setHours(0, 0, 0, 0);
-      chit.calculatedDueDate = d;
+      calculatedDueDate = d;
     }
+
+    const chit = await Chit.create({
+      ...req.body,
+      status: finalStatus,
+      calculatedDueDate: calculatedDueDate || startDate,
+    });
+
+    return sendResponse(res, 201, "success", "Chit created successfully", {
+      chit,
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
   }
+};
 
-  await chit.save();
+// 2. Get Chits
+const getChits = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
+    const skip = (page - 1) * limit;
 
-  return sendResponse(res, 200, true, "Chit updated successfully", {
-    chit,
-  });
-});
+    const query = {};
+    if (req.query.chitName)
+      query.chitName = { $regex: req.query.chitName, $options: "i" };
+    if (req.query.location)
+      query.location = { $regex: req.query.location, $options: "i" };
+    if (req.query.status) query.status = req.query.status;
+    if (req.query.duration) query.duration = Number(req.query.duration);
 
-/* ================= DELETE CHIT ================= */
-const deleteChit = asyncHandler(async (req, res) => {
-  const chit = await Chit.findById(req.params.id);
+    const [chits, totalItems] = await Promise.all([
+      Chit.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Chit.countDocuments(query),
+    ]);
 
-  if (!chit) {
-    res.status(404);
-    throw new Error("Chit not found");
+    return sendResponse(res, 200, "success", "Chits fetched successfully", {
+      items: chits,
+      pagination: {
+        page,
+        limit,
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+      },
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
   }
+};
 
-  await Promise.all([
-    Chit.deleteOne({ _id: chit._id }),
-    Member.updateMany(
-      { "chits.chitId": chit._id },
-      { $pull: { chits: { chitId: chit._id } } }
-    ),
-  ]);
+// 3. Get Chit By ID
+const getChitById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  return sendResponse(res, 200, true, "Chit deleted successfully");
-});
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "Invalid chit ID",
+        null,
+        "Bad Request"
+      );
+    }
+
+    const chit = await Chit.findById(id);
+    if (!chit) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Chit not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    const members = await Member.find({ "chits.chitId": chit._id }).sort({
+      createdAt: 1,
+    });
+
+    return sendResponse(
+      res,
+      200,
+      "success",
+      "Chit details fetched successfully",
+      {
+        chit,
+        members,
+      }
+    );
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
+
+// 4. Update Chit
+const updateChit = async (req, res) => {
+  try {
+    const chit = await Chit.findById(req.params.id);
+
+    if (!chit) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Chit not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    Object.assign(chit, req.body);
+
+    if (req.body.startDate || req.body.status) {
+      chit.status = computeStatus(chit.startDate, req.body.status);
+    }
+
+    if (req.body.startDate || req.body.dueDate) {
+      const startDate = req.body.startDate || chit.startDate;
+      const dueDate = req.body.dueDate || chit.dueDate;
+
+      if (startDate && dueDate) {
+        const d = new Date(startDate);
+        d.setDate(1);
+        d.setMonth(d.getMonth() + 1);
+        d.setDate(Number(dueDate));
+        d.setHours(0, 0, 0, 0);
+        chit.calculatedDueDate = d;
+      }
+    }
+
+    await chit.save();
+
+    return sendResponse(res, 200, "success", "Chit updated successfully", {
+      chit,
+    });
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
+
+// 5. Delete Chit
+const deleteChit = async (req, res) => {
+  try {
+    const chit = await Chit.findById(req.params.id);
+
+    if (!chit) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Chit not found",
+        null,
+        "Resource Missing"
+      );
+    }
+
+    await Promise.all([
+      Chit.deleteOne({ _id: chit._id }),
+      Member.updateMany(
+        { "chits.chitId": chit._id },
+        { $pull: { chits: { chitId: chit._id } } }
+      ),
+    ]);
+
+    return sendResponse(res, 200, "success", "Chit deleted successfully");
+  } catch (error) {
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
 
 module.exports = {
   createChit,

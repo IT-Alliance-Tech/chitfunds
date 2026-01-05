@@ -30,7 +30,7 @@ import {
 
 import { apiRequest, BASE_URL } from "@/config/api";
 
-/* ================= INITIAL FORM STATE ================= */
+// initial form state
 const initialFormState = {
   chitId: "",
   memberId: "",
@@ -43,9 +43,11 @@ const initialFormState = {
   paymentMode: "",
   dueDate: "",
   paymentDate: "",
+  monthlyPayableAmount: "",
+  interestPercent: 0,
 };
 
-/* ================= INITIAL FILTER STATE ================= */
+// initial filter state
 const initialFilterState = {
   chitId: "",
   memberId: "",
@@ -53,19 +55,31 @@ const initialFilterState = {
   status: "",
 };
 
-export default function PaymentsPage() {
+const PaymentsPage = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
 
+  // State
   const [payments, setPayments] = useState([]);
-  const [filteredPayments, setFilteredPayments] = useState([]);
   const [chits, setChits] = useState([]);
-  const [members, setMembers] = useState([]);
-  const [filterMembers, setFilterMembers] = useState([]); // Members for filter dropdown
+  const [members, setMembers] = useState([]); // For Add Payment Modal
+  const [filterMembers, setFilterMembers] = useState([]); // For Filter Dropdown
+
+  // Modals & UI State
   const [openModal, setOpenModal] = useState(false);
+  const [openViewModal, setOpenViewModal] = useState(false);
+  const [openPreviewModal, setOpenPreviewModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+
+  // Forms & Filters
   const [form, setForm] = useState(initialFormState);
   const [filters, setFilters] = useState(initialFilterState);
 
-  const [openPreviewModal, setOpenPreviewModal] = useState(false);
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Notifications
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -76,23 +90,30 @@ export default function PaymentsPage() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
+  // effects
 
-  const [openViewModal, setOpenViewModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState(null);
+  useEffect(() => {
+    fetchChits();
+  }, []);
 
-  /* ================= FETCH PAYMENTS ================= */
+  useEffect(() => {
+    fetchPayments(page, rowsPerPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, rowsPerPage, filters]);
+
+// api calls
+
   const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
     const queryParams = new URLSearchParams({
-      page: pageNum + 1,
-      limit: pageSize,
-      ...(filters.chitId && { chitId: filters.chitId }),
-      ...(filters.memberId && { memberId: filters.memberId }),
-      ...(filters.paymentMode && { paymentMode: filters.paymentMode }),
-      ...(filters.status && { status: filters.status }),
+      page: (pageNum + 1).toString(),
+      limit: pageSize.toString(),
     });
+
+    if (filters.chitId) queryParams.append("chitId", filters.chitId);
+    if (filters.memberId) queryParams.append("memberId", filters.memberId);
+    if (filters.paymentMode)
+      queryParams.append("paymentMode", filters.paymentMode);
+    if (filters.status) queryParams.append("status", filters.status);
 
     try {
       const res = await apiRequest(`/payment/list?${queryParams.toString()}`);
@@ -100,24 +121,23 @@ export default function PaymentsPage() {
       const pagination = res?.data?.pagination || { totalItems: 0 };
 
       setPayments(paymentData);
-      setFilteredPayments(paymentData); // Now same as payments due to server filtering
       setTotalCount(pagination.totalItems);
     } catch (error) {
       console.error("Failed to fetch payments", error);
     }
   };
 
-  /* ================= FETCH CHITS ================= */
   const fetchChits = async () => {
     try {
-      const res = await apiRequest("/chit/list?limit=1000"); // Fetch all for dropdowns
+      const res = await apiRequest("/chit/list?limit=1000");
       const items = res?.data?.items || [];
 
       const formatted = items.map((c) => ({
         id: c._id,
         _id: c._id,
         chitName: c.chitName,
-        duedate: c.calculatedDueDate || c.startDate, // Use calculated or startDate as fallback
+        duedate: c.calculatedDueDate || c.startDate,
+        ...c, // include other props just in case
       }));
 
       setChits(formatted);
@@ -127,7 +147,6 @@ export default function PaymentsPage() {
     }
   };
 
-  /* ================= FETCH MEMBERS BY CHIT ================= */
   const fetchMembersByChit = async (chitId) => {
     if (!chitId) return;
     try {
@@ -138,15 +157,6 @@ export default function PaymentsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchChits();
-  }, []);
-
-  useEffect(() => {
-    fetchPayments(page, rowsPerPage);
-  }, [page, rowsPerPage, filters]);
-
-  /* ================= FETCH MEMBERS FOR FILTER ================= */
   const fetchFilterMembers = async (chitId) => {
     if (!chitId) {
       setFilterMembers([]);
@@ -160,14 +170,16 @@ export default function PaymentsPage() {
     }
   };
 
-  /* ================= RESET FILTERS ================= */
+  /* ================= HELPERS ================= */
+
   const resetFilters = () => {
     setFilters(initialFilterState);
     setFilterMembers([]);
     setPage(0);
   };
 
-  /* ================= SAVE PAYMENT ================= */
+  /* ================= ACTIONS ================= */
+
   const savePayment = async () => {
     const payload = {
       chitId: form.chitId,
@@ -179,16 +191,14 @@ export default function PaymentsPage() {
       dueDate: form.dueDate,
       paymentDate: form.paymentDate,
       paymentMode: form.paymentMode,
+      interestPercent: Number(form.interestPercent || 0),
     };
 
     try {
-      const res = await apiRequest("/payment/create", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const res = await apiRequest("/payment/create", "POST", payload);
 
       setOpenModal(false);
-      setOpenPreviewModal(false); // Close preview
+      setOpenPreviewModal(false);
       setForm(initialFormState);
       setMembers([]);
       setSnackbar({
@@ -198,7 +208,6 @@ export default function PaymentsPage() {
       });
       fetchPayments();
 
-      // ✅ OPEN PDF AUTOMATICALLY AFTER SAVE
       if (res?.data?.payment?._id) {
         const token = localStorage.getItem("token");
         window.open(
@@ -216,10 +225,12 @@ export default function PaymentsPage() {
     }
   };
 
+  /* ================= RENDER ================= */
+
   return (
     <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
       <div className="max-w-[1300px] mx-auto space-y-6">
-        {/* ================= HEADER ================= */}
+        {/* HEADER */}
         <div
           style={{
             position: "relative",
@@ -248,6 +259,8 @@ export default function PaymentsPage() {
               right: { md: 0 },
               top: { md: "50%" },
               transform: { md: "translateY(-50%)" },
+              backgroundColor: "#1976d2",
+              "&:hover": { backgroundColor: "#1565c0" },
             }}
             onClick={() => {
               setForm(initialFormState);
@@ -259,7 +272,7 @@ export default function PaymentsPage() {
           </Button>
         </div>
 
-        {/* ================= FILTERS SECTION ================= */}
+        {/* FILTERS */}
         <Card>
           <CardContent>
             <Box
@@ -295,7 +308,7 @@ export default function PaymentsPage() {
                       setFilters((p) => ({
                         ...p,
                         chitId: cid,
-                        memberId: "", // Reset member when chit changes
+                        memberId: "",
                       }));
                       fetchFilterMembers(cid);
                     }}
@@ -382,7 +395,7 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        {/* ================= PAYMENT LIST ================= */}
+        {/* PAYMENT LIST */}
         <Card>
           <CardContent>
             <Typography fontWeight={600} sx={{ mb: 2 }}>
@@ -393,23 +406,17 @@ export default function PaymentsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    {[
-                      "Invoice",
-                      "Chit",
-                      "Member",
-                      "Phone",
-                      "Date",
-                      "Paid",
-                      "Penalty",
-                      "Total",
-                      "Mode",
-                      "Status",
-                      "Action",
-                    ].map((h) => (
-                      <TableCell key={h} sx={{ fontWeight: 600 }}>
-                        {h}
-                      </TableCell>
-                    ))}
+                    <TableCell sx={{ fontWeight: 600 }}>Invoice</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Chit</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Phone</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Paid</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Penalty</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Total</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Mode</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -455,6 +462,7 @@ export default function PaymentsPage() {
                                 "_blank"
                               );
                             }}
+                            sx={{ mr: 1 }}
                           >
                             PDF
                           </Button>
@@ -493,8 +501,14 @@ export default function PaymentsPage() {
           </CardContent>
         </Card>
 
-        {/* ================= ADD PAYMENT MODAL ================= */}
-        <Dialog open={openModal} fullWidth maxWidth="sm" fullScreen={isMobile}>
+        {/* ADD PAYMENT MODAL */}
+        <Dialog
+          open={openModal}
+          fullWidth
+          maxWidth="sm"
+          fullScreen={isMobile}
+          onClose={() => setOpenModal(false)}
+        >
           <DialogTitle>Add Payment</DialogTitle>
           <DialogContent
             sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
@@ -511,9 +525,11 @@ export default function PaymentsPage() {
                   let dueDateValue = "";
                   if (selectedChit?.duedate) {
                     try {
-                      dueDateValue = new Date(selectedChit.duedate)
-                        .toISOString()
-                        .split("T")[0];
+                      const date = new Date(selectedChit.duedate);
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, "0");
+                      const d = String(date.getDate()).padStart(2, "0");
+                      dueDateValue = `${y}-${m}-${d}`;
                     } catch (error) {
                       console.error("Error formatting date:", error);
                     }
@@ -526,6 +542,11 @@ export default function PaymentsPage() {
                     phone: "",
                     location: "",
                     dueDate: dueDateValue,
+                    monthlyPayableAmount:
+                      selectedChit?.monthlyPayableAmount || "",
+                    paidAmount: selectedChit?.monthlyPayableAmount || "",
+                    interestPercent: 0,
+                    penaltyAmount: 0,
                   }));
                   fetchMembersByChit(chitId);
                 }}
@@ -568,6 +589,12 @@ export default function PaymentsPage() {
               type="month"
               label="Payment Month"
               InputLabelProps={{ shrink: true }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
+                },
+                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
+              }}
               onChange={(e) => {
                 const [year, month] = e.target.value.split("-");
                 setForm((p) => ({
@@ -584,20 +611,59 @@ export default function PaymentsPage() {
               value={form.dueDate}
               InputLabelProps={{ shrink: true }}
               disabled
+              sx={{
+                backgroundColor: "#f9fafb",
+              }}
             />
 
             <TextField
-              type="date"
-              label="Payment Date"
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, paymentDate: e.target.value }))
-              }
+              label="Monthly Payable Amount"
+              value={form.monthlyPayableAmount}
+              disabled
+              sx={{
+                backgroundColor: "#f9fafb",
+              }}
             />
+
+            <FormControl fullWidth>
+              <InputLabel sx={{ "&.Mui-focused": { color: "#1976d2" } }}>
+                Interest %
+              </InputLabel>
+              <Select
+                label="Interest %"
+                value={form.interestPercent}
+                sx={{
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#1976d2",
+                  },
+                }}
+                onChange={(e) => {
+                  const interestPercent = e.target.value;
+                  const penaltyAmount =
+                    (Number(form.monthlyPayableAmount) * interestPercent) / 100;
+                  setForm((p) => ({
+                    ...p,
+                    interestPercent,
+                    penaltyAmount,
+                  }));
+                }}
+              >
+                <MenuItem value={0}>0%</MenuItem>
+                <MenuItem value={5}>5%</MenuItem>
+                <MenuItem value={10}>10%</MenuItem>
+              </Select>
+            </FormControl>
 
             <TextField
               label="Paid Amount"
               type="number"
+              value={form.paidAmount}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
+                },
+                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
+              }}
               onChange={(e) =>
                 setForm((p) => ({ ...p, paidAmount: e.target.value }))
               }
@@ -606,16 +672,45 @@ export default function PaymentsPage() {
             <TextField
               label="Penalty Amount"
               type="number"
+              value={form.penaltyAmount}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
+                },
+                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
+              }}
               onChange={(e) =>
                 setForm((p) => ({ ...p, penaltyAmount: e.target.value }))
               }
             />
 
+            <TextField
+              type="date"
+              label="Payment Date"
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
+                },
+                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
+              }}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, paymentDate: e.target.value }))
+              }
+            />
+
             <FormControl fullWidth>
-              <InputLabel>Payment Mode</InputLabel>
+              <InputLabel sx={{ "&.Mui-focused": { color: "#1976d2" } }}>
+                Payment Mode
+              </InputLabel>
               <Select
                 label="Payment Mode"
                 value={form.paymentMode}
+                sx={{
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#1976d2",
+                  },
+                }}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, paymentMode: e.target.value }))
                 }
@@ -638,13 +733,17 @@ export default function PaymentsPage() {
             <Button
               variant="contained"
               onClick={() => setOpenPreviewModal(true)}
+              sx={{
+                backgroundColor: "#1976d2",
+                "&:hover": { backgroundColor: "#1565c0" },
+              }}
             >
               Preview & Save
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* ================= VIEW PAYMENT DETAILS MODAL ================= */}
+        {/* VIEW PAYMENT MODAL */}
         <Dialog
           open={openViewModal}
           onClose={() => setOpenViewModal(false)}
@@ -754,6 +853,12 @@ export default function PaymentsPage() {
                   </Typography>
                   <Grid container spacing={4}>
                     <Grid item xs={12} sm={3}>
+                      <Typography variant="caption">Monthly Payable</Typography>
+                      <Typography>
+                        ₹{selectedPayment.chitId?.monthlyPayableAmount || "-"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
                       <Typography variant="caption">Paid Amount</Typography>
                       <Typography>₹{selectedPayment.paidAmount}</Typography>
                     </Grid>
@@ -782,115 +887,125 @@ export default function PaymentsPage() {
             <Button onClick={() => setOpenViewModal(false)}>Close</Button>
           </DialogActions>
         </Dialog>
-      </div>
 
-      {/* ================= PREVIEW PAYMENT MODAL ================= */}
-      <Dialog
-        open={openPreviewModal}
-        onClose={() => setOpenPreviewModal(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle sx={{ fontWeight: 600 }}>
-          Confirm Payment Details
-        </DialogTitle>
-        <DialogContent dividers>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Typography variant="subtitle1" fontWeight={600} color="primary">
-              Please review the details before confirming.
-            </Typography>
-
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Chit Name
-                </Typography>
-                <Typography fontWeight={500}>
-                  {chits.find((c) => c.id === form.chitId)?.chitName}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Member Name
-                </Typography>
-                <Typography fontWeight={500}>
-                  {members.find((m) => m._id === form.memberId)?.name}
-                </Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Payment Month
-                </Typography>
-                <Typography fontWeight={500}>{form.paymentMonth}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Payment Date
-                </Typography>
-                <Typography fontWeight={500}>{form.paymentDate}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Paid Amount
-                </Typography>
-                <Typography fontWeight={500}>₹{form.paidAmount}</Typography>
-              </Grid>
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Penalty
-                </Typography>
-                <Typography fontWeight={500}>
-                  ₹{form.penaltyAmount || 0}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Total Payable
-                </Typography>
-                <Typography fontWeight={700} fontSize="1.1rem">
-                  ₹{Number(form.paidAmount) + Number(form.penaltyAmount || 0)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">
-                  Payment Mode
-                </Typography>
-                <Typography
-                  fontWeight={500}
-                  sx={{ textTransform: "capitalize" }}
-                >
-                  {form.paymentMode}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenPreviewModal(false)} color="inherit">
-            Edit
-          </Button>
-          <Button onClick={savePayment} variant="contained" color="primary">
-            Confirm & Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ================= SNACKBAR ================= */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
+        {/* PREVIEW CONFRIM MODAL */}
+        <Dialog
+          open={openPreviewModal}
+          onClose={() => setOpenPreviewModal(false)}
+          fullWidth
+          maxWidth="sm"
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <DialogTitle sx={{ fontWeight: 600 }}>
+            Confirm Payment Details
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography variant="subtitle1" fontWeight={600} color="primary">
+                Please review the details before confirming.
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Chit Name
+                  </Typography>
+                  <Typography fontWeight={500}>
+                    {chits.find((c) => c.id === form.chitId)?.chitName}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Member Name
+                  </Typography>
+                  <Typography fontWeight={500}>
+                    {members.find((m) => m._id === form.memberId)?.name}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Payment Month
+                  </Typography>
+                  <Typography fontWeight={500}>{form.paymentMonth}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Monthly Payable
+                  </Typography>
+                  <Typography fontWeight={500}>
+                    ₹{form.monthlyPayableAmount}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Payment Date
+                  </Typography>
+                  <Typography fontWeight={500}>{form.paymentDate}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Paid Amount
+                  </Typography>
+                  <Typography fontWeight={500}>₹{form.paidAmount}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Penalty
+                  </Typography>
+                  <Typography fontWeight={500}>
+                    ₹{form.penaltyAmount || 0}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Total Payable
+                  </Typography>
+                  <Typography fontWeight={700} fontSize="1.1rem">
+                    ₹{Number(form.paidAmount) + Number(form.penaltyAmount || 0)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary">
+                    Payment Mode
+                  </Typography>
+                  <Typography
+                    fontWeight={500}
+                    sx={{ textTransform: "capitalize" }}
+                  >
+                    {form.paymentMode}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={() => setOpenPreviewModal(false)} color="inherit">
+              Edit
+            </Button>
+            <Button onClick={savePayment} variant="contained" color="primary">
+              Confirm & Save
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* SNACKBAR */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            variant="filled"
+            sx={{ width: "100%" }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </div>
     </div>
   );
-}
+};
+
+export default PaymentsPage;
