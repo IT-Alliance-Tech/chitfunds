@@ -141,6 +141,7 @@ const MembersPage = () => {
     filterStatus,
     searchName,
     searchPhone,
+    filterLocation,
     chits.length,
   ]);
   // Note: searchName and searchPhone might need debouncing in production,
@@ -155,24 +156,6 @@ const MembersPage = () => {
         page: page.toString(),
         limit: rowsPerPage.toString(),
       });
-
-      if (searchName) params.append("search", searchName);
-      // Backend uses 'search' for name/phone/email regex.
-      // If we want specific phone search, backend might need update,
-      // but 'search' covers phone too in controller logic: query.$or = [{ name: regex }, { phone: regex }...]
-
-      // If user provided specific phone but no name, we can still use 'search'.
-      // If both, we might conflict.
-      // Controller logic: const { chitId, page, limit, search, status } = req.query;
-      // It does NOT have specific 'phone' param. It uses 'search' for all.
-      // So I will combine them or prioritize one.
-      // Since UI has separate fields, I'll prefer 'searchName' as the main 'search' param
-      // or concat them if needed.
-      // actually, let's use searchName as 'search'.
-      // searchPhone is not supported specifically by backend 'getMembers' unless I update it?
-      // Backend: `const { chitId, page = 1, limit = 10, search, status } = req.query;`
-      // It uses `search` for name OR phone.
-      // So I will use `searchName` (or `searchPhone` if name is empty) for the `search` param.
 
       // Only use searchPhone if it has actual digits (not just country code like "+91")
       // PhoneInput may set default country code, we don't want that to filter results
@@ -367,8 +350,15 @@ const MembersPage = () => {
 
   /* ===================== RENDER ====================== */
 
-  // Extract unique locations from loaded chits for filter
-  const LOCATIONS = [...new Set(chits.map((c) => c.location).filter(Boolean))];
+  // Extract unique locations from loaded chits for filter (case-insensitive)
+  const LOCATIONS = [
+    ...new Set(
+      chits
+        .map((c) => c.location)
+        .filter(Boolean)
+        .map((loc) => loc.charAt(0).toUpperCase() + loc.slice(1).toLowerCase())
+    ),
+  ].sort();
 
   return (
     <div className="flex min-h-screen bg-gray-100">
