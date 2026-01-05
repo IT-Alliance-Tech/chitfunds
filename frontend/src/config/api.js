@@ -10,7 +10,7 @@ const getToken = () => {
 
 // Base URL from env or default
 export const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
 
 // Create Axios Instance
 const api = axios.create({
