@@ -152,7 +152,9 @@ const getMembers = async (req, res) => {
       query.status = status;
     }
     if (search) {
-      const escapedSearch = escapeRegExp(search);
+      // Handle case where search might be an array (duplicate query params)
+      const searchString = Array.isArray(search) ? search[0] : search;
+      const escapedSearch = escapeRegExp(searchString);
       const regex = { $regex: escapedSearch, $options: "i" };
       query.$or = [{ name: regex }, { phone: regex }, { email: regex }];
     }
