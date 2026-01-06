@@ -117,15 +117,15 @@ const getDashboardAnalytics = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(5)
             .populate("chits.chitId", "chitName amount location")
-            .select("name chits createdAt status")
+            .select("name address chits createdAt status")
             .lean(),
           Payment.find()
             .sort({ createdAt: -1 })
             .limit(5)
-            .populate("chitId", "chitName location")
+            .populate("chitId", "chitName location monthlyPayableAmount")
             .populate("memberId", "name")
             .select(
-              "paidAmount penaltyAmount status dueDate createdAt chitId memberId"
+              "paidAmount penaltyAmount status dueDate createdAt chitId memberId slots"
             )
             .lean(),
         ]),
@@ -168,11 +168,25 @@ const getDashboardAnalytics = async (req, res) => {
     // 4. FORMAT RECENT ACTIVITIES
     const [recentChitsData, recentMembersData, recentPaymentsData] = recentData;
 
-    const recentPayments = recentPaymentsData.map((p) => ({
-      ...p,
-      totalPaid: (p.paidAmount || 0) + (p.penaltyAmount || 0),
-      status: p.status || "paid",
-    }));
+    const recentPayments = recentPaymentsData.map((p) => {
+      const totalRequired =
+        (p.chitId?.monthlyPayableAmount || 0) * (p.slots || 1);
+      let calculatedStatus = "pending";
+
+      if (p.paidAmount >= totalRequired) {
+        calculatedStatus = "paid";
+      } else if (new Date(p.dueDate) < new Date()) {
+        calculatedStatus = "overdue";
+      } else if (p.paidAmount > 0) {
+        calculatedStatus = "partial";
+      }
+
+      return {
+        ...p,
+        totalPaid: (p.paidAmount || 0) + (p.penaltyAmount || 0),
+        status: calculatedStatus,
+      };
+    });
 
     const recentMembers = recentMembersData.map((m) => {
       const primaryChit = m.chits?.[0]?.chitId || {};

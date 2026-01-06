@@ -51,7 +51,24 @@ const Sidebar = () => {
             gap: 4,
           }}
         >
-          <Box sx={{ fontSize: "24px", fontWeight: "700" }}>LNS chitfunds</Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mb: 2,
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="LNS Logo"
+              style={{
+                width: "140px",
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </Box>
 
           <Divider sx={{ borderColor: "rgba(255,255,255,0.2)" }} />
 
@@ -128,8 +145,21 @@ const Sidebar = () => {
             }}
           >
             <div className="flex justify-between items-center">
-              <Box sx={{ fontSize: "24px", fontWeight: "700" }}>
-                LNS chitfunds
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <img
+                  src="/logo.png"
+                  alt="LNS Logo"
+                  style={{
+                    width: "110px",
+                    height: "auto",
+                    objectFit: "contain",
+                  }}
+                />
               </Box>
               <IconButton
                 onClick={() => setOpen(false)}
