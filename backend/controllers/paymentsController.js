@@ -191,17 +191,17 @@ const getPayments = async (req, res) => {
                   },
                 ],
               },
-              then: "paid",
-              else: {
-                $cond: {
-                  if: { $lt: ["$dueDate", new Date()] },
-                  then: "overdue",
-                  else: {
-                    $cond: {
-                      if: { $gt: ["$paidAmount", 0] },
-                      then: "partial",
-                      else: "pending",
-                    },
+            },
+            then: "paid",
+            else: {
+              $cond: {
+                if: { $lt: ["$dueDate", new Date()] },
+                then: "overdue",
+                else: {
+                  $cond: {
+                    if: { $gt: ["$paidAmount", 0] },
+                    then: "partial",
+                    else: "pending",
                   },
                 },
               },
@@ -435,7 +435,12 @@ const exportInvoicePdf = async (req, res) => {
 
     payment.totalPaid =
       (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
-    if (payment.paidAmount >= payment.chitId?.monthlyPayableAmount) {
+
+    const monthlyPayable = payment.chitId?.monthlyPayableAmount || 0;
+    const slots = payment.slots || 1;
+    const totalRequired = monthlyPayable * slots;
+
+    if (payment.paidAmount >= totalRequired) {
       payment.status = "paid";
     } else if (new Date(payment.dueDate) < new Date()) {
       payment.status = "overdue";
@@ -445,9 +450,9 @@ const exportInvoicePdf = async (req, res) => {
       payment.status = "pending";
     }
 
-    return generateInvoicePDF(res, payment);
+    return await generateInvoicePDF(res, payment);
   } catch (error) {
-    // For PDF streams, we might want to just log/send simple error if stream hasn't started
+    console.error("Error in exportInvoicePdf:", error);
     return sendResponse(
       res,
       500,

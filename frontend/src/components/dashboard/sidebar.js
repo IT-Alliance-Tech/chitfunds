@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Box, Divider, IconButton, useMediaQuery } from "@mui/material";
-import { Home, Users, Layers, CreditCard } from "lucide-react";
+import {
+  Home,
+  Users,
+  Layers,
+  CreditCard,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import Link from "next/link";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -92,6 +98,11 @@ const Sidebar = () => {
               href="/payments"
               icon={<CreditCard size={20} />}
               label="Payments"
+            />
+            <SidebarItem
+              href="/settings"
+              icon={<SettingsIcon size={20} />}
+              label="Settings"
             />
           </Box>
         </Box>
@@ -199,6 +210,12 @@ const Sidebar = () => {
                 href="/payments"
                 icon={<CreditCard size={20} />}
                 label="Payments"
+                onClick={() => setOpen(false)}
+              />
+              <SidebarItem
+                href="/settings"
+                icon={<SettingsIcon size={20} />}
+                label="Settings"
                 onClick={() => setOpen(false)}
               />
             </Box>

@@ -8,6 +8,7 @@ const chitsRoutes = require("./routes/chitsRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const paymentRoutes = require("./routes/paymentsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/api/chit", chitsRoutes);
 app.use("/api/member", memberRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Health check
 const sendResponse = require("./utils/response");
