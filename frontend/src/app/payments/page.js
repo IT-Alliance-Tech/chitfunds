@@ -26,9 +26,57 @@ import {
   Box,
   Snackbar,
   Alert,
+  Divider,
 } from "@mui/material";
 
 import { apiRequest, BASE_URL } from "@/config/api";
+import AddIcon from "@mui/icons-material/Add";
+
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid", "upcoming"].includes(s))
+    return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
+
+const tableHeaderSx = {
+  backgroundColor: "#e2e8f0",
+  "& th": {
+    fontWeight: 700,
+    fontSize: "12px",
+    color: "#1e293b",
+    textTransform: "uppercase",
+    py: 1.5,
+    borderBottom: "1px solid #cbd5e1",
+  },
+};
+
+const StatusPill = ({ status }) => {
+  const { bg, text } = getStatusColor(status);
+  return (
+    <Box
+      sx={{
+        display: "inline-block",
+        px: 1.5,
+        py: 0.5,
+        borderRadius: "12px",
+        backgroundColor: bg,
+        color: text,
+        fontSize: "11px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        textAlign: "center",
+        minWidth: "70px",
+      }}
+    >
+      {status}
+    </Box>
+  );
+};
 
 // initial form state
 const initialFormState = {
@@ -246,16 +294,17 @@ const PaymentsPage = () => {
             alignItems: "center",
             justifyContent: "center",
             gap: 2,
-            mb: { xs: 2, md: 0 },
+            mb: 6,
           }}
         >
           <Typography
+            variant="h4"
             fontWeight={800}
             sx={{
-              fontSize: { xs: "1.75rem", sm: "2.25rem", md: "2.5rem" },
-              color: "#1e293b",
               textAlign: "center",
-              flexGrow: 1,
+              color: "#1e293b",
+              fontSize: { xs: "1.75rem", sm: "2.25rem" },
+              textTransform: "capitalize",
             }}
           >
             Payment Management
@@ -270,13 +319,15 @@ const PaymentsPage = () => {
             <Button
               fullWidth
               variant="contained"
+              startIcon={<AddIcon />}
               sx={{
-                backgroundColor: "#0f172a",
-                borderRadius: "12px",
+                backgroundColor: "#2563eb",
+                borderRadius: "8px",
                 padding: "10px 24px",
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": { backgroundColor: "#1e293b" },
+                textTransform: "uppercase",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                "&:hover": { backgroundColor: "#1d4ed8" },
               }}
               onClick={() => {
                 setForm(initialFormState);
@@ -284,14 +335,22 @@ const PaymentsPage = () => {
                 setOpenModal(true);
               }}
             >
-              Add Payment
+              ADD PAYMENT
             </Button>
           </Box>
         </Box>
 
         {/* FILTERS */}
-        <Card>
-          <CardContent>
+        <Card
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 4,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <CardContent sx={{ p: 0 }}>
             <Box
               sx={{
                 display: "flex",
@@ -300,30 +359,35 @@ const PaymentsPage = () => {
                 mb: 3,
               }}
             >
-              <Typography fontWeight={600} fontSize="1.1rem">
+              <Typography
+                fontWeight={700}
+                sx={{ color: "#1e293b", fontSize: "1.1rem" }}
+              >
                 Filters
               </Typography>
-              <Button
-                size="small"
-                onClick={resetFilters}
+              <Typography
                 sx={{
-                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  fontWeight: 700,
                   fontSize: "0.75rem",
-                  color: "#059669",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  "&:hover": { color: "#2563eb" },
                 }}
+                onClick={resetFilters}
               >
                 Reset Filters
-              </Button>
+              </Typography>
             </Box>
 
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
-                  <InputLabel>Chit</InputLabel>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
                   <Select
-                    label="Chit"
                     value={filters.chitId}
-                    sx={{ height: 44 }}
+                    displayEmpty
+                    sx={{ borderRadius: "10px" }}
                     onChange={(e) => {
                       const cid = e.target.value;
                       setFilters((p) => ({
@@ -344,13 +408,12 @@ const PaymentsPage = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
-                  <InputLabel>Member</InputLabel>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
                   <Select
-                    label="Member"
                     value={filters.memberId}
-                    sx={{ height: 44 }}
+                    displayEmpty
+                    sx={{ borderRadius: "10px" }}
                     disabled={!filters.chitId}
                     onChange={(e) =>
                       setFilters((p) => ({ ...p, memberId: e.target.value }))
@@ -368,13 +431,12 @@ const PaymentsPage = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
-                  <InputLabel>Payment Mode</InputLabel>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
                   <Select
-                    label="Payment Mode"
                     value={filters.paymentMode}
-                    sx={{ height: 44 }}
+                    displayEmpty
+                    sx={{ borderRadius: "10px" }}
                     onChange={(e) =>
                       setFilters((p) => ({ ...p, paymentMode: e.target.value }))
                     }
@@ -386,13 +448,12 @@ const PaymentsPage = () => {
                 </FormControl>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={6} lg={3}>
-                <FormControl fullWidth size="small" sx={{ minWidth: 260 }}>
-                  <InputLabel>Status</InputLabel>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
                   <Select
-                    label="Status"
                     value={filters.status}
-                    sx={{ height: 44 }}
+                    displayEmpty
+                    sx={{ borderRadius: "10px" }}
                     onChange={(e) =>
                       setFilters((p) => ({ ...p, status: e.target.value }))
                     }
@@ -409,7 +470,12 @@ const PaymentsPage = () => {
 
             <Typography
               variant="body2"
-              sx={{ mt: 2.5, color: "text.secondary", fontWeight: 500 }}
+              sx={{
+                mt: 3,
+                color: "#64748b",
+                fontWeight: 600,
+                fontSize: "0.85rem",
+              }}
             >
               Showing {payments.length} of {totalCount} payments
             </Typography>
@@ -417,113 +483,166 @@ const PaymentsPage = () => {
         </Card>
 
         {/* PAYMENT LIST */}
-        <Card>
-          <CardContent>
-            <Typography fontWeight={600} sx={{ mb: 2 }}>
-              Payments List
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            overflow: "hidden",
+          }}
+        >
+          <CardContent className="p-0">
+            <Typography
+              fontWeight={700}
+              sx={{ p: 2, color: "#1e293b", borderBottom: "1px solid #f1f5f9" }}
+            >
+              Payments History
             </Typography>
 
             <div style={{ width: "100%", overflowX: "auto" }}>
-              <Table>
-                <TableHead>
+              <Table size="small">
+                <TableHead sx={tableHeaderSx}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Invoice</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Chit</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Phone</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Paid</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Penalty</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Total</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Mode</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
+                    <TableCell>Invoice</TableCell>
+                    <TableCell>Chit</TableCell>
+                    <TableCell>Member</TableCell>
+                    <TableCell>Phone</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="right">Paid</TableCell>
+                    <TableCell align="right">Penalty</TableCell>
+                    <TableCell align="right">Total</TableCell>
+                    <TableCell align="center">Mode</TableCell>
+                    <TableCell align="center">Status</TableCell>
+                    <TableCell align="center">Action</TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} align="center">
+                      <TableCell
+                        colSpan={11}
+                        align="center"
+                        sx={{ py: 8, color: "#94a3b8" }}
+                      >
                         No payments found
                       </TableCell>
                     </TableRow>
                   ) : (
                     payments.map((p) => (
-                      <TableRow key={p._id}>
-                        <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      <TableRow
+                        key={p._id}
+                        sx={{
+                          "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                          "&:hover": { backgroundColor: "#f1f5f9" },
+                        }}
+                      >
+                        <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
                           {p.invoiceNumber || "-"}
                         </TableCell>
-                        <TableCell>{p.chitId?.chitName || "-"}</TableCell>
-                        <TableCell>{p.memberId?.name || "-"}</TableCell>
-                        <TableCell>{p.memberId?.phone || "-"}</TableCell>
-                        <TableCell>
-                          {new Date(p.paymentDate).toLocaleDateString()}
+                        <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                          {p.chitId?.chitName || "-"}
                         </TableCell>
-                        <TableCell>₹{p.paidAmount}</TableCell>
-                        <TableCell>₹{p.penaltyAmount}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                          {p.memberId?.name || "-"}
+                        </TableCell>
+                        <TableCell sx={{ color: "#64748b", fontSize: "12px" }}>
+                          {p.memberId?.phone || "-"}
+                        </TableCell>
+                        <TableCell
+                          sx={{ color: "#64748b", whiteSpace: "nowrap" }}
+                        >
+                          {new Date(p.paymentDate).toLocaleDateString("en-IN")}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ color: "#16a34a", fontWeight: 600 }}
+                        >
+                          ₹{p.paidAmount?.toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: "#dc2626" }}>
+                          ₹{p.penaltyAmount?.toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontWeight: 700, color: "#1e293b" }}
+                        >
                           ₹
-                          {p.totalPaid ??
+                          {(
+                            p.totalPaid ??
                             Number(p.paidAmount || 0) +
-                              Number(p.penaltyAmount || 0)}
+                              Number(p.penaltyAmount || 0)
+                          ).toLocaleString("en-IN")}
                         </TableCell>
-                        <TableCell>{p.paymentMode}</TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded-full text-[11px] font-semibold ${
-                              p.status === "paid"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : p.status === "pending" ||
-                                  p.status === "partial"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {(p.status || "pending").toUpperCase()}
-                          </span>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            textTransform: "capitalize",
+                            color: "#64748b",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {p.paymentMode}
                         </TableCell>
-                        <TableCell>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => {
-                              const token = localStorage.getItem("token");
-                              window.open(
-                                `${BASE_URL}/payment/invoice/${p._id}?token=${token}`,
-                                "_blank"
-                              );
-                            }}
+                        <TableCell align="center">
+                          <StatusPill status={p.status || "pending"} />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Box
                             sx={{
-                              mr: 1,
-                              borderColor: "#1e293b",
-                              color: "#1e293b",
-                              "&:hover": {
-                                borderColor: "#0f172a",
-                                backgroundColor: "#f1f5f9",
-                              },
+                              display: "flex",
+                              gap: 1,
+                              justifyContent: "center",
                             }}
                           >
-                            PDF
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => {
-                              setSelectedPayment(p);
-                              setOpenViewModal(true);
-                            }}
-                            sx={{
-                              borderColor: "#1e293b",
-                              color: "#1e293b",
-                              "&:hover": {
-                                borderColor: "#0f172a",
-                                backgroundColor: "#f1f5f9",
-                              },
-                            }}
-                          >
-                            View
-                          </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const token = localStorage.getItem("token");
+                                window.open(
+                                  `${BASE_URL}/payment/invoice/${p._id}?token=${token}`,
+                                  "_blank"
+                                );
+                              }}
+                              sx={{
+                                minWidth: "50px",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                borderColor: "#cbd5e1",
+                                color: "#2563eb",
+                                borderRadius: "6px",
+                                "&:hover": {
+                                  borderColor: "#2563eb",
+                                  backgroundColor: "#eff6ff",
+                                },
+                              }}
+                            >
+                              PDF
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setSelectedPayment(p);
+                                setOpenViewModal(true);
+                              }}
+                              sx={{
+                                minWidth: "50px",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                borderColor: "#cbd5e1",
+                                color: "#1e293b",
+                                borderRadius: "6px",
+                                "&:hover": {
+                                  borderColor: "#1e293b",
+                                  backgroundColor: "#f1f5f9",
+                                },
+                              }}
+                            >
+                              VIEW
+                            </Button>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))
@@ -556,16 +675,24 @@ const PaymentsPage = () => {
           maxWidth="sm"
           fullScreen={isMobile}
           onClose={() => setOpenModal(false)}
+          sx={{
+            "& .MuiPaper-root": {
+              borderRadius: "16px",
+              padding: "20px",
+            },
+          }}
         >
-          <DialogTitle>Add Payment</DialogTitle>
+          <DialogTitle sx={{ fontWeight: 800, color: "#1e293b", pb: 1 }}>
+            Add Payment
+          </DialogTitle>
           <DialogContent
             sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
           >
             <FormControl fullWidth>
-              <InputLabel>Select Chit</InputLabel>
               <Select
-                label="Select Chit"
+                displayEmpty
                 value={form.chitId}
+                sx={{ borderRadius: "10px" }}
                 onChange={(e) => {
                   const chitId = e.target.value;
                   const selectedChit = chits.find((c) => c.id === chitId);
@@ -599,6 +726,7 @@ const PaymentsPage = () => {
                   fetchMembersByChit(chitId);
                 }}
               >
+                <MenuItem value="">Select Chit</MenuItem>
                 {chits.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.chitName}
@@ -608,10 +736,10 @@ const PaymentsPage = () => {
             </FormControl>
 
             <FormControl fullWidth disabled={!members.length}>
-              <InputLabel>Select Member</InputLabel>
               <Select
-                label="Select Member"
+                displayEmpty
                 value={form.memberId}
+                sx={{ borderRadius: "10px" }}
                 onChange={(e) => {
                   const m = members.find((x) => x._id === e.target.value);
 
@@ -620,9 +748,6 @@ const PaymentsPage = () => {
                     (c) => (c.chitId._id || c.chitId) === form.chitId
                   );
                   const slots = chitAssignment?.slots || 1;
-                  const baseAmount = Number(form.monthlyPayableAmount) || 0;
-                  // If form.monthlyPayableAmount was already set by Chit selection,
-                  // it might be the base amount. Let's ensure we use the base amount from the chit list.
                   const selectedChit = chits.find((c) => c.id === form.chitId);
                   const chitBaseAmount =
                     selectedChit?.monthlyPayableAmount || 0;
@@ -639,6 +764,9 @@ const PaymentsPage = () => {
                   }));
                 }}
               >
+                <MenuItem value="">
+                  {!form.chitId ? "Select Chit First" : "Select Member"}
+                </MenuItem>
                 {members.map((m) => (
                   <MenuItem key={m._id} value={m._id}>
                     {m.name}
@@ -647,8 +775,28 @@ const PaymentsPage = () => {
               </Select>
             </FormControl>
 
-            <TextField label="Phone" value={form.phone} disabled />
-            <TextField label="Location" value={form.location} disabled />
+            <TextField
+              placeholder="Phone"
+              value={form.phone}
+              disabled
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#f8fafc",
+                },
+              }}
+            />
+            <TextField
+              placeholder="Location"
+              value={form.location}
+              disabled
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#f8fafc",
+                },
+              }}
+            />
 
             <TextField
               type="month"
@@ -670,38 +818,52 @@ const PaymentsPage = () => {
               }}
             />
 
-            <TextField
-              type="date"
-              label="Due Date"
-              value={form.dueDate}
-              InputLabelProps={{ shrink: true }}
-              disabled
-              sx={{
-                backgroundColor: "#f9fafb",
-              }}
-            />
-
-            <TextField
-              label="Monthly Payable Amount"
-              value={form.monthlyPayableAmount}
-              disabled
-              sx={{
-                backgroundColor: "#f9fafb",
-              }}
-            />
-
-            <FormControl fullWidth>
-              <InputLabel sx={{ "&.Mui-focused": { color: "#1976d2" } }}>
-                Interest %
-              </InputLabel>
-              <Select
-                label="Interest %"
-                value={form.interestPercent}
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
+              >
+                Due Date
+              </Typography>
+              <TextField
+                type="date"
+                fullWidth
+                value={form.dueDate}
+                disabled
                 sx={{
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#1976d2",
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "10px",
+                    backgroundColor: "#f8fafc",
                   },
                 }}
+              />
+            </Box>
+
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
+              >
+                Monthly Payable Amount
+              </Typography>
+              <TextField
+                fullWidth
+                value={form.monthlyPayableAmount}
+                disabled
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "10px",
+                    backgroundColor: "#f8fafc",
+                  },
+                }}
+              />
+            </Box>
+
+            <FormControl fullWidth>
+              <Select
+                displayEmpty
+                value={form.interestPercent}
+                sx={{ borderRadius: "10px" }}
                 onChange={(e) => {
                   const interestPercent = e.target.value;
                   const penaltyAmount =
@@ -713,84 +875,77 @@ const PaymentsPage = () => {
                   }));
                 }}
               >
-                <MenuItem value={0}>0%</MenuItem>
-                <MenuItem value={5}>5%</MenuItem>
-                <MenuItem value={10}>10%</MenuItem>
+                <MenuItem value={0}>0% Interest</MenuItem>
+                <MenuItem value={5}>5% Interest</MenuItem>
+                <MenuItem value={10}>10% Interest</MenuItem>
               </Select>
             </FormControl>
 
             <TextField
-              label="Paid Amount"
+              placeholder="Paid Amount"
               type="number"
+              fullWidth
               value={form.paidAmount}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
-                },
-                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
-              }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
               onChange={(e) =>
                 setForm((p) => ({ ...p, paidAmount: e.target.value }))
               }
             />
 
             <TextField
-              label="Penalty Amount"
+              placeholder="Penalty Amount"
               type="number"
+              fullWidth
               value={form.penaltyAmount}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
-                },
-                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
-              }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
               onChange={(e) =>
                 setForm((p) => ({ ...p, penaltyAmount: e.target.value }))
               }
             />
 
-            <TextField
-              type="date"
-              label="Payment Date"
-              InputLabelProps={{ shrink: true }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
-                },
-                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
-              }}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, paymentDate: e.target.value }))
-              }
-            />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
+              >
+                Payment Date
+              </Typography>
+              <TextField
+                type="date"
+                fullWidth
+                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, paymentDate: e.target.value }))
+                }
+              />
+            </Box>
 
             <FormControl fullWidth>
-              <InputLabel sx={{ "&.Mui-focused": { color: "#1976d2" } }}>
-                Payment Mode
-              </InputLabel>
               <Select
-                label="Payment Mode"
+                displayEmpty
                 value={form.paymentMode}
-                sx={{
-                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "#1976d2",
-                  },
-                }}
+                sx={{ borderRadius: "10px" }}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, paymentMode: e.target.value }))
                 }
               >
+                <MenuItem value="">Select Payment Mode</MenuItem>
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="online">Online</MenuItem>
               </Select>
             </FormControl>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, pb: 2 }}>
+          <DialogActions sx={{ px: 3, pb: 4, gap: 1 }}>
             <Button
               onClick={() => {
                 setOpenModal(false);
                 setForm(initialFormState);
+              }}
+              sx={{
+                fontWeight: 700,
+                color: "#64748b",
+                textTransform: "uppercase",
               }}
             >
               Cancel
@@ -799,11 +954,15 @@ const PaymentsPage = () => {
               variant="contained"
               onClick={() => setOpenPreviewModal(true)}
               sx={{
-                backgroundColor: "#1976d2",
-                "&:hover": { backgroundColor: "#1565c0" },
+                backgroundColor: "#2563eb",
+                borderRadius: "8px",
+                px: 3,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                "&:hover": { backgroundColor: "#1d4ed8" },
               }}
             >
-              Preview & Save
+              Preview Payment
             </Button>
           </DialogActions>
         </Dialog>
@@ -814,13 +973,21 @@ const PaymentsPage = () => {
           onClose={() => setOpenViewModal(false)}
           fullWidth
           maxWidth="md"
+          sx={{
+            "& .MuiPaper-root": {
+              borderRadius: "16px",
+              padding: "20px",
+            },
+          }}
         >
           <DialogTitle
             sx={{
-              fontWeight: 600,
+              fontWeight: 800,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              color: "#1e293b",
+              pb: 1,
             }}
           >
             Payment Details
@@ -835,8 +1002,19 @@ const PaymentsPage = () => {
                     "_blank"
                   );
                 }}
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  borderColor: "#cbd5e1",
+                  color: "#2563eb",
+                  "&:hover": {
+                    borderColor: "#2563eb",
+                    backgroundColor: "#eff6ff",
+                  },
+                }}
               >
-                View as PDF
+                VIEW AS PDF
               </Button>
             )}
           </DialogTitle>
@@ -948,8 +1126,17 @@ const PaymentsPage = () => {
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ px: 4, py: 2 }}>
-            <Button onClick={() => setOpenViewModal(false)}>Close</Button>
+          <DialogActions sx={{ px: 4, pb: 3 }}>
+            <Button
+              onClick={() => setOpenViewModal(false)}
+              sx={{
+                fontWeight: 700,
+                color: "#64748b",
+                textTransform: "uppercase",
+              }}
+            >
+              Close
+            </Button>
           </DialogActions>
         </Dialog>
 
@@ -959,8 +1146,14 @@ const PaymentsPage = () => {
           onClose={() => setOpenPreviewModal(false)}
           fullWidth
           maxWidth="sm"
+          sx={{
+            "& .MuiPaper-root": {
+              borderRadius: "16px",
+              padding: "20px",
+            },
+          }}
         >
-          <DialogTitle sx={{ fontWeight: 600 }}>
+          <DialogTitle sx={{ fontWeight: 800, color: "#1e293b", pb: 1 }}>
             Confirm Payment Details
           </DialogTitle>
           <DialogContent dividers>
@@ -1042,12 +1235,30 @@ const PaymentsPage = () => {
               </Grid>
             </Box>
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenPreviewModal(false)} color="inherit">
+          <DialogActions sx={{ px: 3, pb: 4, gap: 1 }}>
+            <Button
+              onClick={() => setOpenPreviewModal(false)}
+              sx={{
+                fontWeight: 700,
+                color: "#64748b",
+                textTransform: "uppercase",
+              }}
+            >
               Edit
             </Button>
-            <Button onClick={savePayment} variant="contained" color="primary">
-              Confirm & Save
+            <Button
+              onClick={savePayment}
+              variant="contained"
+              sx={{
+                backgroundColor: "#16a34a",
+                borderRadius: "8px",
+                px: 3,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                "&:hover": { backgroundColor: "#15803d" },
+              }}
+            >
+              CONFIRM & SAVE
             </Button>
           </DialogActions>
         </Dialog>

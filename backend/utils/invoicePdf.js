@@ -1,4 +1,5 @@
 const PDFDocument = require("pdfkit");
+const path = require("path");
 
 /**
  * Format date to DD-MM-YYYY
@@ -83,11 +84,26 @@ exports.generateInvoicePDF = (res, payment) => {
     const lightGrey = "#f9f9f9";
 
     /* ================= 1. HEADER ================= */
+    const logoPath = path.join(__dirname, "logo.png");
+
+    try {
+      doc.image(logoPath, 250, 45, { width: 100 });
+      doc.moveDown(4.5);
+    } catch (err) {
+      console.error("Logo image not found for PDF:", err);
+      doc
+        .fontSize(18)
+        .font("Helvetica-Bold")
+        .fillColor(primaryColor)
+        .text("LNS CHITFUND", { align: "center" });
+      doc.moveDown(0.5);
+    }
+
     doc
-      .fontSize(18)
+      .fontSize(14)
       .font("Helvetica-Bold")
       .fillColor(primaryColor)
-      .text("IT ALLIANCE TECH", { align: "center" });
+      .text("LNS CHITFUND", { align: "center" });
     doc
       .fontSize(10)
       .font("Helvetica")
@@ -95,12 +111,7 @@ exports.generateInvoicePDF = (res, payment) => {
       .text("Expert Chit Fund Management & Financial Services", {
         align: "center",
       });
-    doc.moveDown(0.2);
-    doc
-      .fontSize(8)
-      .fillColor("#999")
-      .text("[Company Logo Placeholder]", { align: "center" });
-    doc.moveDown(0.8);
+    doc.moveDown(1.5);
 
     /* ================= 2. TITLE ================= */
     doc
@@ -174,12 +185,12 @@ exports.generateInvoicePDF = (res, payment) => {
       .fillColor(primaryColor)
       .text("COMPANY DETAILS", 50);
     doc.font("Helvetica").fontSize(9).fillColor(secondaryColor);
-    doc.text("IT ALLIANCE TECH", 50);
+    doc.text("LNS CHITFUND", 50);
     doc.text(
-      "No. 123, 1st Floor, Main Road, BTM Layout, Bangalore, Karnataka - 560076",
+      "No. 456, 2nd Floor, Gold Plaza, RR Nagar, Bangalore, Karnataka - 560098",
       50
     );
-    doc.text("GSTIN: 29ABCDE1234F1Z5 | Email: support@italliancetech.com", 50);
+    doc.text("GSTIN: 29LNSCF1234F1Z5 | Email: contact@lnschitfund.com", 50);
     doc.moveDown(1.2);
 
     /* ================= 5. BILL TO – MEMBER DETAILS ================= */
@@ -360,7 +371,7 @@ exports.generateInvoicePDF = (res, payment) => {
       .fontSize(10)
       .font("Helvetica-Bold")
       .fillColor(primaryColor)
-      .text("FOR IT ALLIANCE TECH", 400, finalSigY, { align: "right" });
+      .text("FOR LNS CHITFUND", 400, finalSigY, { align: "right" });
     doc.moveDown(1.5);
     doc
       .fontSize(9)
@@ -385,7 +396,7 @@ exports.generateInvoicePDF = (res, payment) => {
         .stroke();
       doc.fontSize(8).font("Helvetica").fillColor("#999");
       doc.text(
-        "IT ALLIANCE TECH | www.italliancetech.com | support@italliancetech.com",
+        "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
         50,
         footerY + 8,
         { align: "center", width: 500 }

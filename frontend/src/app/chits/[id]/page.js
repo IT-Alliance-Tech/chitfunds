@@ -24,12 +24,49 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { apiRequest } from "@/config/api";
 
-/* ================= BADGE UTILS ================= */
-const badge = (status) => {
-  if (status === "Active") return "bg-green-100 text-green-700";
-  if (status === "Upcoming") return "bg-blue-100 text-blue-700";
-  if (status === "Completed") return "bg-gray-200 text-gray-700";
-  return "bg-gray-100 text-gray-600";
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid"].includes(s)) return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "upcoming", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
+
+const tableHeaderSx = {
+  backgroundColor: "#e2e8f0",
+  "& th": {
+    fontWeight: 700,
+    fontSize: "12px",
+    color: "#1e293b",
+    textTransform: "uppercase",
+    py: 1.5,
+    borderBottom: "1px solid #cbd5e1",
+  },
+};
+
+const StatusPill = ({ status }) => {
+  const { bg, text } = getStatusColor(status);
+  return (
+    <Box
+      sx={{
+        display: "inline-block",
+        px: 1.5,
+        py: 0.5,
+        borderRadius: "12px",
+        backgroundColor: bg,
+        color: text,
+        fontSize: "11px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        textAlign: "center",
+        minWidth: "70px",
+      }}
+    >
+      {status}
+    </Box>
+  );
 };
 
 export default function ChitDetailsPage() {
@@ -105,11 +142,30 @@ export default function ChitDetailsPage() {
 
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
-      <Box className="space-y-3">
-        <Button variant="outlined" onClick={() => router.back()}>
-          Back
+      <Box sx={{ position: "relative", mb: 4 }}>
+        <Button
+          variant="outlined"
+          onClick={() => router.back()}
+          sx={{
+            color: "#64748b",
+            borderColor: "#cbd5e1",
+            fontWeight: 700,
+            borderRadius: "8px",
+            "&:hover": { borderColor: "#94a3b8", backgroundColor: "#f8fafc" },
+          }}
+        >
+          BACK
         </Button>
-        <Typography variant="h4" fontWeight={600} align="center" color="black">
+        <Typography
+          variant="h4"
+          fontWeight={800}
+          align="center"
+          sx={{
+            color: "#1e293b",
+            mt: -4,
+            textTransform: "capitalize",
+          }}
+        >
           {chit.chitName}
         </Typography>
       </Box>
@@ -117,91 +173,201 @@ export default function ChitDetailsPage() {
       {/* STATS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
-          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "#1e88e5" }} />}
-          value={`₹${chit.amount}`}
+          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "#0284c7" }} />}
+          value={`₹${chit.amount?.toLocaleString("en-IN")}`}
           label="Amount"
         />
         <StatCard
-          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "green" }} />}
-          value={`₹${chit.monthlyPayableAmount}`}
+          icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "#16a34a" }} />}
+          value={`₹${chit.monthlyPayableAmount?.toLocaleString("en-IN")}`}
           label="Monthly Payable"
         />
         <StatCard
-          icon={<CalendarMonthIcon sx={{ fontSize: 34, color: "#9c27b0" }} />}
+          icon={<CalendarMonthIcon sx={{ fontSize: 34, color: "#9333ea" }} />}
           value={chit.duration}
           label="Months"
         />
         <StatCard
-          icon={<GroupsIcon sx={{ fontSize: 34, color: "green" }} />}
+          icon={<GroupsIcon sx={{ fontSize: 34, color: "#ea580c" }} />}
           value={`${members.length}/${chit.membersLimit}`}
           label="Members"
         />
         <StatCard
-          icon={<CheckCircleIcon sx={{ fontSize: 34, color: "green" }} />}
+          icon={
+            <CheckCircleIcon
+              sx={{ fontSize: 34, color: getStatusColor(chit.status).text }}
+            />
+          }
           value={chit.status}
           label="Status"
+          isStatus
         />
       </div>
 
       {/* OVERVIEW */}
-      <Card>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          p: 1,
+        }}
+      >
         <CardContent>
-          <Typography fontWeight={600} mb={2}>
+          <Typography
+            fontWeight={700}
+            sx={{ color: "#1e293b", mb: 3, fontSize: "1.1rem" }}
+          >
             Overview
           </Typography>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <p>
-              <b>Chit Amount:</b> ₹{chit.amount}
-            </p>
-            <p>
-              <b>Monthly Payable:</b> ₹{chit.monthlyPayableAmount}
-            </p>
-            <p>
-              <b>Duration:</b> {chit.duration} months
-            </p>
-            <p>
-              <b>Total Members:</b> {members.length} / {chit.membersLimit}
-            </p>
-            <p>
-              <b>Start Date:</b>{" "}
-              {chit.startDate
-                ? new Date(chit.startDate).toLocaleDateString()
-                : "-"}
-            </p>
-            <p>
-              <b>Due Date:</b> {chit.dueDate || "-"}
-            </p>
-            <p>
-              <b>Location:</b> {chit.location}
-            </p>
-            <p>
-              <b>Status:</b>{" "}
-              <span
-                className={`px-2 py-1 rounded text-sm ${badge(chit.status)}`}
-              >
-                {chit.status}
-              </span>
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-12">
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Chit Amount:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                ₹{chit.amount?.toLocaleString("en-IN")}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Monthly Payable:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                ₹{chit.monthlyPayableAmount?.toLocaleString("en-IN")}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Duration:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {chit.duration} months
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Total Members:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {members.length} / {chit.membersLimit}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Start Date:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {chit.startDate
+                  ? new Date(chit.startDate).toLocaleDateString("en-IN")
+                  : "-"}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Due Date:
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {chit.dueDate || "-"}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Location:
+              </Typography>
+              <Typography sx={{ fontWeight: 700, textTransform: "capitalize" }}>
+                {chit.location}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #f1f5f9",
+                pb: 1,
+              }}
+            >
+              <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
+                Status:
+              </Typography>
+              <StatusPill status={chit.status} />
+            </Box>
           </div>
         </CardContent>
       </Card>
 
       {/* MEMBERS LIST */}
-      <Card>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          overflow: "hidden",
+        }}
+      >
         <CardContent className="p-0">
-          <Typography fontWeight={600} sx={{ p: 2 }}>
+          <Typography fontWeight={700} sx={{ p: 2, color: "#1e293b" }}>
             Members ({members.length})
           </Typography>
 
           <Box sx={{ overflowX: "auto" }}>
             <Table size="small">
               <TableHead>
-                <TableRow>
+                <TableRow sx={tableHeaderSx}>
                   <TableCell>Name</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Address</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Status</TableCell>
                   <TableCell align="center">Action</TableCell>
                 </TableRow>
               </TableHead>
@@ -209,25 +375,33 @@ export default function ChitDetailsPage() {
               <TableBody>
                 {members.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell
+                      colSpan={5}
+                      align="center"
+                      sx={{ py: 3, color: "#94a3b8" }}
+                    >
                       No members assigned
                     </TableCell>
                   </TableRow>
                 )}
 
                 {members.map((m, index) => (
-                  <TableRow key={m.memberId || m._id || index}>
-                    <TableCell>{m.name}</TableCell>
-                    <TableCell>{m.phone}</TableCell>
-                    <TableCell>{m.address || "-"}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm ${badge(
-                          m.status
-                        )}`}
-                      >
-                        {m.status}
-                      </span>
+                  <TableRow
+                    key={m.memberId || m._id || index}
+                    sx={{
+                      "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                      "&:hover": { backgroundColor: "#f1f5f9" },
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                      {m.name}
+                    </TableCell>
+                    <TableCell sx={{ color: "#64748b" }}>{m.phone}</TableCell>
+                    <TableCell sx={{ color: "#64748b", fontSize: "13px" }}>
+                      {m.address || "-"}
+                    </TableCell>
+                    <TableCell align="center">
+                      <StatusPill status={m.status} />
                     </TableCell>
                     <TableCell align="center">
                       <Button
@@ -236,8 +410,19 @@ export default function ChitDetailsPage() {
                         onClick={() =>
                           router.push(`/members/${m.memberId || m._id}`)
                         }
+                        sx={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#2563eb",
+                          borderColor: "#cbd5e1",
+                          borderRadius: "6px",
+                          "&:hover": {
+                            borderColor: "#2563eb",
+                            backgroundColor: "#eff6ff",
+                          },
+                        }}
                       >
-                        View Details
+                        VIEW DETAILS
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -269,16 +454,56 @@ export default function ChitDetailsPage() {
 }
 
 /* STAT CARD */
-function StatCard({ icon, value, label }) {
+function StatCard({ icon, value, label, isStatus }) {
   return (
-    <Card className="p-3 flex items-center gap-3">
-      {icon}
-      <div>
-        <Typography variant="h6" fontWeight={600}>
+    <Card
+      elevation={0}
+      sx={{
+        p: 2.5,
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        borderRadius: "16px",
+        border: "1px solid #e2e8f0",
+        backgroundColor: "white",
+      }}
+    >
+      <Box
+        sx={{
+          p: 1.5,
+          borderRadius: "12px",
+          backgroundColor: "#f8fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon}
+      </Box>
+      <Box>
+        <Typography
+          variant="h6"
+          fontWeight={800}
+          sx={{
+            color: "#1e293b",
+            fontSize: "1.1rem",
+            textTransform: isStatus ? "uppercase" : "none",
+          }}
+        >
           {value}
         </Typography>
-        <Typography variant="body2">{label}</Typography>
-      </div>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#64748b",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {label}
+        </Typography>
+      </Box>
     </Card>
   );
 }

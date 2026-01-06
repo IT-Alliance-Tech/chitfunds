@@ -17,10 +17,64 @@ import {
   Box,
   Snackbar,
   Alert,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
+import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
+
 import { apiRequest } from "@/config/api";
+
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid"].includes(s)) return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "upcoming", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
+
+const tableHeaderSx = {
+  backgroundColor: "#e2e8f0",
+  "& th": {
+    fontWeight: 700,
+    fontSize: "12px",
+    color: "#1e293b",
+    textTransform: "uppercase",
+    py: 1.5,
+    borderBottom: "1px solid #cbd5e1",
+  },
+};
+
+const StatusPill = ({ status }) => {
+  const { bg, text } = getStatusColor(status);
+  return (
+    <Box
+      sx={{
+        display: "inline-block",
+        px: 1.5,
+        py: 0.5,
+        borderRadius: "12px",
+        backgroundColor: bg,
+        color: text,
+        fontSize: "11px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        textAlign: "center",
+        minWidth: "70px",
+      }}
+    >
+      {status}
+    </Box>
+  );
+};
 
 export default function MemberDetailsPage() {
   const { id } = useParams();
@@ -146,186 +200,396 @@ export default function MemberDetailsPage() {
 
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
-      <Card>
-        <CardContent className="flex justify-between items-center">
-          <Button variant="outlined" onClick={() => router.back()}>
-            Back
-          </Button>
-          <Typography variant="h5" fontWeight={700}>
-            Member Details
-          </Typography>
-          <div style={{ width: 80 }} />
-        </CardContent>
-      </Card>
+      <Box sx={{ position: "relative", mb: 4 }}>
+        <Button
+          variant="outlined"
+          onClick={() => router.back()}
+          sx={{
+            color: "#64748b",
+            borderColor: "#cbd5e1",
+            fontWeight: 700,
+            borderRadius: "8px",
+            "&:hover": { borderColor: "#94a3b8", backgroundColor: "#f8fafc" },
+          }}
+        >
+          BACK
+        </Button>
+        <Typography
+          variant="h4"
+          fontWeight={800}
+          align="center"
+          sx={{
+            color: "#1e293b",
+            mt: -4,
+            textTransform: "capitalize",
+          }}
+        >
+          Member Details
+        </Typography>
+      </Box>
 
       {/* PERSONAL DETAILS */}
-      <Card>
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          p: 3,
+        }}
+      >
         <CardContent>
-          <Typography fontWeight={600} mb={2}>
+          <Typography
+            fontWeight={700}
+            sx={{ color: "#1e293b", mb: 3, fontSize: "1.1rem" }}
+          >
             Personal Information
           </Typography>
 
-          <Box className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Box className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-12">
             <Detail label="Full Name" value={member.name} />
             <Detail label="Email" value={member.email} />
             <Detail label="Phone" value={member.phone} />
-            <Detail label="Status" value={member.status} />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "#64748b",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  display: "block",
+                  mb: 0.5,
+                }}
+              >
+                Status
+              </Typography>
+              <StatusPill status={member.status} />
+            </Box>
             <Detail label="Address" value={member.address} />
           </Box>
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 4, borderColor: "#f1f5f9" }} />
 
-          <Typography fontWeight={600} mb={1}>
+          <Typography fontWeight={700} sx={{ color: "#1e293b", mb: 2 }}>
             Security Documents
           </Typography>
 
           <div className="flex flex-wrap gap-2">
             {(member.securityDocuments || []).map((doc, i) => (
-              <Chip key={i} label={doc} variant="outlined" color="primary" />
+              <Chip
+                key={i}
+                label={doc}
+                variant="outlined"
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  color: "#2563eb",
+                  borderColor: "#dbeafe",
+                  backgroundColor: "#eff6ff",
+                }}
+              />
             ))}
           </div>
         </CardContent>
       </Card>
 
       {/* ASSIGNED CHITS */}
-      <Card>
-        <CardContent>
-          <Typography fontWeight={600} mb={2}>
-            Assigned Chits
-          </Typography>
+      <Box>
+        <Typography
+          fontWeight={700}
+          sx={{ color: "#1e293b", mb: 2, fontSize: "1.1rem" }}
+        >
+          Assigned Chits
+        </Typography>
 
-          {safeChits.length === 0 ? (
+        {safeChits.length === 0 ? (
+          <Card
+            elevation={0}
+            sx={{
+              p: 4,
+              textAlign: "center",
+              borderRadius: "16px",
+              border: "1px dashed #cbd5e1",
+            }}
+          >
             <Typography color="text.secondary">No chits assigned</Typography>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {safeChits.map((chit) => (
-                <Card key={chit.id} variant="outlined">
-                  <CardContent className="space-y-1">
-                    <Typography variant="h6" fontWeight={600}>
-                      {chit.name}
-                    </Typography>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {safeChits.map((chit) => (
+              <Card
+                key={chit.id}
+                elevation={0}
+                sx={{
+                  borderRadius: "16px",
+                  border: "1px solid #e2e8f0",
+                  "&:hover": {
+                    borderColor: "#2563eb",
+                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.08)",
+                  },
+                  transition: "all 0.2s",
+                }}
+              >
+                <CardContent className="space-y-4">
+                  <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    sx={{
+                      color: "#1e293b",
+                      borderBottom: "2px solid #f1f5f9",
+                      pb: 1,
+                      mb: 2,
+                    }}
+                  >
+                    {chit.name}
+                  </Typography>
 
-                    <Typography>💰 Amount: ₹{chit.amount}</Typography>
-                    <Typography>⏳ Duration: {chit.duration} months</Typography>
-                    <Typography>🎟️ Slots: {chit.slots}</Typography>
+                  <div className="space-y-2">
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                    >
+                      <MonetizationOnIcon
+                        sx={{ color: "#0284c7", fontSize: 20 }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: "#475569" }}
+                      >
+                        Amount:{" "}
+                        <span style={{ color: "#1e293b", fontWeight: 700 }}>
+                          ₹{chit.amount?.toLocaleString("en-IN")}
+                        </span>
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                    >
+                      <CalendarMonthIcon
+                        sx={{ color: "#9333ea", fontSize: 20 }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: "#475569" }}
+                      >
+                        Duration:{" "}
+                        <span style={{ color: "#1e293b", fontWeight: 700 }}>
+                          {chit.duration} months
+                        </span>
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                    >
+                      <ConfirmationNumberIcon
+                        sx={{ color: "#ea580c", fontSize: 20 }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: "#475569" }}
+                      >
+                        Slots:{" "}
+                        <span style={{ color: "#1e293b", fontWeight: 700 }}>
+                          {chit.slots}
+                        </span>
+                      </Typography>
+                    </Box>
+                  </div>
+
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      backgroundColor: "#f8fafc",
+                      borderRadius: "12px",
+                      mt: 2,
+                    }}
+                  >
                     <Typography
                       sx={{
-                        mt: 1,
-                        fontSize: "0.85rem",
-                        color: "text.secondary",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
                       }}
                     >
-                      Monthly: ₹{chit.monthlyPayableAmount} per slot
+                      Monthly: ₹
+                      {chit.monthlyPayableAmount?.toLocaleString("en-IN")} per
+                      slot
                     </Typography>
-                    <Typography fontWeight={700} sx={{ color: "#059669" }}>
-                      Total Monthly: ₹{chit.monthlyPayableAmount * chit.slots}
+                    <Typography
+                      variant="h6"
+                      sx={{ color: "#16a34a", fontWeight: 800, mt: 0.5 }}
+                    >
+                      Total Monthly: ₹
+                      {(chit.monthlyPayableAmount * chit.slots).toLocaleString(
+                        "en-IN"
+                      )}
                     </Typography>
-                    <Typography>Status: {chit.status}</Typography>
+                  </Box>
 
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      pt: 1,
+                    }}
+                  >
+                    <StatusPill status={chit.status} />
                     <Button
                       size="small"
                       variant="contained"
-                      sx={{ mt: 1 }}
                       onClick={() => handleOpen(chit)}
+                      sx={{
+                        borderRadius: "8px",
+                        fontWeight: 700,
+                        fontSize: "11px",
+                        backgroundColor: "#2563eb",
+                        "&:hover": { backgroundColor: "#1e40af" },
+                      }}
                     >
-                      View Payments
+                      VIEW PAYMENTS
                     </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </Box>
 
       {/* PAYMENT DIALOG */}
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
-        <DialogTitle className="flex justify-between items-center">
-          <Typography fontWeight={600}>
-            {selectedChit?.name} – Payment Details
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullWidth
+        maxWidth="md"
+        sx={{
+          "& .MuiPaper-root": {
+            borderRadius: "16px",
+            padding: "20px",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pb: 1,
+          }}
+        >
+          <Typography
+            component="span"
+            variant="h6"
+            fontWeight={800}
+            sx={{ color: "#1e293b" }}
+          >
+            {selectedChit?.name} – Payment History
           </Typography>
-          <IconButton onClick={handleClose}>
+          <IconButton onClick={handleClose} sx={{ color: "#64748b" }}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers>
+        <DialogContent sx={{ p: 0 }}>
           {paymentsLoading ? (
-            <Box className="py-10 text-center">
-              <Typography>Loading payments...</Typography>
+            <Box className="py-12 text-center">
+              <Typography sx={{ color: "#64748b" }}>
+                Loading payments...
+              </Typography>
             </Box>
           ) : payments.length === 0 ? (
-            <Box className="py-10 text-center">
-              <Typography variant="h6">No Payments Found</Typography>
-              <Typography color="text.secondary">
+            <Box className="py-12 text-center">
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                sx={{ color: "#1e293b" }}
+              >
+                No Payments Found
+              </Typography>
+              <Typography sx={{ color: "#64748b" }}>
                 No payment records available for this chit.
               </Typography>
             </Box>
           ) : (
             <Box sx={{ overflowX: "auto" }}>
-              <table className="min-w-full border text-[12px]">
-                <thead className="bg-gray-100">
-                  <tr>
-                    {[
-                      "Invoice",
-                      "Month",
-                      "Payable",
-                      "Paid",
-                      "Penalty",
-                      "Total",
-                      "Status",
-                      "Payment Date",
-                      "Action",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="border px-2 py-1 text-left font-semibold whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={tableHeaderSx}>
+                    <TableCell>Invoice</TableCell>
+                    <TableCell>Month</TableCell>
+                    <TableCell align="right">Payable</TableCell>
+                    <TableCell align="right">Paid</TableCell>
+                    <TableCell align="right">Penalty</TableCell>
+                    <TableCell align="right">Total</TableCell>
+                    <TableCell align="center">Status</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="center">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {payments.map((p) => (
-                    <tr key={p._id} className="hover:bg-gray-50">
-                      <td className="border px-2 py-1">{p.invoiceNumber}</td>
-                      <td className="border px-2 py-1">{p.paymentMonth}</td>
-                      <td className="border px-2 py-1">
-                        ₹{p.monthlyPayableAmount}
-                      </td>
-                      <td className="border px-2 py-1">₹{p.paidAmount}</td>
-                      <td className="border px-2 py-1">₹{p.penaltyAmount}</td>
-                      <td className="border px-2 py-1 font-semibold">
-                        ₹{p.totalPaid}
-                      </td>
-                      <td className="border px-2 py-1">
-                        <span
-                          className={`px-2 py-[2px] rounded-full text-[10px] uppercase font-medium ${
-                            p.status === "paid"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-orange-100 text-orange-700"
-                          }`}
-                        >
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="border px-2 py-1">
-                        {new Date(p.paymentDate).toLocaleDateString()}
-                      </td>
-                      <td className="border px-2 py-1">
+                    <TableRow
+                      key={p._id}
+                      sx={{
+                        "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                        "&:hover": { backgroundColor: "#f1f5f9" },
+                      }}
+                    >
+                      <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                        {p.invoiceNumber}
+                      </TableCell>
+                      <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                        {p.paymentMonth}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "#475569" }}>
+                        ₹{p.monthlyPayableAmount?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ color: "#16a34a", fontWeight: 600 }}
+                      >
+                        ₹{p.paidAmount?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "#dc2626" }}>
+                        ₹{p.penaltyAmount?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontWeight: 700, color: "#1e293b" }}
+                      >
+                        ₹{p.totalPaid?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell align="center">
+                        <StatusPill status={p.status} />
+                      </TableCell>
+                      <TableCell sx={{ color: "#64748b", fontSize: "12px" }}>
+                        {new Date(p.paymentDate).toLocaleDateString("en-IN")}
+                      </TableCell>
+                      <TableCell align="center">
                         <Button
                           size="small"
-                          sx={{ minWidth: 0, py: 0, fontSize: "10px" }}
+                          variant="outlined"
                           onClick={() => handleDownloadPDF(p._id)}
+                          sx={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#2563eb",
+                            borderColor: "#cbd5e1",
+                            borderRadius: "6px",
+                            minWidth: "50px",
+                            "&:hover": {
+                              borderColor: "#2563eb",
+                              backgroundColor: "#eff6ff",
+                            },
+                          }}
                         >
                           PDF
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </Box>
           )}
         </DialogContent>
@@ -354,10 +618,20 @@ export default function MemberDetailsPage() {
 function Detail({ label, value }) {
   return (
     <Box>
-      <Typography variant="caption" color="text.secondary">
+      <Typography
+        variant="caption"
+        sx={{
+          color: "#64748b",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          display: "block",
+        }}
+      >
         {label}
       </Typography>
-      <Typography fontWeight={600}>{value || "-"}</Typography>
+      <Typography sx={{ fontWeight: 700, color: "#1e293b", fontSize: "1rem" }}>
+        {value || "-"}
+      </Typography>
     </Box>
   );
 }
