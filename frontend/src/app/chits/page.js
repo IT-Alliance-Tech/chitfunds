@@ -177,6 +177,7 @@ const ChitsPage = () => {
       const formattedChits = Array.isArray(chitArray)
         ? chitArray.map((chit) => ({
             id: chit._id || chit.id,
+            chitId: chit.chitId, // Auto-generated ID like CID001
             name: chit.chitName,
             amount: chit.amount,
             monthlyAmount: chit.monthlyPayableAmount,
@@ -548,7 +549,8 @@ const ChitsPage = () => {
                         }}
                       >
                         <TableCell sx={{ color: "#64748b", fontWeight: 500 }}>
-                          {chit.id ? chit.id.slice(-6).toUpperCase() : "N/A"}
+                          {chit.chitId ||
+                            (chit.id ? chit.id.slice(-6).toUpperCase() : "N/A")}
                         </TableCell>
                         <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
                           {chit.name}

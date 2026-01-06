@@ -247,6 +247,7 @@ const MembersPage = () => {
       const formattedMembers = membersArray.map((m) => {
         return {
           id: m._id,
+          memberId: m.memberId, // Auto-generated ID like MID001
           name: m.name,
           phone: m.phone,
           email: m.email,
@@ -649,7 +650,7 @@ const MembersPage = () => {
                           fontSize: "11px",
                         }}
                       >
-                        #{m.id.slice(-6).toUpperCase()}
+                        {m.memberId || `#${m.id.slice(-6).toUpperCase()}`}
                       </TableCell>
                       <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
                         {m.name}
