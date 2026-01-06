@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Grid,
   Card,
@@ -27,49 +27,9 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { apiRequest } from "@/config/api";
 
-// Styles
-const cardStyle = {
-  width: 230,
-  height: 120,
-  minHeight: 120,
-  maxHeight: 120,
-  borderRadius: 2,
-  display: "flex",
-  alignItems: "center",
-};
+import { useMediaQuery } from "@mui/material";
 
-const cardContentStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 2,
-  padding: "12px 16px",
-  "&:last-child": {
-    paddingBottom: "12px",
-  },
-};
-
-const iconWrapper = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  width: 45,
-};
-
-const textWrapper = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-};
-
-const iconStyle = (color) => ({
-  color,
-  fontSize: {
-    xs: 40,
-    md: 45,
-  },
-});
-
-// Helper Function
+/* ================= HELPERS ================= */
 const formatDate = (date) =>
   new Date(date).toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -77,29 +37,22 @@ const formatDate = (date) =>
     year: "numeric",
   });
 
-/* ================= STAT CARD COMPONENT ================= */
-const StatCard = ({ icon, label, value }) => (
-  <Grid item xs={12} sm={6} md={3}>
-    <Card sx={cardStyle}>
-      <CardContent sx={cardContentStyle}>
-        <Box sx={iconWrapper}>{icon}</Box>
-        <Box sx={textWrapper}>
-          <Typography variant="h6" fontWeight={700}>
-            {value}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {label}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
-  </Grid>
-);
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid", "upcoming"].includes(s))
+    return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
 
 /* ================= MAIN DASHBOARD COMPONENT ================= */
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isMobile = useMediaQuery("(max-width:640px)");
 
   // Notification State
   const [notification, setNotification] = useState({
@@ -122,11 +75,7 @@ const Dashboard = () => {
         const res = await apiRequest("/dashboard/analytics");
         setData(res?.data || null);
       } catch (err) {
-        showNotification(
-          err.message || "Failed to load dashboard analytics",
-          "error"
-        );
-        console.error("Failed to fetch dashboard analytics", err);
+        showNotification(err.message || "Failed to load dashboard", "error");
         setData(null);
       } finally {
         setLoading(false);
@@ -135,324 +84,474 @@ const Dashboard = () => {
     fetchDashboard();
   }, []);
 
-  if (loading) {
+  if (loading) return <Box sx={{ p: 4, textAlign: "center" }}>Loading...</Box>;
+  if (!data)
+    return <Box sx={{ p: 4, textAlign: "center" }}>Failed to load data.</Box>;
+
+  /* ================= STYLE OVERRIDES ================= */
+  const tableHeaderSx = {
+    backgroundColor: "#e2e8f0", // Brighter header
+    "& th": {
+      fontWeight: 700,
+      fontSize: "12px",
+      color: "#1e293b",
+      textTransform: "uppercase",
+      py: 1.5,
+      borderBottom: "1px solid #cbd5e1",
+    },
+  };
+
+  const StatusPill = ({ status }) => {
+    const { bg, text } = getStatusColor(status);
     return (
-      <Typography align="center" sx={{ mt: 4 }}>
-        Loading dashboard...
-      </Typography>
+      <Box
+        sx={{
+          display: "inline-block",
+          px: 1.5,
+          py: 0.5,
+          borderRadius: "12px",
+          backgroundColor: bg,
+          color: text,
+          fontSize: "11px",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          textAlign: "center",
+          minWidth: "70px",
+        }}
+      >
+        {status}
+      </Box>
     );
-  }
+  };
 
-  if (!data) {
-    return (
-      <Typography align="center" sx={{ mt: 4 }}>
-        Failed to load dashboard
-      </Typography>
-    );
-  }
+  /* ================= RENDERERS ================= */
+  const renderPaymentTable = () => (
+    <Box
+      sx={{
+        overflowX: "auto",
+        borderRadius: "8px",
+        border: "1px solid #e2e8f0",
+      }}
+    >
+      <Table size="small">
+        <TableHead>
+          <TableRow sx={tableHeaderSx}>
+            <TableCell>Member</TableCell>
+            <TableCell>Chit</TableCell>
+            <TableCell align="right">Amount</TableCell>
+            <TableCell align="center">Status</TableCell>
+            <TableCell align="right">Date</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {(data.recentPayments || []).map((p, i) => (
+            <TableRow
+              key={i}
+              sx={{
+                "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                "&:hover": { backgroundColor: "#f1f5f9" },
+              }}
+            >
+              <TableCell sx={{ fontWeight: 600 }}>
+                {p.memberId?.name || "-"}
+              </TableCell>
+              <TableCell>{p.chitId?.chitName || "-"}</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 700 }}>
+                ₹{p.paidAmount?.toLocaleString("en-IN")}
+              </TableCell>
+              <TableCell align="center">
+                <StatusPill status={p.status} />
+              </TableCell>
+              <TableCell align="right" sx={{ color: "#64748b" }}>
+                {formatDate(p.createdAt)}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Box>
+  );
 
-  return (
-    <Box className="min-h-screen bg-gray-100">
-      <Box component="main" sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
-        {/* STATS GRID */}
-        <Grid
-          container
-          spacing={2}
-          padding="1rem"
-          justifyContent={{
-            xs: "center",
-            md: "flex-start",
-          }}
-        >
-          <StatCard
-            icon={<AccountBalanceIcon sx={iconStyle("#0ea5e9")} />}
-            label="Total Chits"
-            value={data.totalChits}
-          />
-          <StatCard
-            icon={<CheckCircleIcon sx={iconStyle("green")} />}
-            label="Active Chits"
-            value={data.activeChits}
-          />
-          <StatCard
-            icon={<PendingActionsIcon sx={iconStyle("#ef4444")} />}
-            label="Closed Chits"
-            value={data.closedChits}
-          />
-          <StatCard
-            icon={<AccountBalanceIcon sx={iconStyle("#0284c7")} />}
-            label="Total Chit Amount"
-            value={`₹${data.totalChitAmount}`}
-          />
-          <StatCard
-            icon={<GroupsIcon sx={iconStyle("#8b5cf6")} />}
-            label="Total Members"
-            value={data.totalMembers}
-          />
-          <StatCard
-            icon={<GroupsIcon sx={iconStyle("green")} />}
-            label="Active Members"
-            value={data.activeMembers}
-          />
-          <StatCard
-            icon={<GroupsIcon sx={iconStyle("#dc2626")} />}
-            label="Inactive Members"
-            value={data.inactiveMembers}
-          />
-          <StatCard
-            icon={<MonetizationOnIcon sx={iconStyle("#16a34a")} />}
-            label="Total Paid"
-            value={`₹${data.totalPaid}`}
-          />
-          <StatCard
-            icon={<MonetizationOnIcon sx={iconStyle("#22c55e")} />}
-            label="Collected This Month"
-            value={`₹${data.collectedThisMonth}`}
-          />
-          <StatCard
-            icon={<PendingActionsIcon sx={iconStyle("#d97706")} />}
-            label="Remaining Amount"
-            value={`₹${data.remainingTotalChitAmount}`}
-          />
-          <StatCard
-            icon={<CalendarMonthIcon sx={iconStyle("#7c3aed")} />}
-            label="Remaining Months"
-            value={data.remainingMonths}
-          />
-        </Grid>
-
-        {/* RECENT ACTIVITIES */}
-        <Paper
-          elevation={1}
+  const renderMobilePaymentCards = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {(data.recentPayments || []).map((p, i) => (
+        <Card
+          key={i}
           sx={{
-            mt: 3,
-            px: { xs: 2, md: 4 },
-            py: 3,
-            width: "100%",
+            border: "1px solid #e2e8f0",
+            boxShadow: "none",
+            borderRadius: "12px",
           }}
         >
-          <Typography variant="h6" fontWeight={700} mb={3}>
-            Recent Activities
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {/* 1. RECENT PAYMENTS */}
-            <Box>
-              <Typography fontWeight={600} mb={2}>
-                Recent Payments
+          <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}
+            >
+              <Typography sx={{ fontWeight: 700, fontSize: "15px" }}>
+                {p.memberId?.name || "Member"}
               </Typography>
-              <Box sx={{ overflowX: "auto" }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow
-                      sx={{
-                        "& th": {
-                          fontWeight: 600,
-                          fontSize: "13px",
-                          color: "text.secondary",
-                        },
-                      }}
-                    >
-                      <TableCell>Member Name</TableCell>
-                      <TableCell>Chit Name</TableCell>
-                      <TableCell>Location</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Date</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(data.recentPayments || []).map((p, i) => (
-                      <TableRow key={i} hover>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {p.memberId?.name || "Unknown"}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {p.chitId?.chitName || "Unknown"}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {p.chitId?.location || "-"}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          ₹{p.paidAmount?.toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                              p.status === "paid"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {(p.status || "paid").toUpperCase()}
-                          </span>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {formatDate(p.createdAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(!data.recentPayments ||
-                      data.recentPayments.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No recent payments
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+              <StatusPill status={p.status} />
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  borderBottom: "1px solid #f1f5f9",
+                  pb: 0.5,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Chit
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                  {p.chitId?.chitName || "-"}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  borderBottom: "1px solid #f1f5f9",
+                  pb: 0.5,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Amount
+                </Typography>
+                <Typography
+                  sx={{ fontWeight: 700, fontSize: "14px", color: "#1e293b" }}
+                >
+                  ₹{p.paidAmount?.toLocaleString("en-IN")}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="caption" color="text.secondary">
+                  Date
+                </Typography>
+                <Typography variant="caption">
+                  {formatDate(p.createdAt)}
+                </Typography>
               </Box>
             </Box>
+          </CardContent>
+        </Card>
+      ))}
+    </Box>
+  );
 
-            {/* 2. RECENT MEMBERS */}
-            <Box>
-              <Typography fontWeight={600} mb={2}>
-                Recent Members
+  const statItems = [
+    {
+      label: "Total Chits",
+      value: data.totalChits,
+      icon: <AccountBalanceIcon />,
+      color: "#3b82f6",
+    },
+    {
+      label: "Active Chits",
+      value: data.activeChits,
+      icon: <CheckCircleIcon />,
+      color: "#10b981",
+      isCircle: true,
+    },
+    {
+      label: "Closed Chits",
+      value: data.closedChits,
+      icon: <PendingActionsIcon />,
+      color: "#f43f5e",
+    },
+    {
+      label: "Total Chit Amount",
+      value: `₹${data.totalChitAmount.toLocaleString("en-IN")}`,
+      icon: <AccountBalanceIcon />,
+      color: "#0284c7",
+    },
+    {
+      label: "Total Members",
+      value: data.totalMembers,
+      icon: <GroupsIcon />,
+      color: "#8b5cf6",
+    },
+    {
+      label: "Active Members",
+      value: data.activeMembers,
+      icon: <GroupsIcon />,
+      color: "#10b981",
+    },
+    {
+      label: "Inactive Members",
+      value: data.inactiveMembers,
+      icon: <GroupsIcon />,
+      color: "#ef4444",
+    },
+    {
+      label: "Total Paid",
+      value: `₹${data.totalPaid.toLocaleString("en-IN")}`,
+      icon: <MonetizationOnIcon />,
+      color: "#16a34a",
+      isCircle: true,
+    },
+    {
+      label: "Collected This Month",
+      value: `₹${data.collectedThisMonth.toLocaleString("en-IN")}`,
+      icon: <MonetizationOnIcon />,
+      color: "#22c55e",
+      isCircle: true,
+    },
+    {
+      label: "Remaining Amount",
+      value: `₹${data.remainingTotalChitAmount.toLocaleString("en-IN")}`,
+      icon: <PendingActionsIcon />,
+      color: "#f59e0b",
+    },
+    {
+      label: "Remaining Months",
+      value: data.remainingMonths,
+      icon: <CalendarMonthIcon />,
+      color: "#7c3aed",
+    },
+  ];
+
+  return (
+    <Box className="min-h-screen bg-[#f8fafc]">
+      <Box component="main" sx={{ p: { xs: 2, md: 3 } }}>
+        {/* STATS GRID - Robust CSS Grid for exact 4 columns */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, 1fr)",
+              md: "repeat(3, 1fr)",
+              lg: "repeat(4, 1fr)",
+            },
+            gap: 3,
+            mb: 4,
+          }}
+        >
+          {statItems.map((item, idx) => (
+            <Card
+              key={idx}
+              sx={{
+                height: "100%",
+                borderRadius: "12px",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
+              <CardContent
+                sx={{
+                  p: "24px !important",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 48,
+                    height: 48,
+                    borderRadius: item.isCircle ? "50%" : "8px",
+                    backgroundColor: item.isCircle ? item.color : "transparent",
+                    color: item.isCircle ? "white" : item.color,
+                  }}
+                >
+                  {React.cloneElement(item.icon, { sx: { fontSize: 32 } })}
+                </Box>
+                <Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#64748b",
+                      fontWeight: 600,
+                      display: "block",
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 800,
+                      fontSize: isMobile ? "1.1rem" : "1.25rem",
+                    }}
+                  >
+                    {item.value}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+
+        {/* RECENT PAYMENTS SECTION */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, md: 3 },
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            mb: 4,
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ mb: 3, fontWeight: 700, color: "#1e293b" }}
+          >
+            Latest Payments
+          </Typography>
+          {isMobile ? renderMobilePaymentCards() : renderPaymentTable()}
+        </Paper>
+
+        <Grid container spacing={3}>
+          {/* RECENT MEMBERS */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              elevation={0}
+              sx={{ p: 3, borderRadius: "16px", border: "1px solid #e2e8f0" }}
+            >
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+                New Members
               </Typography>
-              <Box sx={{ overflowX: "auto" }}>
+              <Box
+                sx={{
+                  overflowX: "auto",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
                 <Table size="small">
                   <TableHead>
-                    <TableRow
-                      sx={{
-                        "& th": {
-                          fontWeight: 600,
-                          fontSize: "13px",
-                          color: "text.secondary",
-                        },
-                      }}
-                    >
-                      <TableCell>Name</TableCell>
+                    <TableRow sx={tableHeaderSx}>
+                      <TableCell>Member</TableCell>
                       <TableCell>Chit</TableCell>
-                      <TableCell>Location</TableCell>
-                      <TableCell>Chit Amount</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Date of Joining</TableCell>
+                      <TableCell align="center">Status</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(data.recentMembers || []).map((m, i) => (
-                      <TableRow key={i} hover>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {m.name}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {m.chitName}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {m.location}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {m.chitAmount !== "-" ? `₹${m.chitAmount}` : "-"}
+                      <TableRow
+                        key={i}
+                        sx={{
+                          "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                        }}
+                      >
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, color: "#1e293b" }}
+                          >
+                            {m.name}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#64748b", display: "block" }}
+                          >
+                            {m.address || "No Address"}
+                          </Typography>
                         </TableCell>
                         <TableCell>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                              m.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, color: "#1e293b" }}
                           >
-                            {m.status}
-                          </span>
+                            {m.chitName}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#64748b", display: "block" }}
+                          >
+                            {m.location || "No Location"}
+                          </Typography>
                         </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {formatDate(m.createdAt)}
+                        <TableCell align="center">
+                          <StatusPill status={m.status} />
                         </TableCell>
                       </TableRow>
                     ))}
-                    {(!data.recentMembers ||
-                      data.recentMembers.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No recent members
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </Box>
-            </Box>
+            </Paper>
+          </Grid>
 
-            {/* 3. RECENT CHITS */}
-            <Box>
-              <Typography fontWeight={600} mb={2}>
-                Recent Chits
+          {/* RECENT CHITS */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              elevation={0}
+              sx={{ p: 3, borderRadius: "16px", border: "1px solid #e2e8f0" }}
+            >
+              <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700 }}>
+                New Chits
               </Typography>
-              <Box sx={{ overflowX: "auto" }}>
+              <Box
+                sx={{
+                  overflowX: "auto",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
                 <Table size="small">
                   <TableHead>
-                    <TableRow
-                      sx={{
-                        "& th": {
-                          fontWeight: 600,
-                          fontSize: "13px",
-                          color: "text.secondary",
-                        },
-                      }}
-                    >
+                    <TableRow sx={tableHeaderSx}>
                       <TableCell>Chit Name</TableCell>
-                      <TableCell>Location</TableCell>
-                      <TableCell>Amount</TableCell>
-                      <TableCell>Members Limit</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Created Date</TableCell>
+                      <TableCell align="center">Status</TableCell>
+                      <TableCell align="right">Amount</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(data.recentChits || []).map((c, i) => (
-                      <TableRow key={i} hover>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {c.chitName}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {c.location}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          ₹{c.amount?.toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {c.membersLimit}
-                        </TableCell>
+                      <TableRow
+                        key={i}
+                        sx={{
+                          "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                        }}
+                      >
                         <TableCell>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-700`}
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, color: "#1e293b" }}
                           >
-                            {c.status}
-                          </span>
+                            {c.chitName}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#64748b", display: "block" }}
+                          >
+                            {c.location || "No Location"}
+                          </Typography>
                         </TableCell>
-                        <TableCell sx={{ fontSize: "13px" }}>
-                          {formatDate(c.createdAt)}
+                        <TableCell align="center">
+                          <StatusPill status={c.status} />
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700 }}>
+                          ₹{c.amount?.toLocaleString("en-IN")}
                         </TableCell>
                       </TableRow>
                     ))}
-                    {(!data.recentChits || data.recentChits.length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No recent chits
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </Box>
-            </Box>
-          </Box>
-        </Paper>
+            </Paper>
+          </Grid>
+        </Grid>
       </Box>
 
-      {/* NOTIFICATION SNACKBAR */}
       <Snackbar
         open={notification.open}
         autoHideDuration={4000}
         onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Alert
-          onClose={handleCloseNotification}
           severity={notification.severity}
           variant="filled"
-          sx={{ width: "100%", boxShadow: 3 }}
+          sx={{ width: "100%" }}
         >
           {notification.message}
         </Alert>

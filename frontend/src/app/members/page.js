@@ -28,6 +28,7 @@ import {
   FormControlLabel,
   Snackbar,
   Alert,
+  Divider,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
@@ -39,6 +40,52 @@ import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 
 const animatedComponents = makeAnimated();
+
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid", "upcoming"].includes(s))
+    return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
+
+const tableHeaderSx = {
+  backgroundColor: "#e2e8f0",
+  "& th": {
+    fontWeight: 700,
+    fontSize: "12px",
+    color: "#1e293b",
+    textTransform: "uppercase",
+    py: 1.5,
+    borderBottom: "1px solid #cbd5e1",
+  },
+};
+
+const StatusPill = ({ status }) => {
+  const { bg, text } = getStatusColor(status);
+  return (
+    <Box
+      sx={{
+        display: "inline-block",
+        px: 1.5,
+        py: 0.5,
+        borderRadius: "12px",
+        backgroundColor: bg,
+        color: text,
+        fontSize: "11px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        textAlign: "center",
+        minWidth: "70px",
+      }}
+    >
+      {status}
+    </Box>
+  );
+};
 
 /* ===================== DOCUMENT OPTIONS ====================== */
 const securityDocumentOptions = [
@@ -390,11 +437,12 @@ const MembersPage = () => {
         >
           <Typography
             variant="h4"
-            fontWeight={600}
+            fontWeight={800}
             sx={{
               textAlign: "center",
-              color: "text.primary",
+              color: "#1e293b",
               fontSize: { xs: "1.75rem", sm: "2.25rem" },
+              textTransform: "capitalize",
             }}
           >
             Member Management
@@ -412,38 +460,43 @@ const MembersPage = () => {
               startIcon={<AddIcon />}
               onClick={handleAddMember}
               sx={{
-                backgroundColor: "#0f172a",
-                borderRadius: "12px",
+                backgroundColor: "#2563eb",
+                borderRadius: "8px",
                 padding: "10px 24px",
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": { backgroundColor: "#1e293b" },
+                textTransform: "uppercase",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                "&:hover": { backgroundColor: "#1d4ed8" },
               }}
             >
-              Add Member
+              ADD MEMBER
             </Button>
           </Box>
         </Box>
 
         {/* FILTERS */}
-        <Card sx={{ p: 2, mb: 3 }}>
-          <div className="flex flex-wrap gap-3 items-center">
+        <Card
+          elevation={0}
+          sx={{
+            p: 2.5,
+            mb: 4,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div className="flex flex-wrap gap-4 items-center">
             <TextField
               size="small"
-              label="Search Name/Phone"
+              placeholder="Search Name/Phone"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              sx={{ maxWidth: { sm: 220 }, width: "100%" }}
+              sx={{
+                maxWidth: { sm: 220 },
+                width: "100%",
+                "& .MuiOutlinedInput-root": { borderRadius: "10px" },
+              }}
             />
-            {/* Phone Filter (merged into searchName effectively, but kept UI for user preference if they want separate input - but logic uses regex OR, so one input is better. But I'll keep it as user had it, but map to same search param or just keep it purely valid) */}
-            {/* Actually, user had separate Phone input. If I use search param, it searches both.
-                 Let's keep separate input but update `searchPhone` state.
-                 If `searchName` is used, it searches. If `searchPhone` is used, it also searches.
-                 If both are used, `params.append('search', ...)` might need care.
-                 I'll simplify: The backend `search` looks at name OR phone.
-                 If I type in Name box, it searches both. If I type in Phone box, it searches both.
-                 I will keep both inputs for UI consistency but they do the same thing backend-side.
-             */}
+
             <Box
               sx={{
                 maxWidth: { sm: 220 },
@@ -466,18 +519,14 @@ const MembersPage = () => {
                   width: "100%",
                   height: "40px",
                   fontSize: "14px",
-                  borderRadius: "4px",
-                  borderColor: "#c4c4c4",
+                  borderRadius: "10px",
+                  borderColor: "#cbd5e1",
                 }}
                 countrySelectorStyleProps={{
                   buttonStyle: {
                     height: "40px",
-                    borderRadius: "4px 0 0 4px",
-                    borderColor: "#c4c4c4",
-                  },
-                  dropdownStyle: {
-                    maxWidth: "280px",
-                    overflowX: "hidden",
+                    borderRadius: "10px 0 0 10px",
+                    borderColor: "#cbd5e1",
                   },
                 }}
               />
@@ -485,15 +534,15 @@ const MembersPage = () => {
 
             <FormControl
               size="small"
-              sx={{ maxWidth: { sm: 220 }, width: "100%" }}
+              sx={{ maxWidth: { sm: 200 }, width: "100%" }}
             >
-              <InputLabel>Chit</InputLabel>
               <Select
                 value={filterChit}
-                label="Chit"
+                displayEmpty
                 onChange={(e) => setFilterChit(e.target.value)}
+                sx={{ borderRadius: "10px" }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">All Chits</MenuItem>
                 {chits.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.name}
@@ -504,15 +553,15 @@ const MembersPage = () => {
 
             <FormControl
               size="small"
-              sx={{ maxWidth: { sm: 220 }, width: "100%" }}
+              sx={{ maxWidth: { sm: 180 }, width: "100%" }}
             >
-              <InputLabel>Location</InputLabel>
               <Select
                 value={filterLocation}
-                label="Location"
+                displayEmpty
                 onChange={(e) => setFilterLocation(e.target.value)}
+                sx={{ borderRadius: "10px" }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">All Locations</MenuItem>
                 {LOCATIONS.map((loc) => (
                   <MenuItem key={loc} value={loc}>
                     {loc}
@@ -523,15 +572,15 @@ const MembersPage = () => {
 
             <FormControl
               size="small"
-              sx={{ maxWidth: { sm: 220 }, width: "100%" }}
+              sx={{ maxWidth: { sm: 150 }, width: "100%" }}
             >
-              <InputLabel>Status</InputLabel>
               <Select
                 value={filterStatus}
-                label="Status"
+                displayEmpty
                 onChange={(e) => setFilterStatus(e.target.value)}
+                sx={{ borderRadius: "10px" }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">All Status</MenuItem>
                 <MenuItem value="Active">Active</MenuItem>
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </Select>
@@ -539,12 +588,14 @@ const MembersPage = () => {
 
             <Typography
               sx={{
-                width: { xs: "100%", sm: "auto" },
-                textAlign: { xs: "right", sm: "left" },
-                ml: { sm: "auto" },
                 cursor: "pointer",
-                color: "#059669",
-                fontWeight: 600,
+                color: "#64748b",
+                fontWeight: 700,
+                fontSize: "0.75rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                "&:hover": { color: "#2563eb" },
+                ml: "auto",
               }}
               onClick={() => {
                 setSearchName("");
@@ -554,78 +605,88 @@ const MembersPage = () => {
                 setFilterLocation("");
               }}
             >
-              Clear Filters
+              Reset Filters
             </Typography>
           </div>
         </Card>
 
         {/* TABLE */}
         <Card
+          elevation={0}
           sx={{
-            borderRadius: 3,
-            boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1)",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
             overflow: "hidden",
           }}
         >
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table className="min-w-max">
-                <TableHead sx={{ backgroundColor: "#f8fafc" }}>
+                <TableHead sx={tableHeaderSx}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
-                      ID
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
-                      NAME
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
-                      PHONE
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
-                      ADDRESS
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
-                      STATUS
-                    </TableCell>
-                    <TableCell
-                      sx={{ fontWeight: 700, color: "#475569" }}
-                      align="center"
-                    >
-                      ACTIONS
-                    </TableCell>
+                    <TableCell>ID</TableCell>
+                    <TableCell>NAME</TableCell>
+                    <TableCell>PHONE</TableCell>
+                    <TableCell>ADDRESS</TableCell>
+                    <TableCell align="center">STATUS</TableCell>
+                    <TableCell align="center">ACTIONS</TableCell>
                   </TableRow>
                 </TableHead>
 
                 <TableBody>
                   {members.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>{m.id.slice(-6).toUpperCase()}</TableCell>
-                      {/* shortened ID for display, optional but cleaner */}
-                      <TableCell>{m.name}</TableCell>
-                      <TableCell>{m.phone}</TableCell>
-                      <TableCell>{m.address}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            m.status === "Active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {m.status}
-                        </span>
+                    <TableRow
+                      key={m.id}
+                      sx={{
+                        "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                        "&:hover": { backgroundColor: "#f1f5f9" },
+                      }}
+                    >
+                      <TableCell
+                        sx={{
+                          fontWeight: 700,
+                          color: "#64748b",
+                          fontSize: "11px",
+                        }}
+                      >
+                        #{m.id.slice(-6).toUpperCase()}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                        {m.name}
+                      </TableCell>
+                      <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                        {m.phone}
+                      </TableCell>
+                      <TableCell sx={{ color: "#64748b", fontSize: "13px" }}>
+                        {m.address}
+                      </TableCell>
+                      <TableCell align="center">
+                        <StatusPill status={m.status} />
                       </TableCell>
 
                       <TableCell align="center">
-                        <IconButton onClick={(e) => handleMenuOpen(e, m)}>
-                          <MoreVertIcon />
+                        <IconButton
+                          onClick={(e) => handleMenuOpen(e, m)}
+                          sx={{
+                            color: "#64748b",
+                            "&:hover": {
+                              color: "#1e293b",
+                              backgroundColor: "#f1f5f9",
+                            },
+                          }}
+                        >
+                          <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}
                   {members.length === 0 && !loading && (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell
+                        colSpan={6}
+                        align="center"
+                        sx={{ py: 8, color: "#94a3b8" }}
+                      >
                         No members found
                       </TableCell>
                     </TableRow>
@@ -653,28 +714,63 @@ const MembersPage = () => {
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={handleMenuClose}
+          elevation={3}
+          sx={{
+            "& .MuiPaper-root": {
+              borderRadius: "12px",
+              minWidth: "160px",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              border: "1px solid #f1f5f9",
+            },
+          }}
         >
           <MenuItem
             onClick={() =>
               (window.location.href = `/members/${selectedMember?.id}`)
             }
+            sx={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", py: 1 }}
           >
             View Details
           </MenuItem>
-          <MenuItem onClick={handleEditMember}>Edit</MenuItem>
-          <MenuItem sx={{ color: "red" }} onClick={handleDelete}>
+          <MenuItem
+            onClick={handleEditMember}
+            sx={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", py: 1 }}
+          >
+            Edit
+          </MenuItem>
+          <Divider sx={{ my: 0.5, borderColor: "#f1f5f9" }} />
+          <MenuItem
+            onClick={handleDelete}
+            sx={{ fontWeight: 600, color: "#ef4444", fontSize: "14px", py: 1 }}
+          >
             Delete
           </MenuItem>
         </Menu>
 
         {/* MODAL */}
-        <Dialog open={openModal} onClose={() => setOpenModal(false)} fullWidth>
-          <DialogTitle>{isEdit ? "Edit Member" : "Add Member"}</DialogTitle>
+        <Dialog
+          open={openModal}
+          onClose={() => setOpenModal(false)}
+          fullWidth
+          sx={{
+            "& .MuiPaper-root": {
+              borderRadius: "16px",
+              padding: "20px",
+            },
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 800, color: "#1e293b", pb: 1 }}>
+            {isEdit ? "Edit Member" : "Add Member"}
+          </DialogTitle>
           <DialogContent>
             <TextField
               fullWidth
-              sx={{ mb: 3, mt: 1 }}
-              label="Name"
+              sx={{
+                mb: 3,
+                mt: 1,
+                "& .MuiOutlinedInput-root": { borderRadius: "10px" },
+              }}
+              placeholder="Full Name"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -705,14 +801,14 @@ const MembersPage = () => {
                   width: "100%",
                   height: "56px",
                   fontSize: "16px",
-                  borderRadius: "4px",
-                  borderColor: "#c4c4c4",
+                  borderRadius: "10px",
+                  borderColor: "#cbd5e1",
                 }}
                 countrySelectorStyleProps={{
                   buttonStyle: {
                     height: "56px",
-                    borderRadius: "4px 0 0 4px",
-                    borderColor: "#c4c4c4",
+                    borderRadius: "10px 0 0 10px",
+                    borderColor: "#cbd5e1",
                   },
                 }}
               />
@@ -720,8 +816,11 @@ const MembersPage = () => {
 
             <TextField
               fullWidth
-              sx={{ mb: 3 }}
-              label="Email"
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": { borderRadius: "10px" },
+              }}
+              placeholder="Email Address"
               value={formData.email}
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
@@ -732,8 +831,11 @@ const MembersPage = () => {
               fullWidth
               multiline
               rows={2}
-              sx={{ mb: 3 }}
-              label="Address"
+              sx={{
+                mb: 3,
+                "& .MuiOutlinedInput-root": { borderRadius: "10px" },
+              }}
+              placeholder="Physical Address"
               value={formData.address}
               onChange={(e) =>
                 setFormData({ ...formData, address: e.target.value })
@@ -742,13 +844,13 @@ const MembersPage = () => {
 
             {isEdit && (
               <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Status</InputLabel>
                 <Select
                   value={formData.status}
-                  label="Status"
+                  displayEmpty
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.value })
                   }
+                  sx={{ borderRadius: "10px" }}
                 >
                   <MenuItem value="Active">Active</MenuItem>
                   <MenuItem value="Inactive">Inactive</MenuItem>
@@ -767,13 +869,13 @@ const MembersPage = () => {
               {/* Add Chit Row */}
               <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel>Add a Chit</InputLabel>
                   <Select
                     value={selectedChitForAdd}
-                    label="Add a Chit"
+                    displayEmpty
                     onChange={(e) => setSelectedChitForAdd(e.target.value)}
+                    sx={{ borderRadius: "8px" }}
                   >
-                    <MenuItem value="">Select Chit</MenuItem>
+                    <MenuItem value="">Select a Chit to Add</MenuItem>
                     {chits
                       .filter(
                         (c) =>
@@ -978,9 +1080,29 @@ const MembersPage = () => {
             )}
           </DialogContent>
 
-          <DialogActions>
-            <Button onClick={() => setOpenModal(false)}>Cancel</Button>
-            <Button variant="contained" onClick={handleSaveMember}>
+          <DialogActions sx={{ px: 3, pb: 4, gap: 1 }}>
+            <Button
+              onClick={() => setOpenModal(false)}
+              sx={{
+                color: "#64748b",
+                fontWeight: 700,
+                textTransform: "uppercase",
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveMember}
+              sx={{
+                borderRadius: "8px",
+                px: 3,
+                fontWeight: 700,
+                backgroundColor: "#2563eb",
+                textTransform: "uppercase",
+                "&:hover": { backgroundColor: "#1d4ed8" },
+              }}
+            >
               Save
             </Button>
           </DialogActions>
