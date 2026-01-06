@@ -52,11 +52,19 @@ const createPayment = async (req, res) => {
     const dateObj = pDate ? new Date(pDate) : new Date();
     const { paymentMonth, paymentYear } = getMonthYear(dateObj);
 
+    // Get member's slots for this chit
+    const member = await Member.findById(memberId);
+    const chitAssignment = member?.chits?.find(
+      (c) => c.chitId.toString() === chitId.toString()
+    );
+    const slots = chitAssignment?.slots || 1;
+
     const payment = await Payment.create({
       chitId,
       memberId,
       paymentMonth,
       paymentYear,
+      slots,
       paidAmount: Number(paidAmount),
       penaltyAmount: calculatedPenalty,
       dueDate,
@@ -85,7 +93,8 @@ const createPayment = async (req, res) => {
 
     // CALCULATE STATUS PER MONTH
     Object.values(monthlySummary).forEach((m) => {
-      if (m.totalPaid >= chit.monthlyPayableAmount) m.status = "paid";
+      const totalRequired = chit.monthlyPayableAmount * slots;
+      if (m.totalPaid >= totalRequired) m.status = "paid";
       else if (m.totalPaid > 0) m.status = "partial";
     });
 
@@ -175,7 +184,12 @@ const getPayments = async (req, res) => {
           computedStatus: {
             $cond: {
               if: {
-                $gte: ["$paidAmount", "$chitDetails.monthlyPayableAmount"],
+                $gte: [
+                  "$paidAmount",
+                  {
+                    $multiply: ["$chitDetails.monthlyPayableAmount", "$slots"],
+                  },
+                ],
               },
               then: "paid",
               else: {
@@ -358,11 +372,14 @@ const getPaymentHistory = async (req, res) => {
 
     const enrichedPayments = payments.map((p) => {
       const payment = p.toObject();
+      const slots = payment.slots || 1;
+      const totalRequired = chit.monthlyPayableAmount * slots;
+
       payment.totalPaid =
         (payment.paidAmount || 0) + (payment.penaltyAmount || 0);
-      payment.monthlyPayableAmount = chit.monthlyPayableAmount;
+      payment.monthlyPayableAmount = totalRequired;
 
-      if (payment.paidAmount >= chit.monthlyPayableAmount) {
+      if (payment.paidAmount >= totalRequired) {
         payment.status = "paid";
       } else if (new Date(payment.dueDate) < new Date()) {
         payment.status = "overdue";

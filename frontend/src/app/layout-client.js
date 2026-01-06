@@ -19,7 +19,7 @@ const ClientLayout = ({ children }) => {
         </>
       )}
 
-      <main className={`w-full ${!hideLayout ? "xl:pl-[300px]" : ""}`}>
+      <main className={`w-full ${!hideLayout ? "xl:pl-[300px] pt-20" : ""}`}>
         {children}
       </main>
     </>

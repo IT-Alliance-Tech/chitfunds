@@ -59,4 +59,6 @@ const chitSchema = new mongoose.Schema(
   }
 );
 
+chitSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("Chit", chitSchema);

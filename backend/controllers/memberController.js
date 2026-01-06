@@ -44,7 +44,12 @@ const addMember = async (req, res) => {
     }
 
     const chits = [];
-    for (const cid of finalChitIds) {
+    for (const assignment of finalChitIds) {
+      const cid =
+        typeof assignment === "object" ? assignment.chitId : assignment;
+      const slots =
+        typeof assignment === "object" ? Number(assignment.slots || 1) : 1;
+
       if (!mongoose.Types.ObjectId.isValid(cid)) {
         return sendResponse(
           res,
@@ -68,20 +73,29 @@ const addMember = async (req, res) => {
         );
       }
 
-      const currentCount = await Member.countDocuments({ "chits.chitId": cid });
+      // Check total slots taken for this chit
+      const membersInChit = await Member.find({ "chits.chitId": cid });
+      const totalSlotsTaken = membersInChit.reduce((sum, m) => {
+        const chitEntry = m.chits.find(
+          (c) => c.chitId.toString() === cid.toString()
+        );
+        return sum + (chitEntry?.slots || 1);
+      }, 0);
 
-      if (currentCount >= chit.membersLimit) {
+      if (totalSlotsTaken + slots > chit.membersLimit) {
         return sendResponse(
           res,
           400,
           "error",
-          `Chit member limit reached for ${chit.chitName}`,
+          `Chit member limit reached for ${chit.chitName}. Available slots: ${
+            chit.membersLimit - totalSlotsTaken
+          }`,
           null,
           "Validation Error"
         );
       }
 
-      chits.push({ chitId: cid, status: "Active" });
+      chits.push({ chitId: cid, slots, status: "Active" });
     }
 
     const member = await Member.create({
@@ -167,7 +181,8 @@ const getMembers = async (req, res) => {
         )
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limitNum),
+        .limit(limitNum)
+        .lean(),
       Member.countDocuments(query),
     ]);
 
@@ -283,7 +298,12 @@ const updateMember = async (req, res) => {
 
     if (Array.isArray(chitIds)) {
       const newChits = [];
-      for (const cid of chitIds) {
+      for (const assignment of chitIds) {
+        const cid =
+          typeof assignment === "object" ? assignment.chitId : assignment;
+        const slots =
+          typeof assignment === "object" ? Number(assignment.slots || 1) : 1;
+
         if (!mongoose.Types.ObjectId.isValid(cid)) {
           return sendResponse(
             res,
@@ -307,18 +327,27 @@ const updateMember = async (req, res) => {
           );
         }
 
-        const count = await Member.countDocuments({ "chits.chitId": cid });
+        // Calculate slots already taken in this chit by OTHER members
+        const otherMembersInChit = await Member.find({
+          _id: { $ne: id },
+          "chits.chitId": cid,
+        });
 
-        // Check limit if not already assigned
-        if (
-          count >= chit.membersLimit &&
-          !member.chits.some((c) => c.chitId.toString() === cid)
-        ) {
+        const totalOtherSlots = otherMembersInChit.reduce((sum, m) => {
+          const chitEntry = m.chits.find(
+            (c) => c.chitId.toString() === cid.toString()
+          );
+          return sum + (chitEntry?.slots || 1);
+        }, 0);
+
+        if (totalOtherSlots + slots > chit.membersLimit) {
           return sendResponse(
             res,
             400,
             "error",
-            `Chit member limit reached for ${chit.chitName}`,
+            `Chit member limit reached for ${chit.chitName}. Available slots: ${
+              chit.membersLimit - totalOtherSlots
+            }`,
             null,
             "Validation Error"
           );
@@ -326,6 +355,7 @@ const updateMember = async (req, res) => {
 
         newChits.push({
           chitId: cid,
+          slots,
           status: "Active",
           joinedAt: new Date(),
         });

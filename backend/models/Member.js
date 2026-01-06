@@ -36,6 +36,11 @@ const memberSchema = new mongoose.Schema(
           required: true,
           index: true,
         },
+        slots: {
+          type: Number,
+          default: 1,
+          min: 1,
+        },
         joinedAt: {
           type: Date,
           default: Date.now,
@@ -66,5 +71,8 @@ const memberSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+memberSchema.index({ "chits.chitId": 1, status: 1 });
+memberSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Member", memberSchema);
