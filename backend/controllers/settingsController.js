@@ -27,7 +27,7 @@ const getSettings = async (req, res) => {
 // 2. Update Settings
 const updateSettings = async (req, res) => {
   try {
-    const { termsAndConditions, companyName } = req.body;
+    const { termsAndConditions, companyName, paymentDueDate } = req.body;
 
     let settings = await Settings.findOne();
     if (!settings) {
@@ -39,6 +39,9 @@ const updateSettings = async (req, res) => {
     }
     if (companyName !== undefined) {
       settings.companyName = companyName;
+    }
+    if (paymentDueDate !== undefined) {
+      settings.paymentDueDate = paymentDueDate;
     }
 
     await settings.save();

@@ -510,11 +510,134 @@ const confirmPaymentByAdmin = async (req, res) => {
   }
 };
 
+const { generatePaymentsExcel } = require("../utils/excelExport");
+
+// export payments to excel
+const exportPaymentsExcel = async (req, res) => {
+  try {
+    const { chitId, memberId, paymentMode, status } = req.query;
+
+    const matchStage = {};
+    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+      matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+    }
+    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
+      matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+    }
+    if (paymentMode) {
+      matchStage.paymentMode = paymentMode;
+    }
+
+    const pipeline = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: "chits",
+          localField: "chitId",
+          foreignField: "_id",
+          as: "chitDetails",
+        },
+      },
+      { $unwind: "$chitDetails" },
+      {
+        $lookup: {
+          from: "members",
+          localField: "memberId",
+          foreignField: "_id",
+          as: "memberDetails",
+        },
+      },
+      { $unwind: "$memberDetails" },
+      {
+        $addFields: {
+          computedStatus: {
+            $cond: {
+              if: {
+                $gte: [
+                  "$paidAmount",
+                  {
+                    $multiply: [
+                      "$chitDetails.monthlyPayableAmount",
+                      { $ifNull: ["$slots", 1] },
+                    ],
+                  },
+                ],
+              },
+            },
+            then: "paid",
+            else: {
+              $cond: {
+                if: { $lt: ["$dueDate", new Date()] },
+                then: "overdue",
+                else: {
+                  $cond: {
+                    if: { $gt: ["$paidAmount", 0] },
+                    then: "partial",
+                    else: "pending",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    if (status) {
+      pipeline.push({ $match: { computedStatus: status } });
+    }
+
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({
+      $project: {
+        _id: 1,
+        invoiceNumber: 1,
+        paidAmount: 1,
+        penaltyAmount: 1,
+        paymentDate: 1,
+        paymentMode: 1,
+        status: "$computedStatus",
+        chitId: { chitName: "$chitDetails.chitName" },
+        memberId: {
+          name: "$memberDetails.name",
+          phone: "$memberDetails.phone",
+        },
+      },
+    });
+
+    const payments = await Payment.aggregate(pipeline);
+
+    const buffer = await generatePaymentsExcel(payments);
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=" + `Payments_Report_${Date.now()}.xlsx`
+    );
+
+    return res.end(buffer);
+  } catch (error) {
+    console.error("Excel Export Error:", error);
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "Internal Server Error",
+      null,
+      error.message
+    );
+  }
+};
+
 module.exports = {
   createPayment,
   getPayments,
   getPaymentById,
   getPaymentHistory,
   exportInvoicePdf,
+  exportPaymentsExcel,
   confirmPaymentByAdmin,
 };
