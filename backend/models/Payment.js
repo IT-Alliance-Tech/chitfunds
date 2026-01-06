@@ -28,6 +28,11 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
+    slots: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
     paidAmount: {
       type: Number,
       required: true,
@@ -69,5 +74,9 @@ const paymentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+paymentSchema.index({ chitId: 1, memberId: 1 });
+paymentSchema.index({ paymentYear: 1, paymentMonth: 1 });
+paymentSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Payment", paymentSchema);

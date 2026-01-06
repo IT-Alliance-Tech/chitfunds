@@ -127,6 +127,7 @@ export default function MemberDetailsPage() {
           duration: chitData.duration,
           membersLimit: chitData.membersLimit,
           status: c.status,
+          slots: c.slots || 1,
           monthlyPayableAmount: chitData.monthlyPayableAmount,
         };
       }
@@ -206,8 +207,18 @@ export default function MemberDetailsPage() {
 
                     <Typography>💰 Amount: ₹{chit.amount}</Typography>
                     <Typography>⏳ Duration: {chit.duration} months</Typography>
-                    <Typography>
-                      👥 Members Limit: {chit.membersLimit}
+                    <Typography>🎟️ Slots: {chit.slots}</Typography>
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        fontSize: "0.85rem",
+                        color: "text.secondary",
+                      }}
+                    >
+                      Monthly: ₹{chit.monthlyPayableAmount} per slot
+                    </Typography>
+                    <Typography fontWeight={700} sx={{ color: "#059669" }}>
+                      Total Monthly: ₹{chit.monthlyPayableAmount * chit.slots}
                     </Typography>
                     <Typography>Status: {chit.status}</Typography>
 
