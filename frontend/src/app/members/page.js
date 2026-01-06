@@ -31,6 +31,7 @@ import {
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 import ReactSelect from "react-select";
 import makeAnimated from "react-select/animated";
 import { apiRequest } from "@/config/api";
@@ -78,20 +79,20 @@ const MembersPage = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Form Data
   const [formData, setFormData] = useState({
     id: null,
     name: "",
     phone: "",
     email: "",
     address: "",
-    chitIds: [],
+    chitIds: [], // Stores [{ chitId, slots }]
     documents: [],
     status: "Active",
     sendEmail: false,
   });
 
   const [chitLimitError, setChitLimitError] = useState("");
+  const [selectedChitForAdd, setSelectedChitForAdd] = useState(""); // For the dropdown in Modal
 
   // Notification
   const [notification, setNotification] = useState({
@@ -130,19 +131,40 @@ const MembersPage = () => {
     fetchChits();
   }, []);
 
+  // Debounced Search Terms
+  const [debouncedSearchName, setDebouncedSearchName] = useState("");
+  const [debouncedSearchPhone, setDebouncedSearchPhone] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchName(searchName);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchName]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchPhone(searchPhone);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchPhone]);
+
   // Fetch Members (with Filters & Pagination)
   useEffect(() => {
-    fetchMembers();
+    const hasChitsLoaded = chits.length > 0 || filterChit === "";
+    // Only fetch if initial chits are loaded or if we don't care about the chit filter
+    if (hasChitsLoaded) {
+      fetchMembers();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     page,
     rowsPerPage,
     filterChit,
     filterStatus,
-    searchName,
-    searchPhone,
+    debouncedSearchName,
+    debouncedSearchPhone,
     filterLocation,
-    chits.length,
   ]);
   // Note: searchName and searchPhone might need debouncing in production,
   // but for now direct dependency is fine if user hits enter or types slow.
@@ -174,25 +196,8 @@ const MembersPage = () => {
 
       setTotalItems(paginationData.totalItems || 0);
 
-      // Format Members
+      // Format Members (using populated data directly from backend)
       const formattedMembers = membersArray.map((m) => {
-        const chitIds = (m.chits || [])
-          .map((c) =>
-            typeof c.chitId === "object" && c.chitId
-              ? c.chitId._id || c.chitId.id
-              : c.chitId
-          )
-          .filter(Boolean);
-
-        const chitDetails = chitIds.map((chitId) => {
-          const matchedChit = chits.find((ch) => ch.id === chitId);
-          return {
-            id: chitId,
-            name: matchedChit?.name || "Unknown Chit",
-            location: matchedChit?.location,
-          };
-        });
-
         return {
           id: m._id,
           name: m.name,
@@ -200,8 +205,16 @@ const MembersPage = () => {
           email: m.email,
           address: m.address,
           status: m.status,
-          chitIds,
-          chitDetails,
+          chitIds: (m.chits || []).map((c) => ({
+            chitId: c.chitId?._id || c.chitId,
+            slots: c.slots || 1,
+          })),
+          chitDetails: (m.chits || []).map((c) => ({
+            id: c.chitId?._id || c.chitId,
+            name: c.chitId?.chitName || "Unknown Chit",
+            location: c.chitId?.location,
+            slots: c.slots || 1,
+          })),
           documents: m.securityDocuments || [],
         };
       });
@@ -276,7 +289,7 @@ const MembersPage = () => {
       phone: selectedMember.phone,
       email: selectedMember.email,
       address: selectedMember.address,
-      chitIds: selectedMember.chitIds, // Already formatted as strings
+      chitIds: selectedMember.chitIds || [], // This is now [{ chitId, slots }]
       documents: selectedMember.documents || [],
       status: selectedMember.status,
       sendEmail: false,
@@ -364,35 +377,53 @@ const MembersPage = () => {
     <div className="flex min-h-screen bg-gray-100">
       <main className="flex-1 w-full min-w-0 p-4 sm:p-6">
         {/* HEADER */}
-        <div className="relative mb-6">
-          <div className="flex flex-col items-center gap-3 sm:hidden">
-            <Typography variant="h5" fontWeight={600} align="center">
-              Member Management
-            </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            mb: 6,
+            gap: 2,
+          }}
+        >
+          <Typography
+            variant="h4"
+            fontWeight={600}
+            sx={{
+              textAlign: "center",
+              color: "text.primary",
+              fontSize: { xs: "1.75rem", sm: "2.25rem" },
+            }}
+          >
+            Member Management
+          </Typography>
+          <Box
+            sx={{
+              position: { sm: "absolute" },
+              right: { sm: 0 },
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             <Button
+              fullWidth
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleAddMember}
+              sx={{
+                backgroundColor: "#0f172a",
+                borderRadius: "12px",
+                padding: "10px 24px",
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": { backgroundColor: "#1e293b" },
+              }}
             >
               Add Member
             </Button>
-          </div>
-
-          <div className="hidden sm:flex items-center justify-center px-16">
-            <Typography variant="h4" fontWeight={600} align="center">
-              Member Management
-            </Typography>
-            <div className="absolute right-0">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleAddMember}
-              >
-                Add Member
-              </Button>
-            </div>
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* FILTERS */}
         <Card sx={{ p: 2, mb: 3 }}>
@@ -512,7 +543,7 @@ const MembersPage = () => {
                 textAlign: { xs: "right", sm: "left" },
                 ml: { sm: "auto" },
                 cursor: "pointer",
-                color: "#2563eb",
+                color: "#059669",
                 fontWeight: 600,
               }}
               onClick={() => {
@@ -529,19 +560,38 @@ const MembersPage = () => {
         </Card>
 
         {/* TABLE */}
-        <Card>
+        <Card
+          sx={{
+            borderRadius: 3,
+            boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1)",
+            overflow: "hidden",
+          }}
+        >
           <CardContent className="p-0">
-            <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+            <div className="overflow-x-auto">
               <Table className="min-w-max">
-                <TableHead>
+                <TableHead sx={{ backgroundColor: "#f8fafc" }}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Address</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }} align="center">
-                      Actions
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
+                      ID
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
+                      NAME
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
+                      PHONE
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
+                      ADDRESS
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: "#475569" }}>
+                      STATUS
+                    </TableCell>
+                    <TableCell
+                      sx={{ fontWeight: 700, color: "#475569" }}
+                      align="center"
+                    >
+                      ACTIONS
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -558,8 +608,8 @@ const MembersPage = () => {
                         <span
                           className={`px-3 py-1 rounded-full text-sm font-semibold ${
                             m.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-600"
                           }`}
                         >
                           {m.status}
@@ -709,47 +759,151 @@ const MembersPage = () => {
             <div className="mb-6">
               <Typography
                 variant="body2"
-                sx={{ mb: 1, fontWeight: 500, color: "#666" }}
+                sx={{ mb: 1, fontWeight: 600, color: "#1e293b" }}
               >
                 Assigned Chits
               </Typography>
-              <ReactSelect
-                isMulti
-                components={animatedComponents}
-                options={chits.map((c) => ({
-                  value: c.id,
-                  label: `${c.name} - ${c.location}`,
-                }))}
-                value={chits
-                  .filter((c) => formData.chitIds.includes(c.id))
-                  .map((c) => ({
-                    value: c.id,
-                    label: `${c.name} - ${c.location}`,
-                  }))}
-                onChange={(selected) => {
-                  setChitLimitError("");
-                  setFormData({
-                    ...formData,
-                    chitIds: selected ? selected.map((s) => s.value) : [],
-                  });
-                }}
-                placeholder="Select chits..."
-                styles={{
-                  control: (base, state) => ({
-                    ...base,
-                    minHeight: "56px",
-                    borderColor: state.isFocused ? "#1976d2" : "#c4c4c4",
-                    boxShadow: state.isFocused ? "0 0 0 1px #1976d2" : "none",
-                    "&:hover": {
-                      borderColor: "#000",
-                    },
-                  }),
-                  multiValue: (base) => ({
-                    ...base,
-                    backgroundColor: "#e3f2fd",
-                  }),
-                }}
-              />
+
+              {/* Add Chit Row */}
+              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Add a Chit</InputLabel>
+                  <Select
+                    value={selectedChitForAdd}
+                    label="Add a Chit"
+                    onChange={(e) => setSelectedChitForAdd(e.target.value)}
+                  >
+                    <MenuItem value="">Select Chit</MenuItem>
+                    {chits
+                      .filter(
+                        (c) =>
+                          !formData.chitIds.some(
+                            (assignment) => assignment.chitId === c.id
+                          )
+                      )
+                      .map((c) => (
+                        <MenuItem key={c.id} value={c.id}>
+                          {c.name} - {c.location}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    if (!selectedChitForAdd) return;
+                    setFormData({
+                      ...formData,
+                      chitIds: [
+                        ...formData.chitIds,
+                        { chitId: selectedChitForAdd, slots: 1 },
+                      ],
+                    });
+                    setSelectedChitForAdd("");
+                  }}
+                  startIcon={<AddIcon />}
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  Add
+                </Button>
+              </Box>
+
+              {/* Assignments Table */}
+              {formData.chitIds.length > 0 && (
+                <Box
+                  sx={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Table size="small">
+                    <TableHead sx={{ backgroundColor: "#f8fafc" }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, fontSize: "12px" }}>
+                          CHIT NAME
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontWeight: 600, fontSize: "12px" }}
+                          align="center"
+                        >
+                          SLOTS
+                        </TableCell>
+                        <TableCell
+                          sx={{ fontWeight: 600, fontSize: "12px" }}
+                          align="center"
+                        >
+                          ACTION
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {formData.chitIds.map((assignment, index) => {
+                        const chitData = chits.find(
+                          (c) => c.id === assignment.chitId
+                        );
+                        return (
+                          <TableRow key={assignment.chitId}>
+                            <TableCell sx={{ fontSize: "13px" }}>
+                              <Typography variant="body2" fontWeight={500}>
+                                {chitData?.name || "Unknown"}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {chitData?.location || ""}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <TextField
+                                type="number"
+                                size="small"
+                                value={assignment.slots}
+                                inputProps={{
+                                  min: 1,
+                                  style: { textAlign: "center", width: "40px" },
+                                }}
+                                onChange={(e) => {
+                                  const val = Math.max(
+                                    1,
+                                    parseInt(e.target.value) || 1
+                                  );
+                                  const newChitIds = [...formData.chitIds];
+                                  newChitIds[index].slots = val;
+                                  setFormData({
+                                    ...formData,
+                                    chitIds: newChitIds,
+                                  });
+                                }}
+                                variant="standard"
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  const newChitIds = formData.chitIds.filter(
+                                    (_, i) => i !== index
+                                  );
+                                  setFormData({
+                                    ...formData,
+                                    chitIds: newChitIds,
+                                  });
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Box>
+              )}
+
               {chitLimitError && (
                 <Typography
                   variant="body2"

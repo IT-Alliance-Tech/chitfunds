@@ -101,7 +101,7 @@ const PaymentsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, filters]);
 
-// api calls
+  // api calls
 
   const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
     const queryParams = new URLSearchParams({
@@ -228,49 +228,66 @@ const PaymentsPage = () => {
   /* ================= RENDER ================= */
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6", padding: 24 }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        background: "#f3f4f6",
+        p: { xs: 2, sm: 3 },
+      }}
+    >
       <div className="max-w-[1300px] mx-auto space-y-6">
         {/* HEADER */}
-        <div
-          style={{
+        <Box
+          sx={{
             position: "relative",
             width: "100%",
             display: "flex",
-            flexDirection: "column",
+            flexDirection: { xs: "column", sm: "row" },
             alignItems: "center",
-            gap: 12,
+            justifyContent: "center",
+            gap: 2,
+            mb: { xs: 2, md: 0 },
           }}
         >
           <Typography
-            fontWeight={600}
+            fontWeight={800}
             sx={{
-              fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
-              color: "#000",
+              fontSize: { xs: "1.75rem", sm: "2.25rem", md: "2.5rem" },
+              color: "#1e293b",
               textAlign: "center",
+              flexGrow: 1,
             }}
           >
             Payment Management
           </Typography>
-
-          <Button
-            variant="contained"
+          <Box
             sx={{
-              position: { xs: "static", md: "absolute" },
-              right: { md: 0 },
-              top: { md: "50%" },
-              transform: { md: "translateY(-50%)" },
-              backgroundColor: "#1976d2",
-              "&:hover": { backgroundColor: "#1565c0" },
-            }}
-            onClick={() => {
-              setForm(initialFormState);
-              setMembers([]);
-              setOpenModal(true);
+              position: { sm: "absolute" },
+              right: { sm: 0 },
+              width: { xs: "100%", sm: "auto" },
             }}
           >
-            Add Payment
-          </Button>
-        </div>
+            <Button
+              fullWidth
+              variant="contained"
+              sx={{
+                backgroundColor: "#0f172a",
+                borderRadius: "12px",
+                padding: "10px 24px",
+                textTransform: "none",
+                fontWeight: 600,
+                "&:hover": { backgroundColor: "#1e293b" },
+              }}
+              onClick={() => {
+                setForm(initialFormState);
+                setMembers([]);
+                setOpenModal(true);
+              }}
+            >
+              Add Payment
+            </Button>
+          </Box>
+        </Box>
 
         {/* FILTERS */}
         <Card>
@@ -289,7 +306,11 @@ const PaymentsPage = () => {
               <Button
                 size="small"
                 onClick={resetFilters}
-                sx={{ textTransform: "uppercase", fontSize: "0.75rem" }}
+                sx={{
+                  textTransform: "uppercase",
+                  fontSize: "0.75rem",
+                  color: "#059669",
+                }}
               >
                 Reset Filters
               </Button>
@@ -448,8 +469,19 @@ const PaymentsPage = () => {
                               Number(p.penaltyAmount || 0)}
                         </TableCell>
                         <TableCell>{p.paymentMode}</TableCell>
-                        <TableCell sx={{ textTransform: "capitalize" }}>
-                          {p.status || "-"}
+                        <TableCell>
+                          <span
+                            className={`px-2 py-1 rounded-full text-[11px] font-semibold ${
+                              p.status === "paid"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : p.status === "pending" ||
+                                  p.status === "partial"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {(p.status || "pending").toUpperCase()}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -462,7 +494,15 @@ const PaymentsPage = () => {
                                 "_blank"
                               );
                             }}
-                            sx={{ mr: 1 }}
+                            sx={{
+                              mr: 1,
+                              borderColor: "#1e293b",
+                              color: "#1e293b",
+                              "&:hover": {
+                                borderColor: "#0f172a",
+                                backgroundColor: "#f1f5f9",
+                              },
+                            }}
                           >
                             PDF
                           </Button>
@@ -472,6 +512,14 @@ const PaymentsPage = () => {
                             onClick={() => {
                               setSelectedPayment(p);
                               setOpenViewModal(true);
+                            }}
+                            sx={{
+                              borderColor: "#1e293b",
+                              color: "#1e293b",
+                              "&:hover": {
+                                borderColor: "#0f172a",
+                                backgroundColor: "#f1f5f9",
+                              },
                             }}
                           >
                             View
@@ -566,11 +614,28 @@ const PaymentsPage = () => {
                 value={form.memberId}
                 onChange={(e) => {
                   const m = members.find((x) => x._id === e.target.value);
+
+                  // Find slots for this specific chit in member's assignments
+                  const chitAssignment = (m.chits || []).find(
+                    (c) => (c.chitId._id || c.chitId) === form.chitId
+                  );
+                  const slots = chitAssignment?.slots || 1;
+                  const baseAmount = Number(form.monthlyPayableAmount) || 0;
+                  // If form.monthlyPayableAmount was already set by Chit selection,
+                  // it might be the base amount. Let's ensure we use the base amount from the chit list.
+                  const selectedChit = chits.find((c) => c.id === form.chitId);
+                  const chitBaseAmount =
+                    selectedChit?.monthlyPayableAmount || 0;
+
+                  const totalPayable = chitBaseAmount * slots;
+
                   setForm((p) => ({
                     ...p,
                     memberId: m._id,
                     phone: m.phone,
                     location: m.address,
+                    monthlyPayableAmount: totalPayable,
+                    paidAmount: totalPayable,
                   }));
                 }}
               >
@@ -1004,7 +1069,7 @@ const PaymentsPage = () => {
           </Alert>
         </Snackbar>
       </div>
-    </div>
+    </Box>
   );
 };
 

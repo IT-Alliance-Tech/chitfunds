@@ -27,9 +27,9 @@ async function authMiddleware(req, res, next) {
         .json({ status: false, message: "Unauthorized - invalid token" });
     }
 
-    const admin = await Admin.findById(decoded.id).select(
-      "-password -accessKey"
-    );
+    const admin = await Admin.findById(decoded.id)
+      .select("-password -accessKey")
+      .lean();
     if (!admin) {
       return res
         .status(401)
@@ -40,13 +40,11 @@ async function authMiddleware(req, res, next) {
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    return res
-      .status(401)
-      .json({
-        status: false,
-        message: "Unauthorized",
-        error: { message: error.message },
-      });
+    return res.status(401).json({
+      status: false,
+      message: "Unauthorized",
+      error: { message: error.message },
+    });
   }
 }
 

@@ -76,7 +76,7 @@ const getChits = async (req, res) => {
     if (req.query.duration) query.duration = Number(req.query.duration);
 
     const [chits, totalItems] = await Promise.all([
-      Chit.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Chit.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       Chit.countDocuments(query),
     ]);
 
@@ -117,7 +117,7 @@ const getChitById = async (req, res) => {
       );
     }
 
-    const chit = await Chit.findById(id);
+    const chit = await Chit.findById(id).lean();
     if (!chit) {
       return sendResponse(
         res,
@@ -129,9 +129,11 @@ const getChitById = async (req, res) => {
       );
     }
 
-    const members = await Member.find({ "chits.chitId": chit._id }).sort({
-      createdAt: 1,
-    });
+    const members = await Member.find({ "chits.chitId": chit._id })
+      .sort({
+        createdAt: 1,
+      })
+      .lean();
 
     return sendResponse(
       res,
