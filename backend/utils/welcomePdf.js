@@ -1,5 +1,6 @@
 const PDFDocument = require("pdfkit");
 const path = require("path");
+const Settings = require("../models/Settings");
 
 /**
  * Format date to DD-MM-YYYY
@@ -62,8 +63,21 @@ exports.generateWelcomePDFBuffer = (member) => {
   console.log(
     `🚀 [DEBUG] Generating Welcome PDF for ${member.name} (Buffered Layout)`
   );
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
+      // Fetch dynamic settings
+      const settings = await Settings.findOne();
+      const termsAndConditions =
+        settings?.termsAndConditions?.length > 0
+          ? settings.termsAndConditions
+          : [
+              "Members must pay the monthly installment amount on or before the specified due date.",
+              "A penalty for late payment will be charged as per the management's policy (Standard 10%).",
+              "Members are not permitted to withdraw or leave the chit midway without settling all outstanding dues.",
+              "LNS CHITFUND reserves the right to take legal action in case of consistent payment defaults.",
+              "All disputes are subject to the jurisdiction of the local courts in Bangalore, Karnataka.",
+            ];
+
       const doc = new PDFDocument({
         size: "A4",
         margin: 50,
@@ -242,13 +256,7 @@ exports.generateWelcomePDFBuffer = (member) => {
         .fillColor(primaryColor)
         .text("TERMS AND CONDITIONS", 50);
       doc.moveDown(0.3);
-      const terms = [
-        "Members must pay the monthly installment amount on or before the specified due date.",
-        "A penalty for late payment will be charged as per the management's policy (Standard 10%).",
-        "Members are not permitted to withdraw or leave the chit midway without settling all outstanding dues.",
-        "LNS CHITFUND reserves the right to take legal action in case of consistent payment defaults.",
-        "All disputes are subject to the jurisdiction of the local courts in Bangalore, Karnataka.",
-      ];
+      const terms = termsAndConditions;
       terms.forEach((term, i) => {
         doc
           .fontSize(9)

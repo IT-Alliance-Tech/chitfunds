@@ -1,5 +1,6 @@
 const PDFDocument = require("pdfkit");
 const path = require("path");
+const Settings = require("../models/Settings");
 
 /**
  * Format date to DD-MM-YYYY
@@ -58,7 +59,7 @@ const drawTableRow = (doc, y, columns, options = {}) => {
  * @param {Object} res - Express response object
  * @param {Object} payment - Payment object with populated memberId and chitId
  */
-exports.generateInvoicePDF = (res, payment) => {
+exports.generateInvoicePDF = async (res, payment) => {
   console.log(
     `🚀 [DEBUG] Generating Invoice PDF for ${payment.invoiceNumber} (Multi-Page Fix)`
   );
@@ -82,6 +83,13 @@ exports.generateInvoicePDF = (res, payment) => {
     const primaryColor = "#000000";
     const secondaryColor = "#444444";
     const lightGrey = "#f9f9f9";
+
+    // Fetch dynamic settings
+    const settings = await Settings.findOne();
+    const termsAndConditions =
+      settings?.termsAndConditions?.length > 0
+        ? settings.termsAndConditions
+        : [];
 
     /* ================= 1. HEADER ================= */
     const logoPath = path.join(__dirname, "logo.png");
@@ -316,29 +324,7 @@ exports.generateInvoicePDF = (res, payment) => {
     });
     doc.moveDown(1.5);
 
-    /* ================= 8. TERMS & CONDITIONS ================= */
-    doc
-      .fontSize(10)
-      .font("Helvetica-Bold")
-      .fillColor(primaryColor)
-      .text("TERMS & CONDITIONS", 50);
-    const terms = [
-      "This receipt is valid only subject to the realization of the payment instrument.",
-      "Monthly installments must be paid on or before the due date.",
-      "Delayed payments attract penalty charges (10%) as per company policy.",
-      "All disputes are subject to the jurisdiction of courts in Bangalore.",
-      "Please preserve this document for all future correspondence.",
-    ];
-    terms.forEach((term, i) => {
-      doc
-        .fontSize(9)
-        .font("Helvetica")
-        .fillColor(secondaryColor)
-        .text(`${i + 1}. ${term}`, 50, doc.y + 1, { width: 500 });
-    });
-    doc.moveDown(1.2);
-
-    /* ================= 9. DECLARATION ================= */
+    /* ================= 8. DECLARATION ================= */
     doc
       .fontSize(10)
       .font("Helvetica-Bold")
@@ -356,7 +342,7 @@ exports.generateInvoicePDF = (res, payment) => {
       );
     doc.moveDown(1.5);
 
-    /* ================= 10. SIGNATURE SECTION ================= */
+    /* ================= 9. SIGNATURE SECTION ================= */
     const sigY = doc.y;
     if (sigY > doc.page.height - 120) {
       doc.addPage();
@@ -369,14 +355,33 @@ exports.generateInvoicePDF = (res, payment) => {
       .text("FOR LNS CHITFUND", 400, finalSigY, { align: "right" });
     doc.moveDown(1.5);
     doc
-      .fontSize(9)
-      .font("Helvetica")
-      .fillColor(secondaryColor)
-      .text("Authorized Signatory", 400, doc.y + 8, { align: "right" });
-    doc
       .fontSize(8)
       .font("Helvetica-Oblique")
       .text("(Digitally Signed)", 400, doc.y + 2, { align: "right" });
+
+    currentY = doc.y + 20;
+
+    /* ================= 10. TERMS & CONDITIONS ================= */
+    if (termsAndConditions && termsAndConditions.length > 0) {
+      if (currentY > doc.page.height - 150) {
+        doc.addPage();
+        currentY = 50;
+      }
+      doc
+        .fontSize(10)
+        .font("Helvetica-Bold")
+        .fillColor(primaryColor)
+        .text("TERMS AND CONDITIONS", 50, currentY);
+      doc.moveDown(0.3);
+      termsAndConditions.forEach((term, i) => {
+        doc
+          .fontSize(8)
+          .font("Helvetica")
+          .fillColor(secondaryColor)
+          .text(`${i + 1}. ${term}`, 50, doc.y + 1, { width: 500 });
+      });
+      doc.moveDown(1.2);
+    }
 
     /* ================= 11. GLOBAL FOOTER (Applied to all pages) ================= */
     const range = doc.bufferedPageRange();
