@@ -1,4 +1,5 @@
 const PDFDocument = require("pdfkit");
+const path = require("path");
 
 /**
  * Format date to DD-MM-YYYY
@@ -25,9 +26,6 @@ const drawTableRow = (doc, y, columns, options = {}) => {
     showBorders = true,
     borderBottom = true,
   } = options;
-
-  // If drawing near the bottom of the page, pdfkit might break.
-  // We'll let pdfkit handle it but provide a buffer.
 
   if (backgroundColor) {
     doc.rect(50, y, 500, height).fill(backgroundColor);
@@ -70,7 +68,7 @@ exports.generateWelcomePDFBuffer = (member) => {
         size: "A4",
         margin: 50,
         font: "Helvetica",
-        bufferPages: true, // Critical for multi-page footer handling
+        bufferPages: true,
       });
 
       const chunks = [];
@@ -83,24 +81,29 @@ exports.generateWelcomePDFBuffer = (member) => {
       const lightGrey = "#f9f9f9";
 
       /* ================= 1. HEADER ================= */
+      const logoPath = path.join(__dirname, "logo.png");
+
+      try {
+        // Position logo at top-left
+        doc.image(logoPath, 50, 40, { width: 55 });
+      } catch (err) {
+        console.error("Logo image not found for PDF:", err);
+      }
+
+      // Header text - vertically centered relative to the 55px logo
       doc
-        .fontSize(18)
+        .fontSize(16)
         .font("Helvetica-Bold")
         .fillColor(primaryColor)
-        .text("IT ALLIANCE TECH", { align: "center" });
+        .text("LNS CHITFUND", 115, 48, { align: "left" });
       doc
-        .fontSize(10)
+        .fontSize(9)
         .font("Helvetica")
         .fillColor(secondaryColor)
-        .text("Expert Chit Fund Management & Financial Services", {
-          align: "center",
+        .text("Expert Chit Fund Management & Financial Services", 115, 66, {
+          align: "left",
         });
-      doc.moveDown(0.2);
-      doc
-        .fontSize(8)
-        .fillColor("#999")
-        .text("[Company Logo Placeholder]", { align: "center" });
-      doc.moveDown(0.8);
+      doc.moveDown(3.2);
 
       /* ================= 2. TITLE ================= */
       doc
@@ -217,8 +220,6 @@ exports.generateWelcomePDFBuffer = (member) => {
             },
           ];
           currentY = drawTableRow(doc, currentY, bodyCols, { height: 20 });
-          // If currentY is too large, pdfkit will automatically add page.
-          // We need to update currentY to doc.y if that happens.
           if (currentY > doc.page.height - 100) {
             doc.addPage();
             currentY = doc.y;
@@ -231,7 +232,7 @@ exports.generateWelcomePDFBuffer = (member) => {
           .text("No chits assigned yet.", 50, currentY + 5);
         currentY += 20;
       }
-      doc.y = currentY; // Sync cursor
+      doc.y = currentY;
       doc.moveDown(1.2);
 
       /* ================= 6. TERMS & CONDITIONS ================= */
@@ -245,7 +246,7 @@ exports.generateWelcomePDFBuffer = (member) => {
         "Members must pay the monthly installment amount on or before the specified due date.",
         "A penalty for late payment will be charged as per the management's policy (Standard 10%).",
         "Members are not permitted to withdraw or leave the chit midway without settling all outstanding dues.",
-        "IT ALLIANCE TECH reserves the right to take legal action in case of consistent payment defaults.",
+        "LNS CHITFUND reserves the right to take legal action in case of consistent payment defaults.",
         "All disputes are subject to the jurisdiction of the local courts in Bangalore, Karnataka.",
       ];
       terms.forEach((term, i) => {
@@ -279,14 +280,14 @@ exports.generateWelcomePDFBuffer = (member) => {
       const sigY = doc.y;
       if (sigY > doc.page.height - 120) {
         doc.addPage();
-      } // ensure sig fits
+      }
       const finalSigY = doc.y;
       doc
         .fontSize(10)
         .font("Helvetica-Bold")
         .fillColor(primaryColor)
         .text("MEMBER SIGNATURE", 50, finalSigY);
-      doc.text("FOR IT ALLIANCE TECH", 400, finalSigY, { align: "right" });
+      doc.text("FOR LNS CHITFUND", 400, finalSigY, { align: "right" });
       doc.moveDown(2);
       doc.fontSize(9).font("Helvetica").text("________________________", 50);
       doc.text("________________________", 400, doc.y - 12, { align: "right" });
@@ -304,7 +305,7 @@ exports.generateWelcomePDFBuffer = (member) => {
           .stroke();
         doc.fontSize(8).font("Helvetica").fillColor("#999");
         doc.text(
-          "IT ALLIANCE TECH | www.italliancetech.com | support@italliancetech.com",
+          "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
           50,
           footerY + 8,
           { align: "center", width: 500 }

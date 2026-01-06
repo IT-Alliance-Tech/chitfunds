@@ -87,38 +87,33 @@ exports.generateInvoicePDF = (res, payment) => {
     const logoPath = path.join(__dirname, "logo.png");
 
     try {
-      doc.image(logoPath, 250, 45, { width: 100 });
-      doc.moveDown(4.5);
+      // Position logo at top-left
+      doc.image(logoPath, 50, 40, { width: 55 });
     } catch (err) {
       console.error("Logo image not found for PDF:", err);
-      doc
-        .fontSize(18)
-        .font("Helvetica-Bold")
-        .fillColor(primaryColor)
-        .text("LNS CHITFUND", { align: "center" });
-      doc.moveDown(0.5);
     }
 
+    // Header text - vertically centered relative to the 55px logo
     doc
-      .fontSize(14)
+      .fontSize(16)
       .font("Helvetica-Bold")
       .fillColor(primaryColor)
-      .text("LNS CHITFUND", { align: "center" });
+      .text("LNS CHITFUND", 115, 48, { align: "left" });
     doc
-      .fontSize(10)
+      .fontSize(9)
       .font("Helvetica")
       .fillColor(secondaryColor)
-      .text("Expert Chit Fund Management & Financial Services", {
-        align: "center",
+      .text("Expert Chit Fund Management & Financial Services", 115, 66, {
+        align: "left",
       });
-    doc.moveDown(1.5);
+    doc.moveDown(3.2);
 
     /* ================= 2. TITLE ================= */
     doc
       .fontSize(13)
       .font("Helvetica-Bold")
       .fillColor(primaryColor)
-      .text("TAX INVOICE / PAYMENT RECEIPT", {
+      .text("TAX INVOICE / PAYMENT RECEIPT", 50, doc.y, {
         align: "center",
         underline: false,
       });
