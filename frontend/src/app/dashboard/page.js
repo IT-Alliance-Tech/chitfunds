@@ -15,6 +15,8 @@ import {
   Box,
   Snackbar,
   Alert,
+  IconButton,
+  CircularProgress,
 } from "@mui/material";
 
 // Icons
@@ -24,6 +26,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import DownloadIcon from "@mui/icons-material/Download";
 
 import { apiRequest } from "@/config/api";
 
@@ -83,6 +86,68 @@ const Dashboard = () => {
     };
     fetchDashboard();
   }, []);
+
+  const [downloading, setDownloading] = useState(null);
+
+  const handleDownloadReport = async (type) => {
+    setDownloading(type);
+    try {
+      let endpoint = "";
+      let filename = "";
+
+      switch (type) {
+        case "Total Chits":
+          endpoint = "/reports/chits";
+          filename = "chits-report.xlsx";
+          break;
+        case "Total Members":
+          endpoint = "/reports/members";
+          filename = "members-report.xlsx";
+          break;
+        case "Total Paid":
+          endpoint = "/reports/payments";
+          filename = "payments-history-report.xlsx";
+          break;
+        case "Collected This Month":
+          endpoint = "/reports/monthly-collections";
+          filename = "monthly-collections-report.xlsx";
+          break;
+        default:
+          return;
+      }
+
+      // We use fetch directly for blob handling because apiRequest might be set to JSON
+      const token = localStorage.getItem("token");
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+      const response = await fetch(`${baseUrl}${endpoint}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to download report");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showNotification(`${type} report downloaded successfully`);
+    } catch (err) {
+      console.error("Download error:", err);
+      showNotification(`Failed to download ${type} report`, "error");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   if (loading) return <Box sx={{ p: 4, textAlign: "center" }}>Loading...</Box>;
   if (!data)
@@ -246,6 +311,7 @@ const Dashboard = () => {
       value: data.totalChits,
       icon: <AccountBalanceIcon />,
       color: "#3b82f6",
+      canDownload: true,
     },
     {
       label: "Active Chits",
@@ -271,6 +337,7 @@ const Dashboard = () => {
       value: data.totalMembers,
       icon: <GroupsIcon />,
       color: "#8b5cf6",
+      canDownload: true,
     },
     {
       label: "Active Members",
@@ -290,6 +357,7 @@ const Dashboard = () => {
       icon: <MonetizationOnIcon />,
       color: "#16a34a",
       isCircle: true,
+      canDownload: true,
     },
     {
       label: "Collected This Month",
@@ -297,6 +365,7 @@ const Dashboard = () => {
       icon: <MonetizationOnIcon />,
       color: "#22c55e",
       isCircle: true,
+      canDownload: true,
     },
     {
       label: "Remaining Amount",
@@ -385,6 +454,29 @@ const Dashboard = () => {
                     {item.value}
                   </Typography>
                 </Box>
+
+                {item.canDownload && (
+                  <Box sx={{ ml: "auto" }}>
+                    <IconButton
+                      size="small"
+                      disabled={downloading === item.label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadReport(item.label);
+                      }}
+                      sx={{
+                        color: item.color,
+                        "&:hover": { backgroundColor: `${item.color}15` },
+                      }}
+                    >
+                      {downloading === item.label ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        <DownloadIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           ))}

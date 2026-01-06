@@ -12,10 +12,15 @@ const settingsSchema = new mongoose.Schema(
         "All disputes are subject to the jurisdiction of the local courts in Bangalore, Karnataka.",
       ],
     },
-    // Future settings can be added here
     companyName: {
       type: String,
       default: "LNS CHITFUND",
+    },
+    paymentDueDate: {
+      type: Number,
+      default: 10,
+      min: 1,
+      max: 31,
     },
   },
   { timestamps: true }

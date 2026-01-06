@@ -9,6 +9,7 @@ const memberRoutes = require("./routes/memberRoutes");
 const paymentRoutes = require("./routes/paymentsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/member", memberRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Health check
 const sendResponse = require("./utils/response");

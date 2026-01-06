@@ -30,6 +30,7 @@ import {
   Divider,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { apiRequest } from "@/config/api";
 
 const getStatusColor = (status) => {
@@ -248,6 +249,43 @@ const PaymentsPage = () => {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const q = new URLSearchParams(filters).toString();
+      const response = await apiRequest(
+        `/payment/export/excel?${q}`,
+        "GET",
+        null,
+        {
+          responseType: "blob",
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Payments_Report_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setSnackbar({
+        open: true,
+        message: "Excel report exported successfully",
+        severity: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      setSnackbar({
+        open: true,
+        message: "Failed to export Excel report",
+        severity: "error",
+      });
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -308,6 +346,29 @@ const PaymentsPage = () => {
               }}
             >
               ADD PAYMENT
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              sx={{
+                mt: { xs: 1, sm: 0 },
+                ml: { sm: 2 },
+                borderRadius: "8px",
+                padding: "10px 24px",
+                textTransform: "uppercase",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                borderColor: "#10b981",
+                color: "#10b981",
+                "&:hover": {
+                  borderColor: "#059669",
+                  backgroundColor: "rgba(16, 185, 129, 0.04)",
+                },
+              }}
+              onClick={handleExportExcel}
+            >
+              EXCEL
             </Button>
           </Box>
         </Box>
