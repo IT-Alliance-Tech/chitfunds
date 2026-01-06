@@ -1,45 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
+  Box,
   Card,
   CardContent,
   Typography,
   Button,
+  Grid,
   Table,
-  TableHead,
   TableBody,
-  TableRow,
   TableCell,
-  TablePagination,
+  TableHead,
+  TableRow,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  Select,
-  useMediaQuery,
-  Grid,
-  Box,
+  CircularProgress,
   Snackbar,
   Alert,
+  IconButton,
+  Tooltip,
   Divider,
 } from "@mui/material";
-
-import { apiRequest, BASE_URL } from "@/config/api";
 import AddIcon from "@mui/icons-material/Add";
+import { apiRequest } from "@/config/api";
 
 const getStatusColor = (status) => {
   const s = status?.toLowerCase();
-  if (["active", "paid", "upcoming"].includes(s))
+  if (["active", "paid", "success"].includes(s))
     return { bg: "#dcfce7", text: "#166534" }; // Green
-  if (["inactive", "overdue", "closed", "completed"].includes(s))
+  if (["inactive", "overdue", "closed", "failed", "pending"].includes(s))
     return { bg: "#fee2e2", text: "#991b1b" }; // Red
-  if (["partial", "pending"].includes(s))
-    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  if (["partial"].includes(s)) return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
   return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
 };
 
@@ -78,130 +77,88 @@ const StatusPill = ({ status }) => {
   );
 };
 
-// initial form state
-const initialFormState = {
-  chitId: "",
-  memberId: "",
-  phone: "",
-  location: "",
-  paymentMonth: "",
-  paymentYear: "",
-  paidAmount: "",
-  penaltyAmount: "",
-  paymentMode: "",
-  dueDate: "",
-  paymentDate: "",
-  monthlyPayableAmount: "",
-  interestPercent: 0,
-};
-
-// initial filter state
-const initialFilterState = {
-  chitId: "",
-  memberId: "",
-  paymentMode: "",
-  status: "",
-};
-
 const PaymentsPage = () => {
-  const isMobile = useMediaQuery("(max-width:600px)");
-
-  // State
   const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [chits, setChits] = useState([]);
-  const [members, setMembers] = useState([]); // For Add Payment Modal
-  const [filterMembers, setFilterMembers] = useState([]); // For Filter Dropdown
+  const [filterMembers, setFilterMembers] = useState([]);
+  const [filters, setFilters] = useState({
+    chitId: "",
+    memberId: "",
+    paymentMode: "",
+    status: "",
+  });
 
-  // Modals & UI State
+  // Modal State
   const [openModal, setOpenModal] = useState(false);
+  const [members, setMembers] = useState([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
+  const initialFormState = {
+    memberId: "",
+    chitId: "",
+    paidAmount: "",
+    penaltyAmount: 0,
+    paymentDate: new Date().toISOString().split("T")[0],
+    paymentMode: "cash",
+    paymentMonth: new Date().toLocaleString("default", {
+      month: "long",
+      year: "numeric",
+    }),
+  };
+  const [form, setForm] = useState(initialFormState);
+
+  // View Modal
   const [openViewModal, setOpenViewModal] = useState(false);
-  const [openPreviewModal, setOpenPreviewModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // Forms & Filters
-  const [form, setForm] = useState(initialFormState);
-  const [filters, setFilters] = useState(initialFilterState);
+  // Preview Modal
+  const [openPreviewModal, setOpenPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
-  // Pagination
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // Notifications
+  // Notification
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
-
-  // effects
-
   useEffect(() => {
+    fetchPayments();
     fetchChits();
-  }, []);
+  }, [filters]);
 
-  useEffect(() => {
-    fetchPayments(page, rowsPerPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, filters]);
-
-  // api calls
-
-  const fetchPayments = async (pageNum = page, pageSize = rowsPerPage) => {
-    const queryParams = new URLSearchParams({
-      page: (pageNum + 1).toString(),
-      limit: pageSize.toString(),
-    });
-
-    if (filters.chitId) queryParams.append("chitId", filters.chitId);
-    if (filters.memberId) queryParams.append("memberId", filters.memberId);
-    if (filters.paymentMode)
-      queryParams.append("paymentMode", filters.paymentMode);
-    if (filters.status) queryParams.append("status", filters.status);
-
+  const fetchPayments = async () => {
+    setLoading(true);
     try {
-      const res = await apiRequest(`/payment/list?${queryParams.toString()}`);
-      const paymentData = res?.data?.items || [];
-      const pagination = res?.data?.pagination || { totalItems: 0 };
-
-      setPayments(paymentData);
-      setTotalCount(pagination.totalItems);
-    } catch (error) {
-      console.error("Failed to fetch payments", error);
+      const q = new URLSearchParams(filters).toString();
+      const res = await apiRequest(`/payment/list?${q}`);
+      const list = res?.data?.items || res?.data?.payments || res?.data || [];
+      const total = res?.data?.pagination?.totalItems || res?.data?.total || 0;
+      setPayments(list);
+      setTotalCount(total);
+    } catch (err) {
+      console.error(err);
+      setPayments([]);
+      setTotalCount(0);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchChits = async () => {
     try {
-      const res = await apiRequest("/chit/list?limit=1000");
-      const items = res?.data?.items || [];
-
-      const formatted = items.map((c) => ({
-        id: c._id,
-        _id: c._id,
-        chitName: c.chitName,
-        duedate: c.calculatedDueDate || c.startDate,
-        ...c, // include other props just in case
-      }));
-
-      setChits(formatted);
-    } catch (error) {
-      console.error("Failed to fetch chits", error);
-      setChits([]);
-    }
-  };
-
-  const fetchMembersByChit = async (chitId) => {
-    if (!chitId) return;
-    try {
-      const res = await apiRequest(`/chit/details/${chitId}`);
-      setMembers(res?.data?.members || []);
-    } catch {
-      setMembers([]);
+      const res = await apiRequest("/chit/list?limit=100");
+      const list = res.data.items || res.data.chits || res.data || [];
+      setChits(
+        list.map((c) => ({
+          id: c._id || c.id,
+          chitName: c.chitName,
+        }))
+      );
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -211,90 +168,105 @@ const PaymentsPage = () => {
       return;
     }
     try {
-      const res = await apiRequest(`/chit/details/${chitId}`);
-      setFilterMembers(res?.data?.members || []);
-    } catch {
-      setFilterMembers([]);
+      const res = await apiRequest(`/chit/${chitId}`);
+      setFilterMembers(res.data.members || []);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  /* ================= HELPERS ================= */
-
-  const resetFilters = () => {
-    setFilters(initialFilterState);
-    setFilterMembers([]);
-    setPage(0);
+  const fetchMembers = async (chitId) => {
+    if (!chitId) return;
+    try {
+      const res = await apiRequest(`/chit/${chitId}`);
+      setMembers(res.data.members || []);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  /* ================= ACTIONS ================= */
+  const resetFilters = () => {
+    setFilters({
+      chitId: "",
+      memberId: "",
+      paymentMode: "",
+      status: "",
+    });
+    setFilterMembers([]);
+  };
 
-  const savePayment = async () => {
-    const payload = {
-      chitId: form.chitId,
-      memberId: form.memberId,
-      paidAmount: Number(form.paidAmount),
-      penaltyAmount: Number(form.penaltyAmount || 0),
-      paymentMonth: form.paymentMonth,
-      paymentYear: Number(form.paymentYear),
-      dueDate: form.dueDate,
-      paymentDate: form.paymentDate,
-      paymentMode: form.paymentMode,
-      interestPercent: Number(form.interestPercent || 0),
-    };
-
-    try {
-      const res = await apiRequest("/payment/create", "POST", payload);
-
-      setOpenModal(false);
-      setOpenPreviewModal(false);
-      setForm(initialFormState);
-      setMembers([]);
+  const handleCreatePayment = async () => {
+    if (!form.memberId || !form.chitId || !form.paidAmount) {
       setSnackbar({
         open: true,
-        message: "Payment successful!",
+        message: "Please fill all required fields",
+        severity: "warning",
+      });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      await apiRequest("/payment/create", "POST", form);
+      setSnackbar({
+        open: true,
+        message: "Payment recorded successfully",
         severity: "success",
       });
+      setOpenModal(false);
+      setOpenPreviewModal(false);
       fetchPayments();
-
-      if (res?.data?.payment?._id) {
-        const token = localStorage.getItem("token");
-        window.open(
-          `${BASE_URL}/payment/invoice/${res.data.payment._id}?token=${token}`,
-          "_blank"
-        );
-      }
-    } catch (error) {
-      console.error("Failed to save payment", error);
+    } catch (err) {
       setSnackbar({
         open: true,
-        message: error.message || "Failed to save payment",
+        message: err.message || "Failed to record payment",
+        severity: "error",
+      });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handleExportPDF = async (id) => {
+    try {
+      const response = await apiRequest(`/payment/invoice/${id}`, "GET", null, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `invoice-${id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "Failed to export PDF",
         severity: "error",
       });
     }
   };
 
-  /* ================= RENDER ================= */
-
   return (
     <Box
       sx={{
+        p: { xs: 2, sm: 4 },
+        backgroundColor: "#f8fafc",
         minHeight: "100vh",
-        background: "#f3f4f6",
-        p: { xs: 2, sm: 3 },
       }}
     >
-      <div className="max-w-[1300px] mx-auto space-y-6">
+      <Box sx={{ maxWidth: "1400px", margin: "0 auto" }}>
         {/* HEADER */}
         <Box
           sx={{
-            position: "relative",
-            width: "100%",
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
-            alignItems: "center",
             justifyContent: "center",
+            alignItems: "center",
+            mb: 4,
             gap: 2,
-            mb: 6,
+            position: "relative",
           }}
         >
           <Typography
@@ -344,10 +316,11 @@ const PaymentsPage = () => {
         <Card
           elevation={0}
           sx={{
-            p: 2.5,
+            p: 3,
             mb: 4,
             borderRadius: "16px",
             border: "1px solid #e2e8f0",
+            backgroundColor: "white",
           }}
         >
           <CardContent sx={{ p: 0 }}>
@@ -368,12 +341,10 @@ const PaymentsPage = () => {
               <Typography
                 sx={{
                   cursor: "pointer",
-                  color: "#64748b",
+                  color: "#2563eb",
                   fontWeight: 700,
-                  fontSize: "0.75rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  "&:hover": { color: "#2563eb" },
+                  fontSize: "0.85rem",
+                  "&:hover": { textDecoration: "underline" },
                 }}
                 onClick={resetFilters}
               >
@@ -381,92 +352,162 @@ const PaymentsPage = () => {
               </Typography>
             </Box>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={filters.chitId}
-                    displayEmpty
-                    sx={{ borderRadius: "10px" }}
-                    onChange={(e) => {
-                      const cid = e.target.value;
-                      setFilters((p) => ({
-                        ...p,
-                        chitId: cid,
-                        memberId: "",
-                      }));
-                      fetchFilterMembers(cid);
-                    }}
-                  >
-                    <MenuItem value="">All Chits</MenuItem>
-                    {chits.map((c) => (
-                      <MenuItem key={c.id} value={c.id}>
-                        {c.chitName}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={filters.memberId}
-                    displayEmpty
-                    sx={{ borderRadius: "10px" }}
-                    disabled={!filters.chitId}
-                    onChange={(e) =>
-                      setFilters((p) => ({ ...p, memberId: e.target.value }))
-                    }
-                  >
-                    <MenuItem value="">
-                      {!filters.chitId ? "Select Chit First" : "All Members"}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
+                },
+                gap: 2.5,
+              }}
+            >
+              <FormControl fullWidth size="small">
+                <InputLabel
+                  shrink
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "#475569",
+                    mb: 0.5,
+                    position: "static",
+                    transform: "none",
+                  }}
+                >
+                  CHIT NAME
+                </InputLabel>
+                <Select
+                  value={filters.chitId}
+                  displayEmpty
+                  sx={{
+                    borderRadius: "8px",
+                    mt: 0.5,
+                    backgroundColor: "#f8fafc",
+                  }}
+                  onChange={(e) => {
+                    const cid = e.target.value;
+                    setFilters((p) => ({
+                      ...p,
+                      chitId: cid,
+                      memberId: "",
+                    }));
+                    fetchFilterMembers(cid);
+                  }}
+                >
+                  <MenuItem value="">All Chits</MenuItem>
+                  {chits.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.chitName}
                     </MenuItem>
-                    {filterMembers.map((m) => (
-                      <MenuItem key={m._id} value={m._id}>
-                        {m.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+                  ))}
+                </Select>
+              </FormControl>
 
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={filters.paymentMode}
-                    displayEmpty
-                    sx={{ borderRadius: "10px" }}
-                    onChange={(e) =>
-                      setFilters((p) => ({ ...p, paymentMode: e.target.value }))
-                    }
-                  >
-                    <MenuItem value="">All Modes</MenuItem>
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="online">Online</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+              <FormControl fullWidth size="small">
+                <InputLabel
+                  shrink
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "#475569",
+                    mb: 0.5,
+                    position: "static",
+                    transform: "none",
+                  }}
+                >
+                  MEMBER
+                </InputLabel>
+                <Select
+                  value={filters.memberId}
+                  displayEmpty
+                  sx={{
+                    borderRadius: "8px",
+                    mt: 0.5,
+                    backgroundColor: "#f8fafc",
+                  }}
+                  disabled={!filters.chitId}
+                  onChange={(e) =>
+                    setFilters((p) => ({ ...p, memberId: e.target.value }))
+                  }
+                >
+                  <MenuItem value="">
+                    {!filters.chitId ? "Select Chit First" : "All Members"}
+                  </MenuItem>
+                  {filterMembers.map((m) => (
+                    <MenuItem key={m._id} value={m._id}>
+                      {m.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={filters.status}
-                    displayEmpty
-                    sx={{ borderRadius: "10px" }}
-                    onChange={(e) =>
-                      setFilters((p) => ({ ...p, status: e.target.value }))
-                    }
-                  >
-                    <MenuItem value="">All Status</MenuItem>
-                    <MenuItem value="paid">Paid</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="overdue">Overdue</MenuItem>
-                    <MenuItem value="partial">Partial</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
+              <FormControl fullWidth size="small">
+                <InputLabel
+                  shrink
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "#475569",
+                    mb: 0.5,
+                    position: "static",
+                    transform: "none",
+                  }}
+                >
+                  PAYMENT MODE
+                </InputLabel>
+                <Select
+                  value={filters.paymentMode}
+                  displayEmpty
+                  sx={{
+                    borderRadius: "8px",
+                    mt: 0.5,
+                    backgroundColor: "#f8fafc",
+                  }}
+                  onChange={(e) =>
+                    setFilters((p) => ({ ...p, paymentMode: e.target.value }))
+                  }
+                >
+                  <MenuItem value="">All Modes</MenuItem>
+                  <MenuItem value="cash">Cash</MenuItem>
+                  <MenuItem value="online">Online</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small">
+                <InputLabel
+                  shrink
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "#475569",
+                    mb: 0.5,
+                    position: "static",
+                    transform: "none",
+                  }}
+                >
+                  STATUS
+                </InputLabel>
+                <Select
+                  value={filters.status}
+                  displayEmpty
+                  sx={{
+                    borderRadius: "8px",
+                    mt: 0.5,
+                    backgroundColor: "#f8fafc",
+                  }}
+                  onChange={(e) =>
+                    setFilters((p) => ({ ...p, status: e.target.value }))
+                  }
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="paid">Paid</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="overdue">Overdue</MenuItem>
+                  <MenuItem value="partial">Partial</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
 
             <Typography
               variant="body2"
@@ -489,6 +530,7 @@ const PaymentsPage = () => {
             borderRadius: "16px",
             border: "1px solid #e2e8f0",
             overflow: "hidden",
+            backgroundColor: "white",
           }}
         >
           <CardContent className="p-0">
@@ -518,7 +560,13 @@ const PaymentsPage = () => {
                 </TableHead>
 
                 <TableBody>
-                  {payments.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
+                        <CircularProgress size={30} />
+                      </TableCell>
+                    </TableRow>
+                  ) : payments.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={11}
@@ -598,49 +646,41 @@ const PaymentsPage = () => {
                             <Button
                               size="small"
                               variant="outlined"
-                              onClick={() => {
-                                const token = localStorage.getItem("token");
-                                window.open(
-                                  `${BASE_URL}/payment/invoice/${p._id}?token=${token}`,
-                                  "_blank"
-                                );
-                              }}
                               sx={{
-                                minWidth: "50px",
                                 fontSize: "10px",
                                 fontWeight: 700,
-                                borderColor: "#cbd5e1",
-                                color: "#2563eb",
                                 borderRadius: "6px",
+                                borderColor: "#cbd5e1",
+                                color: "#64748b",
                                 "&:hover": {
                                   borderColor: "#2563eb",
-                                  backgroundColor: "#eff6ff",
+                                  color: "#2563eb",
                                 },
                               }}
-                            >
-                              PDF
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
                               onClick={() => {
                                 setSelectedPayment(p);
                                 setOpenViewModal(true);
                               }}
-                              sx={{
-                                minWidth: "50px",
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                borderColor: "#cbd5e1",
-                                color: "#1e293b",
-                                borderRadius: "6px",
-                                "&:hover": {
-                                  borderColor: "#1e293b",
-                                  backgroundColor: "#f1f5f9",
-                                },
-                              }}
                             >
                               VIEW
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                borderRadius: "6px",
+                                borderColor: "#cbd5e1",
+                                color: "#64748b",
+                                "&:hover": {
+                                  borderColor: "#2563eb",
+                                  color: "#2563eb",
+                                },
+                              }}
+                              onClick={() => handleExportPDF(p._id)}
+                            >
+                              PDF
                             </Button>
                           </Box>
                         </TableCell>
@@ -650,83 +690,33 @@ const PaymentsPage = () => {
                 </TableBody>
               </Table>
             </div>
-
-            {totalCount > 0 && (
-              <TablePagination
-                component="div"
-                count={totalCount}
-                page={page}
-                onPageChange={(e, n) => setPage(n)}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={(e) =>
-                  setRowsPerPage(parseInt(e.target.value, 10))
-                }
-                rowsPerPageOptions={[5, 10, 25, 50]}
-                sx={{ mt: 2 }}
-              />
-            )}
           </CardContent>
         </Card>
+      </Box>
 
-        {/* ADD PAYMENT MODAL */}
-        <Dialog
-          open={openModal}
-          fullWidth
-          maxWidth="sm"
-          fullScreen={isMobile}
-          onClose={() => setOpenModal(false)}
-          sx={{
-            "& .MuiPaper-root": {
-              borderRadius: "16px",
-              padding: "20px",
-            },
-          }}
-        >
-          <DialogTitle sx={{ fontWeight: 800, color: "#1e293b", pb: 1 }}>
-            Add Payment
-          </DialogTitle>
-          <DialogContent
-            sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}
-          >
+      {/* ADD PAYMENT MODAL */}
+      <Dialog
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: "16px" } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: "1.25rem", pb: 1 }}>
+          Record New Payment
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
             <FormControl fullWidth>
+              <InputLabel>Select Chit</InputLabel>
               <Select
-                displayEmpty
+                label="Select Chit"
                 value={form.chitId}
-                sx={{ borderRadius: "10px" }}
                 onChange={(e) => {
-                  const chitId = e.target.value;
-                  const selectedChit = chits.find((c) => c.id === chitId);
-
-                  let dueDateValue = "";
-                  if (selectedChit?.duedate) {
-                    try {
-                      const date = new Date(selectedChit.duedate);
-                      const y = date.getFullYear();
-                      const m = String(date.getMonth() + 1).padStart(2, "0");
-                      const d = String(date.getDate()).padStart(2, "0");
-                      dueDateValue = `${y}-${m}-${d}`;
-                    } catch (error) {
-                      console.error("Error formatting date:", error);
-                    }
-                  }
-
-                  setForm((p) => ({
-                    ...p,
-                    chitId,
-                    memberId: "",
-                    phone: "",
-                    location: "",
-                    dueDate: dueDateValue,
-                    monthlyPayableAmount:
-                      selectedChit?.monthlyPayableAmount || "",
-                    paidAmount: selectedChit?.monthlyPayableAmount || "",
-                    interestPercent: 0,
-                    penaltyAmount: 0,
-                  }));
-                  fetchMembersByChit(chitId);
+                  setForm({ ...form, chitId: e.target.value, memberId: "" });
+                  fetchMembers(e.target.value);
                 }}
               >
-                <MenuItem value="">Select Chit</MenuItem>
                 {chits.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.chitName}
@@ -735,38 +725,13 @@ const PaymentsPage = () => {
               </Select>
             </FormControl>
 
-            <FormControl fullWidth disabled={!members.length}>
+            <FormControl fullWidth disabled={!form.chitId}>
+              <InputLabel>Select Member</InputLabel>
               <Select
-                displayEmpty
+                label="Select Member"
                 value={form.memberId}
-                sx={{ borderRadius: "10px" }}
-                onChange={(e) => {
-                  const m = members.find((x) => x._id === e.target.value);
-
-                  // Find slots for this specific chit in member's assignments
-                  const chitAssignment = (m.chits || []).find(
-                    (c) => (c.chitId._id || c.chitId) === form.chitId
-                  );
-                  const slots = chitAssignment?.slots || 1;
-                  const selectedChit = chits.find((c) => c.id === form.chitId);
-                  const chitBaseAmount =
-                    selectedChit?.monthlyPayableAmount || 0;
-
-                  const totalPayable = chitBaseAmount * slots;
-
-                  setForm((p) => ({
-                    ...p,
-                    memberId: m._id,
-                    phone: m.phone,
-                    location: m.address,
-                    monthlyPayableAmount: totalPayable,
-                    paidAmount: totalPayable,
-                  }));
-                }}
+                onChange={(e) => setForm({ ...form, memberId: e.target.value })}
               >
-                <MenuItem value="">
-                  {!form.chitId ? "Select Chit First" : "Select Member"}
-                </MenuItem>
                 {members.map((m) => (
                   <MenuItem key={m._id} value={m._id}>
                     {m.name}
@@ -775,511 +740,322 @@ const PaymentsPage = () => {
               </Select>
             </FormControl>
 
-            <TextField
-              placeholder="Phone"
-              value={form.phone}
-              disabled
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "10px",
-                  backgroundColor: "#f8fafc",
-                },
-              }}
-            />
-            <TextField
-              placeholder="Location"
-              value={form.location}
-              disabled
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "10px",
-                  backgroundColor: "#f8fafc",
-                },
-              }}
-            />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Paid Amount"
+                  type="number"
+                  value={form.paidAmount}
+                  onChange={(e) =>
+                    setForm({ ...form, paidAmount: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Penalty (Optional)"
+                  type="number"
+                  value={form.penaltyAmount}
+                  onChange={(e) =>
+                    setForm({ ...form, penaltyAmount: e.target.value })
+                  }
+                />
+              </Grid>
+            </Grid>
 
             <TextField
-              type="month"
-              label="Payment Month"
+              fullWidth
+              label="Payment Date"
+              type="date"
               InputLabelProps={{ shrink: true }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "&.Mui-focused fieldset": { borderColor: "#1976d2" },
-                },
-                "& .MuiInputLabel-root.Mui-focused": { color: "#1976d2" },
-              }}
-              onChange={(e) => {
-                const [year, month] = e.target.value.split("-");
-                setForm((p) => ({
-                  ...p,
-                  paymentYear: year,
-                  paymentMonth: `${year}-${month}`,
-                }));
-              }}
-            />
-
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
-              >
-                Due Date
-              </Typography>
-              <TextField
-                type="date"
-                fullWidth
-                value={form.dueDate}
-                disabled
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "10px",
-                    backgroundColor: "#f8fafc",
-                  },
-                }}
-              />
-            </Box>
-
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
-              >
-                Monthly Payable Amount
-              </Typography>
-              <TextField
-                fullWidth
-                value={form.monthlyPayableAmount}
-                disabled
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "10px",
-                    backgroundColor: "#f8fafc",
-                  },
-                }}
-              />
-            </Box>
-
-            <FormControl fullWidth>
-              <Select
-                displayEmpty
-                value={form.interestPercent}
-                sx={{ borderRadius: "10px" }}
-                onChange={(e) => {
-                  const interestPercent = e.target.value;
-                  const penaltyAmount =
-                    (Number(form.monthlyPayableAmount) * interestPercent) / 100;
-                  setForm((p) => ({
-                    ...p,
-                    interestPercent,
-                    penaltyAmount,
-                  }));
-                }}
-              >
-                <MenuItem value={0}>0% Interest</MenuItem>
-                <MenuItem value={5}>5% Interest</MenuItem>
-                <MenuItem value={10}>10% Interest</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              placeholder="Paid Amount"
-              type="number"
-              fullWidth
-              value={form.paidAmount}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+              value={form.paymentDate}
               onChange={(e) =>
-                setForm((p) => ({ ...p, paidAmount: e.target.value }))
+                setForm({ ...form, paymentDate: e.target.value })
               }
             />
 
             <TextField
-              placeholder="Penalty Amount"
-              type="number"
               fullWidth
-              value={form.penaltyAmount}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+              label="Payment Month"
+              value={form.paymentMonth}
               onChange={(e) =>
-                setForm((p) => ({ ...p, penaltyAmount: e.target.value }))
+                setForm({ ...form, paymentMonth: e.target.value })
               }
+              placeholder="e.g. January 2026"
             />
 
-            <Box>
-              <Typography
-                variant="caption"
-                sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
-              >
-                Payment Date
-              </Typography>
-              <TextField
-                type="date"
-                fullWidth
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, paymentDate: e.target.value }))
-                }
-              />
-            </Box>
-
             <FormControl fullWidth>
+              <InputLabel>Payment Mode</InputLabel>
               <Select
-                displayEmpty
+                label="Payment Mode"
                 value={form.paymentMode}
-                sx={{ borderRadius: "10px" }}
                 onChange={(e) =>
-                  setForm((p) => ({ ...p, paymentMode: e.target.value }))
+                  setForm({ ...form, paymentMode: e.target.value })
                 }
               >
-                <MenuItem value="">Select Payment Mode</MenuItem>
                 <MenuItem value="cash">Cash</MenuItem>
                 <MenuItem value="online">Online</MenuItem>
+                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
               </Select>
             </FormControl>
-          </DialogContent>
-
-          <DialogActions sx={{ px: 3, pb: 4, gap: 1 }}>
-            <Button
-              onClick={() => {
-                setOpenModal(false);
-                setForm(initialFormState);
-              }}
-              sx={{
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => setOpenPreviewModal(true)}
-              sx={{
-                backgroundColor: "#2563eb",
-                borderRadius: "8px",
-                px: 3,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                "&:hover": { backgroundColor: "#1d4ed8" },
-              }}
-            >
-              Preview Payment
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* VIEW PAYMENT MODAL */}
-        <Dialog
-          open={openViewModal}
-          onClose={() => setOpenViewModal(false)}
-          fullWidth
-          maxWidth="md"
-          sx={{
-            "& .MuiPaper-root": {
-              borderRadius: "16px",
-              padding: "20px",
-            },
-          }}
-        >
-          <DialogTitle
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={() => setOpenModal(false)}
+            sx={{ fontWeight: 700, color: "#64748b" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              const selectedMemberName = members.find(
+                (m) => m._id === form.memberId
+              )?.name;
+              const selectedChitName = chits.find(
+                (c) => c.id === form.chitId
+              )?.chitName;
+              setPreviewData({
+                ...form,
+                memberName: selectedMemberName,
+                chitName: selectedChitName,
+              });
+              setOpenPreviewModal(true);
+            }}
             sx={{
-              fontWeight: 800,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              color: "#1e293b",
-              pb: 1,
+              backgroundColor: "#2563eb",
+              borderRadius: "8px",
+              fontWeight: 700,
+              px: 3,
             }}
           >
-            Payment Details
-            {selectedPayment && (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  const token = localStorage.getItem("token");
-                  window.open(
-                    `${BASE_URL}/payment/invoice/${selectedPayment._id}?token=${token}`,
-                    "_blank"
-                  );
-                }}
-                sx={{
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "11px",
-                  borderColor: "#cbd5e1",
-                  color: "#2563eb",
-                  "&:hover": {
-                    borderColor: "#2563eb",
-                    backgroundColor: "#eff6ff",
-                  },
-                }}
-              >
-                VIEW AS PDF
-              </Button>
-            )}
-          </DialogTitle>
+            Preview Payment
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-          <DialogContent dividers sx={{ px: 4, py: 3 }}>
-            {selectedPayment && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Basic Information
-                  </Typography>
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Invoice Number</Typography>
-                      <Typography>
-                        {selectedPayment.invoiceNumber || "-"}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Status</Typography>
-                      <Typography sx={{ textTransform: "capitalize" }}>
-                        {selectedPayment.status}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Payment Mode</Typography>
-                      <Typography sx={{ textTransform: "capitalize" }}>
-                        {selectedPayment.paymentMode}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Payment Date</Typography>
-                      <Typography>
-                        {new Date(
-                          selectedPayment.paymentDate
-                        ).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Chit & Member Details
-                  </Typography>
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Chit Name</Typography>
-                      <Typography>
-                        {selectedPayment.chitId?.chitName}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Chit Location</Typography>
-                      <Typography>
-                        {selectedPayment.chitId?.location || "-"}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Member Name</Typography>
-                      <Typography>{selectedPayment.memberId?.name}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Phone</Typography>
-                      <Typography>{selectedPayment.memberId?.phone}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Member Location</Typography>
-                      <Typography>
-                        {selectedPayment.memberId?.address || "-"}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-
-                <Box>
-                  <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Amount Details
-                  </Typography>
-                  <Grid container spacing={4}>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Monthly Payable</Typography>
-                      <Typography>
-                        ₹{selectedPayment.chitId?.monthlyPayableAmount || "-"}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Paid Amount</Typography>
-                      <Typography>₹{selectedPayment.paidAmount}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Penalty Amount</Typography>
-                      <Typography>₹{selectedPayment.penaltyAmount}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Total Paid</Typography>
-                      <Typography sx={{ fontWeight: 600 }}>
-                        ₹{selectedPayment.totalPaid}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                      <Typography variant="caption">Due Date</Typography>
-                      <Typography>
-                        {new Date(selectedPayment.dueDate).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </Box>
-            )}
-          </DialogContent>
-          <DialogActions sx={{ px: 4, pb: 3 }}>
-            <Button
-              onClick={() => setOpenViewModal(false)}
-              sx={{
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-              }}
-            >
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* PREVIEW CONFRIM MODAL */}
-        <Dialog
-          open={openPreviewModal}
-          onClose={() => setOpenPreviewModal(false)}
-          fullWidth
-          maxWidth="sm"
-          sx={{
-            "& .MuiPaper-root": {
-              borderRadius: "16px",
-              padding: "20px",
-            },
-          }}
+      {/* VIEW PAYMENT MODAL */}
+      <Dialog
+        open={openViewModal}
+        onClose={() => setOpenViewModal(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: "16px" } }}
+      >
+        <DialogTitle
+          sx={{ fontWeight: 800, borderBottom: "1px solid #f1f5f9" }}
         >
-          <DialogTitle sx={{ fontWeight: 800, color: "#1e293b", pb: 1 }}>
-            Confirm Payment Details
-          </DialogTitle>
-          <DialogContent dividers>
+          Payment Details
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          {selectedPayment && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Typography variant="subtitle1" fontWeight={600} color="primary">
-                Please review the details before confirming.
-              </Typography>
-
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  INVOICE NUMBER
+                </Typography>
+                <Typography fontWeight={600} color="#1e293b">
+                  {selectedPayment.invoiceNumber}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  CHIT NAME
+                </Typography>
+                <Typography fontWeight={600} color="#1e293b">
+                  {selectedPayment.chitId?.chitName}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  MEMBER NAME
+                </Typography>
+                <Typography fontWeight={600} color="#1e293b">
+                  {selectedPayment.memberId?.name}
+                </Typography>
+              </Box>
               <Grid container spacing={2}>
                 <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Chit Name
-                  </Typography>
-                  <Typography fontWeight={500}>
-                    {chits.find((c) => c.id === form.chitId)?.chitName}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Member Name
-                  </Typography>
-                  <Typography fontWeight={500}>
-                    {members.find((m) => m._id === form.memberId)?.name}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Payment Month
-                  </Typography>
-                  <Typography fontWeight={500}>{form.paymentMonth}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Monthly Payable
-                  </Typography>
-                  <Typography fontWeight={500}>
-                    ₹{form.monthlyPayableAmount}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Payment Date
-                  </Typography>
-                  <Typography fontWeight={500}>{form.paymentDate}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Paid Amount
-                  </Typography>
-                  <Typography fontWeight={500}>₹{form.paidAmount}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Penalty
-                  </Typography>
-                  <Typography fontWeight={500}>
-                    ₹{form.penaltyAmount || 0}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Total Payable
-                  </Typography>
-                  <Typography fontWeight={700} fontSize="1.1rem">
-                    ₹{Number(form.paidAmount) + Number(form.penaltyAmount || 0)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">
-                    Payment Mode
-                  </Typography>
                   <Typography
-                    fontWeight={500}
-                    sx={{ textTransform: "capitalize" }}
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={700}
                   >
-                    {form.paymentMode}
+                    AMOUNT PAID
+                  </Typography>
+                  <Typography fontWeight={700} color="#16a34a">
+                    ₹{selectedPayment.paidAmount?.toLocaleString("en-IN")}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={700}
+                  >
+                    PENALTY
+                  </Typography>
+                  <Typography fontWeight={700} color="#dc2626">
+                    ₹{selectedPayment.penaltyAmount?.toLocaleString("en-IN")}
                   </Typography>
                 </Grid>
               </Grid>
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={700}
+                >
+                  PAYMENT DATE
+                </Typography>
+                <Typography fontWeight={600} color="#1e293b">
+                  {new Date(selectedPayment.paymentDate).toLocaleDateString(
+                    "en-IN"
+                  )}
+                </Typography>
+              </Box>
             </Box>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 4, gap: 1 }}>
-            <Button
-              onClick={() => setOpenPreviewModal(false)}
-              sx={{
-                fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-              }}
-            >
-              Edit
-            </Button>
-            <Button
-              onClick={savePayment}
-              variant="contained"
-              sx={{
-                backgroundColor: "#16a34a",
-                borderRadius: "8px",
-                px: 3,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                "&:hover": { backgroundColor: "#15803d" },
-              }}
-            >
-              CONFIRM & SAVE
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* SNACKBAR */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={4000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            variant="filled"
-            sx={{ width: "100%" }}
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: "1px solid #f1f5f9" }}>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => setOpenViewModal(false)}
+            sx={{
+              backgroundColor: "#1e293b",
+              borderRadius: "8px",
+              fontWeight: 700,
+              "&:hover": { backgroundColor: "#0f172a" },
+            }}
           >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </div>
+            CLOSE
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PREVIEW CONFIRM MODAL */}
+      <Dialog
+        open={openPreviewModal}
+        onClose={() => setOpenPreviewModal(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: "16px" } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Payment</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              backgroundColor: "#f8fafc",
+              p: 2,
+              borderRadius: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.5,
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Member:
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#1e293b">
+                {previewData?.memberName}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Chit:
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#1e293b">
+                {previewData?.chitName}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Amount:
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#16a34a">
+                ₹{Number(previewData?.paidAmount).toLocaleString()}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Penalty:
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#dc2626">
+                ₹{Number(previewData?.penaltyAmount || 0).toLocaleString()}
+              </Typography>
+            </Box>
+            <Divider />
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body1" fontWeight={800}>
+                Total:
+              </Typography>
+              <Typography variant="body1" fontWeight={800} color="#1e293b">
+                ₹
+                {(
+                  Number(previewData?.paidAmount || 0) +
+                  Number(previewData?.penaltyAmount || 0)
+                ).toLocaleString()}
+              </Typography>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={() => setOpenPreviewModal(false)}
+            sx={{ fontWeight: 700, color: "#64748b" }}
+          >
+            Back
+          </Button>
+          <Button
+            variant="contained"
+            disabled={paymentLoading}
+            onClick={handleCreatePayment}
+            sx={{
+              backgroundColor: "#16a34a",
+              "&:hover": { backgroundColor: "#15803d" },
+              borderRadius: "8px",
+              fontWeight: 700,
+              px: 4,
+            }}
+          >
+            {paymentLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "CONFIRM & SAVE"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          severity={snackbar.severity}
+          sx={{ borderRadius: "12px", fontWeight: 600 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
