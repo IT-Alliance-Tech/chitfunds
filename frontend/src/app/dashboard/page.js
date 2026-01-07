@@ -28,7 +28,7 @@ import PendingActionsIcon from "@mui/icons-material/PendingActions";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import DownloadIcon from "@mui/icons-material/Download";
 
-import { apiRequest } from "@/config/api";
+import { apiRequest, BASE_URL } from "@/config/api";
 
 import { useMediaQuery } from "@mui/material";
 
@@ -118,8 +118,7 @@ const Dashboard = () => {
 
       // We use fetch directly for blob handling because apiRequest might be set to JSON
       const token = localStorage.getItem("token");
-      const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const baseUrl = BASE_URL;
 
       const response = await fetch(`${baseUrl}${endpoint}`, {
         method: "GET",
