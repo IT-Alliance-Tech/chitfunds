@@ -29,7 +29,7 @@ import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 
-import { apiRequest } from "@/config/api";
+import { apiRequest, BASE_URL } from "@/config/api";
 
 const getStatusColor = (status) => {
   const s = status?.toLowerCase();
@@ -191,7 +191,6 @@ export default function MemberDetailsPage() {
 
   const handleDownloadPDF = (paymentId) => {
     const token = localStorage.getItem("token");
-    const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
     window.open(
       `${BASE_URL}/payment/invoice/${paymentId}?token=${token}`,
       "_blank"
