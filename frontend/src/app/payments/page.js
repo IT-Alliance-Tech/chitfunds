@@ -109,8 +109,13 @@ const PaymentsPage = () => {
     dueDay: "", // Fixed day from chit
     dueDate: "", // Full calculated date (YYYY-MM-DD)
     monthlyPayableAmount: 0,
+    slotsPaid: 1, // Number of slots being paid in this transaction
+    totalAssignedSlots: 1, // Total slots member has in this chit
+    alreadyPaidSlots: 0,
   };
   const [form, setForm] = useState(initialFormState);
+  const [paymentStatus, setPaymentStatus] = useState(null);
+  const [fetchingStatus, setFetchingStatus] = useState(false);
 
   // View Modal
   const [openViewModal, setOpenViewModal] = useState(false);
@@ -140,6 +145,56 @@ const PaymentsPage = () => {
       setForm((prev) => ({ ...prev, dueDate: calculatedDate }));
     }
   }, [form.paymentMonth, form.dueDay]);
+
+  useEffect(() => {
+    if (form.chitId && form.memberId && form.paymentMonth) {
+      fetchPaymentStatus(form.chitId, form.memberId, form.paymentMonth);
+    }
+  }, [form.chitId, form.memberId, form.paymentMonth]);
+
+  const fetchPaymentStatus = async (chitId, memberId, month) => {
+    setFetchingStatus(true);
+    try {
+      const res = await apiRequest(
+        `/payment/status?chitId=${chitId}&memberId=${memberId}&paymentMonth=${month}`
+      );
+      const data = res.data;
+      setPaymentStatus(data);
+      setForm((prev) => ({
+        ...prev,
+        totalAssignedSlots: data.totalSlots || 1,
+        slotsPaid: data.remainingSlots || 1,
+        alreadyPaidSlots: data.paidSlots || 0,
+        paidAmount:
+          (data.remainingSlots || 1) * (prev.monthlyPayableAmount || 0),
+      }));
+
+      // Auto check for penalty
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [year, m] = month.split("-");
+      const dueDateObj = new Date(year, parseInt(m) - 1, form.dueDay || 15);
+      dueDateObj.setHours(0, 0, 0, 0);
+
+      if (today > dueDateObj) {
+        // Late - auto set 10%
+        setForm((prev) => {
+          const penalty = (Number(prev.paidAmount) * 10) / 100;
+          return { ...prev, interestPercent: 10, penaltyAmount: penalty };
+        });
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          interestPercent: 0,
+          penaltyAmount: 0,
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFetchingStatus(false);
+    }
+  };
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -232,6 +287,7 @@ const PaymentsPage = () => {
         ...form,
         paidAmount: Number(form.paidAmount),
         penaltyAmount: Number(form.penaltyAmount),
+        slotsPaid: Number(form.slotsPaid),
       });
 
       const payment = res.data.payment;
@@ -330,6 +386,7 @@ const PaymentsPage = () => {
 
   return (
     <Box
+      className="mobile-page-padding"
       sx={{
         p: { xs: 2, sm: 4 },
         backgroundColor: "#f8fafc",
@@ -396,6 +453,7 @@ const PaymentsPage = () => {
         {/* FILTERS */}
         <Card
           elevation={0}
+          className="filter-card-mobile"
           sx={{
             p: 3,
             mb: 4,
@@ -614,7 +672,7 @@ const PaymentsPage = () => {
             backgroundColor: "white",
           }}
         >
-          <CardContent className="p-0">
+          <CardContent className="p-0 table-container-mobile">
             <Typography
               fontWeight={700}
               sx={{ p: 2, color: "#1e293b", borderBottom: "1px solid #f1f5f9" }}
@@ -629,7 +687,7 @@ const PaymentsPage = () => {
                     <TableCell>ID</TableCell>
                     <TableCell>Chit</TableCell>
                     <TableCell>Member</TableCell>
-                    <TableCell>Phone</TableCell>
+                    <TableCell align="center">Slots</TableCell>
                     <TableCell>Date</TableCell>
                     <TableCell align="right">Paid</TableCell>
                     <TableCell align="right">Penalty</TableCell>
@@ -687,8 +745,11 @@ const PaymentsPage = () => {
                         >
                           {p.memberId?.name || "-"}
                         </TableCell>
-                        <TableCell sx={{ color: "#64748b", fontSize: "12px" }}>
-                          {p.memberId?.phone || "-"}
+                        <TableCell
+                          align="center"
+                          sx={{ fontWeight: 700, color: "#475569" }}
+                        >
+                          {p.slots || 1}
                         </TableCell>
                         <TableCell
                           sx={{ color: "#64748b", whiteSpace: "nowrap" }}
@@ -796,7 +857,41 @@ const PaymentsPage = () => {
           Record New Payment
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 2 }}>
+          <Box
+            sx={{
+              mt: 1.5,
+              mb: 1,
+              p: 1.5,
+              backgroundColor: "#fff7ed",
+              borderRadius: "10px",
+              border: "1px solid #ffedd5",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+            }}
+          >
+            <Box
+              sx={{
+                width: 5,
+                height: 40,
+                backgroundColor: "#ea580c",
+                borderRadius: "4px",
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#9a3412",
+                fontWeight: 600,
+                fontSize: "0.85rem",
+                lineHeight: 1.4,
+              }}
+            >
+              Note: You must select a specific chit fund first to view and
+              access member details and payment calculations.
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
             <FormControl fullWidth>
               <InputLabel>Select Chit</InputLabel>
               <Select
@@ -864,7 +959,90 @@ const PaymentsPage = () => {
               </Select>
             </FormControl>
 
+            {/* SMART DUES BANNER */}
+            {paymentStatus && (
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: "12px",
+                  backgroundColor: paymentStatus.isFullyPaid
+                    ? "#dcfce7"
+                    : "#fff7ed",
+                  border: "1px solid",
+                  borderColor: paymentStatus.isFullyPaid
+                    ? "#86efac"
+                    : "#fdba74",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  fontWeight={800}
+                  color={paymentStatus.isFullyPaid ? "#166534" : "#9a3412"}
+                >
+                  {(() => {
+                    const [year, month] = form.paymentMonth.split("-");
+                    const monthName = new Date(
+                      year,
+                      parseInt(month) - 1
+                    ).toLocaleString("default", { month: "long" });
+                    return `Monthly Status: ${monthName} ${year}`;
+                  })()}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  fontWeight={600}
+                  color={paymentStatus.isFullyPaid ? "#15803d" : "#c2410c"}
+                >
+                  {paymentStatus.isFullyPaid
+                    ? `This member has fully cleared all ${paymentStatus.totalSlots} slots!`
+                    : `Member has paid ${paymentStatus.paidSlots} out of ${paymentStatus.totalSlots} slots.`}
+                </Typography>
+                {!paymentStatus.isFullyPaid && (
+                  <Typography
+                    variant="caption"
+                    color="#9a3412"
+                    fontWeight={700}
+                    sx={{ mt: 0.5, display: "block" }}
+                  >
+                    BALANCE DUE: {paymentStatus.remainingSlots} Slots (₹
+                    {(
+                      paymentStatus.remainingSlots * paymentStatus.monthlyAmount
+                    ).toLocaleString()}
+                    )
+                  </Typography>
+                )}
+              </Box>
+            )}
+
             <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Slots to Pay"
+                  type="number"
+                  inputProps={{ min: 1, max: form.totalAssignedSlots }}
+                  value={form.slotsPaid}
+                  onChange={(e) => {
+                    const val = Math.max(
+                      1,
+                      Math.min(form.totalAssignedSlots, Number(e.target.value))
+                    );
+                    const newPaidAmount = val * form.monthlyPayableAmount;
+                    const newPenalty =
+                      (newPaidAmount * form.interestPercent) / 100;
+                    setForm({
+                      ...form,
+                      slotsPaid: val,
+                      paidAmount: newPaidAmount,
+                      penaltyAmount: newPenalty,
+                    });
+                  }}
+                  helperText={`Member has total ${form.totalAssignedSlots} slots`}
+                />
+              </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -876,6 +1054,9 @@ const PaymentsPage = () => {
                   }
                 />
               </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Interest (%)</InputLabel>
@@ -885,8 +1066,7 @@ const PaymentsPage = () => {
                     onChange={(e) => {
                       const percent = e.target.value;
                       const penalty =
-                        (Number(form.monthlyPayableAmount) * Number(percent)) /
-                        100;
+                        (Number(form.paidAmount) * Number(percent)) / 100;
                       setForm({
                         ...form,
                         interestPercent: percent,
@@ -897,12 +1077,11 @@ const PaymentsPage = () => {
                     <MenuItem value={0}>None</MenuItem>
                     <MenuItem value={5}>5%</MenuItem>
                     <MenuItem value={10}>10%</MenuItem>
+                    <MenuItem value={15}>15%</MenuItem>
+                    <MenuItem value={20}>20%</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
-            </Grid>
-
-            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -914,6 +1093,9 @@ const PaymentsPage = () => {
                   }
                 />
               </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel>Payment Mode</InputLabel>
@@ -1264,7 +1446,19 @@ const PaymentsPage = () => {
                   }}
                 >
                   <Grid container spacing={1}>
-                    <Grid item xs={4}>
+                    <Grid item xs={3}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={600}
+                      >
+                        Slots
+                      </Typography>
+                      <Typography variant="body1" fontWeight={800}>
+                        {selectedPayment.slots}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={3}>
                       <Typography
                         variant="caption"
                         color="text.secondary"
@@ -1272,11 +1466,15 @@ const PaymentsPage = () => {
                       >
                         Base Amount
                       </Typography>
-                      <Typography variant="h6" fontWeight={800} color="#16a34a">
+                      <Typography
+                        variant="body1"
+                        fontWeight={800}
+                        color="#16a34a"
+                      >
                         ₹{selectedPayment.paidAmount?.toLocaleString("en-IN")}
                       </Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid item xs={3}>
                       <Typography
                         variant="caption"
                         color="text.secondary"
@@ -1284,20 +1482,28 @@ const PaymentsPage = () => {
                       >
                         Penalty/Int.
                       </Typography>
-                      <Typography variant="h6" fontWeight={800} color="#dc2626">
+                      <Typography
+                        variant="body1"
+                        fontWeight={800}
+                        color="#dc2626"
+                      >
                         ₹
                         {selectedPayment.penaltyAmount?.toLocaleString("en-IN")}
                       </Typography>
                     </Grid>
-                    <Grid item xs={4} sx={{ textAlign: "right" }}>
+                    <Grid item xs={3} sx={{ textAlign: "right" }}>
                       <Typography
                         variant="caption"
                         color="#1e293b"
                         fontWeight={800}
                       >
-                        TOTAL PAID
+                        TOTAL
                       </Typography>
-                      <Typography variant="h6" fontWeight={900} color="#0f172a">
+                      <Typography
+                        variant="body1"
+                        fontWeight={900}
+                        color="#0f172a"
+                      >
                         ₹
                         {(
                           Number(selectedPayment.paidAmount || 0) +
@@ -1460,6 +1666,14 @@ const PaymentsPage = () => {
               </Typography>
               <Typography variant="body2" fontWeight={700} color="#16a34a">
                 ₹{Number(previewData?.paidAmount || 0).toLocaleString()}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Slots Paid:
+              </Typography>
+              <Typography variant="body2" fontWeight={700}>
+                {previewData?.slotsPaid} Slots
               </Typography>
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>

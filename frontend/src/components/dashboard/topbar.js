@@ -11,7 +11,7 @@ const Topbar = () => {
   };
 
   return (
-    <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
+    <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center pl-16 md:pl-6 xl:pl-[320px]">
       <h2 className="text-xl font-semibold text-gray-800">Dashboard</h2>
 
       <button

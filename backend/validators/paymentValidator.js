@@ -23,6 +23,7 @@ const paymentBody = z.object({
     .any()
     .optional()
     .transform((v) => (v ? new Date(v) : undefined)),
+  slotsPaid: z.coerce.number().min(1).optional(),
   paymentMode: z.enum(["cash", "online"]),
 });
 
