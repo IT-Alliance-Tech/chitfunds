@@ -63,6 +63,7 @@ export const apiRequest = async (
   url,
   method = "GET",
   data = null,
+  config = {},
   params = {}
 ) => {
   try {
@@ -71,6 +72,7 @@ export const apiRequest = async (
       method,
       data,
       params,
+      ...config,
     });
     return response;
   } catch (error) {

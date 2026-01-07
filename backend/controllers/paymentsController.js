@@ -50,10 +50,35 @@ const createPayment = async (req, res) => {
     }
 
     const dateObj = pDate ? new Date(pDate) : new Date();
-    const { paymentMonth, paymentYear } = getMonthYear(dateObj);
+    let { paymentMonth, paymentYear } = getMonthYear(dateObj);
+
+    // If paymentMonth is provided in format "YYYY-MM" or "Month YYYY", handle it
+    if (req.body.paymentMonth && req.body.paymentMonth.includes("-")) {
+      [paymentYear, paymentMonth] = req.body.paymentMonth.split("-");
+      paymentYear = Number(paymentYear);
+    } else if (req.body.paymentMonth) {
+      // Handle "January 2026" format if needed, but for now let's assume getMonthYear is fallback
+      // Actually, let's keep it simple for now as per model expectations
+    }
+
+    let finalDueDate = dueDate;
+    if (
+      typeof dueDate === "number" ||
+      (!isNaN(Number(dueDate)) && String(dueDate).length <= 2)
+    ) {
+      const d = new Date(dateObj);
+      d.setDate(Number(dueDate));
+      finalDueDate = d;
+    } else if (typeof dueDate === "string" && dueDate !== "") {
+      finalDueDate = new Date(dueDate);
+    }
 
     // Get member's slots for this chit
     const member = await Member.findById(memberId);
+    if (!member) {
+      return sendResponse(res, 404, "error", "Member not found");
+    }
+
     const chitAssignment = member?.chits?.find(
       (c) => c.chitId.toString() === chitId.toString()
     );
@@ -62,12 +87,12 @@ const createPayment = async (req, res) => {
     const payment = await Payment.create({
       chitId,
       memberId,
-      paymentMonth,
-      paymentYear,
+      paymentMonth: String(paymentMonth),
+      paymentYear: Number(paymentYear),
       slots,
       paidAmount: Number(paidAmount),
       penaltyAmount: calculatedPenalty,
-      dueDate,
+      dueDate: finalDueDate,
       paymentMode,
       paymentDate: dateObj,
       invoiceNumber: `INV-${Date.now()}`,
@@ -191,17 +216,17 @@ const getPayments = async (req, res) => {
                   },
                 ],
               },
-            },
-            then: "paid",
-            else: {
-              $cond: {
-                if: { $lt: ["$dueDate", new Date()] },
-                then: "overdue",
-                else: {
-                  $cond: {
-                    if: { $gt: ["$paidAmount", 0] },
-                    then: "partial",
-                    else: "pending",
+              then: "paid",
+              else: {
+                $cond: {
+                  if: { $lt: ["$dueDate", new Date()] },
+                  then: "overdue",
+                  else: {
+                    $cond: {
+                      if: { $gt: ["$paidAmount", 0] },
+                      then: "partial",
+                      else: "pending",
+                    },
                   },
                 },
               },
@@ -225,6 +250,7 @@ const getPayments = async (req, res) => {
     pipeline.push({
       $project: {
         _id: 1,
+        paymentId: 1,
         invoiceNumber: 1,
         paidAmount: 1,
         penaltyAmount: 1,

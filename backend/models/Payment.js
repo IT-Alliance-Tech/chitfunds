@@ -61,6 +61,11 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    paymentId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
     invoiceNumber: {
       type: String,
       unique: true,
@@ -78,5 +83,32 @@ const paymentSchema = new mongoose.Schema(
 paymentSchema.index({ chitId: 1, memberId: 1 });
 paymentSchema.index({ paymentYear: 1, paymentMonth: 1 });
 paymentSchema.index({ createdAt: -1 });
+
+// Pre-save hook to auto-generate paymentId
+paymentSchema.pre("save", async function (next) {
+  if (!this.paymentId) {
+    try {
+      const lastPayment = await mongoose
+        .model("Payment")
+        .findOne({ paymentId: { $exists: true } })
+        .sort({ paymentId: -1 })
+        .select("paymentId")
+        .lean();
+
+      let nextNumber = 1;
+      if (lastPayment && lastPayment.paymentId) {
+        const match = lastPayment.paymentId.match(/PID(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      this.paymentId = `PID${String(nextNumber).padStart(3, "0")}`;
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
 
 module.exports = mongoose.model("Payment", paymentSchema);
