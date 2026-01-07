@@ -28,6 +28,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
 import { apiRequest, BASE_URL } from "@/config/api";
 
@@ -179,7 +180,7 @@ export default function MemberDetailsPage() {
           name: chitData.chitName,
           amount: chitData.amount,
           duration: chitData.duration,
-          membersLimit: chitData.membersLimit,
+          totalSlots: chitData.totalSlots,
           status: c.status,
           slots: c.slots || 1,
           monthlyPayableAmount: chitData.monthlyPayableAmount,
@@ -195,6 +196,14 @@ export default function MemberDetailsPage() {
       `${BASE_URL}/payment/invoice/${paymentId}?token=${token}`,
       "_blank"
     );
+  };
+
+  const handleDownloadMemberChitPDF = (chitId) => {
+    const token = localStorage.getItem("token");
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    const reportUrl = `${baseUrl}/member/report/${id}?chitId=${chitId}&token=${token}`;
+    window.open(reportUrl, "_blank");
   };
 
   return (
@@ -272,21 +281,36 @@ export default function MemberDetailsPage() {
             Security Documents
           </Typography>
 
-          <div className="flex flex-wrap gap-2">
-            {(member.securityDocuments || []).map((doc, i) => (
-              <Chip
-                key={i}
-                label={doc}
-                variant="outlined"
-                sx={{
-                  borderRadius: "8px",
-                  fontWeight: 600,
-                  color: "#2563eb",
-                  borderColor: "#dbeafe",
-                  backgroundColor: "#eff6ff",
-                }}
-              />
-            ))}
+          <div className="flex flex-wrap gap-2 min-h-[40px]">
+            {member.securityDocuments && member.securityDocuments.length > 0 ? (
+              member.securityDocuments.map((doc, i) => {
+                const docLabel =
+                  typeof doc === "string"
+                    ? doc
+                    : doc.type || doc.name || "Document";
+                return (
+                  <Chip
+                    key={i}
+                    label={docLabel}
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "8px",
+                      fontWeight: 600,
+                      color: "#2563eb",
+                      borderColor: "#dbeafe",
+                      backgroundColor: "#eff6ff",
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <Typography
+                variant="body2"
+                sx={{ color: "#94a3b8", fontStyle: "italic" }}
+              >
+                No security documents uploaded
+              </Typography>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -318,40 +342,61 @@ export default function MemberDetailsPage() {
               <Card
                 key={chit.id}
                 elevation={0}
+                className="hover-card"
                 sx={{
                   borderRadius: "16px",
                   border: "1px solid #e2e8f0",
-                  "&:hover": {
-                    borderColor: "#2563eb",
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.08)",
-                  },
-                  transition: "all 0.2s",
                 }}
               >
-                <CardContent className="space-y-4">
-                  <Typography
-                    variant="h6"
-                    fontWeight={800}
+                <CardContent
+                  sx={{ p: 2, "&:last-child": { pb: 2 } }}
+                  className="space-y-3"
+                >
+                  <Box
                     sx={{
-                      color: "#1e293b",
-                      borderBottom: "2px solid #f1f5f9",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      borderBottom: "1px solid #f1f5f9",
                       pb: 1,
-                      mb: 2,
+                      mb: 1.5,
                     }}
                   >
-                    {chit.name}
-                  </Typography>
-
-                  <div className="space-y-2">
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={800}
+                      sx={{ color: "#1e293b", fontSize: "1.05rem" }}
                     >
+                      {chit.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadMemberChitPDF(chit.id);
+                      }}
+                      sx={{
+                        color: "#166534",
+                        backgroundColor: "#dcfce7",
+                        "&:hover": { backgroundColor: "#bbf7d0" },
+                      }}
+                    >
+                      <PictureAsPdfIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+
+                  <div className="space-y-1.5">
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <MonetizationOnIcon
-                        sx={{ color: "#0284c7", fontSize: 20 }}
+                        sx={{ color: "#0284c7", fontSize: 16 }}
                       />
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 600, color: "#475569" }}
+                        sx={{
+                          fontWeight: 600,
+                          color: "#475569",
+                          fontSize: "0.85rem",
+                        }}
                       >
                         Amount:{" "}
                         <span style={{ color: "#1e293b", fontWeight: 700 }}>
@@ -359,15 +404,17 @@ export default function MemberDetailsPage() {
                         </span>
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
-                    >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <CalendarMonthIcon
-                        sx={{ color: "#9333ea", fontSize: 20 }}
+                        sx={{ color: "#9333ea", fontSize: 16 }}
                       />
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 600, color: "#475569" }}
+                        sx={{
+                          fontWeight: 600,
+                          color: "#475569",
+                          fontSize: "0.85rem",
+                        }}
                       >
                         Duration:{" "}
                         <span style={{ color: "#1e293b", fontWeight: 700 }}>
@@ -375,15 +422,17 @@ export default function MemberDetailsPage() {
                         </span>
                       </Typography>
                     </Box>
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
-                    >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <ConfirmationNumberIcon
-                        sx={{ color: "#ea580c", fontSize: 20 }}
+                        sx={{ color: "#ea580c", fontSize: 16 }}
                       />
                       <Typography
                         variant="body2"
-                        sx={{ fontWeight: 600, color: "#475569" }}
+                        sx={{
+                          fontWeight: 600,
+                          color: "#475569",
+                          fontSize: "0.85rem",
+                        }}
                       >
                         Slots:{" "}
                         <span style={{ color: "#1e293b", fontWeight: 700 }}>
@@ -395,10 +444,10 @@ export default function MemberDetailsPage() {
 
                   <Box
                     sx={{
-                      p: 1.5,
+                      p: 1,
                       backgroundColor: "#f8fafc",
-                      borderRadius: "12px",
-                      mt: 2,
+                      borderRadius: "10px",
+                      mt: 1.5,
                     }}
                   >
                     <Typography
@@ -409,15 +458,19 @@ export default function MemberDetailsPage() {
                         textTransform: "uppercase",
                       }}
                     >
-                      Monthly: ₹
+                      Monthly Payable:{" "}
                       {chit.monthlyPayableAmount?.toLocaleString("en-IN")} per
                       slot
                     </Typography>
                     <Typography
-                      variant="h6"
-                      sx={{ color: "#16a34a", fontWeight: 800, mt: 0.5 }}
+                      sx={{
+                        color: "#16a34a",
+                        fontWeight: 800,
+                        mt: 0.2,
+                        fontSize: "1rem",
+                      }}
                     >
-                      Total Monthly: ₹
+                      Total Monthly Payable:{" "}
                       {(chit.monthlyPayableAmount * chit.slots).toLocaleString(
                         "en-IN"
                       )}

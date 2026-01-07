@@ -57,9 +57,10 @@ const drawTableRow = (doc, y, columns, options = {}) => {
 /**
  * Generates a Welcome PDF and returns it as a Buffer
  * @param {Object} member - Member object with populated chits
+ * @param {Array} payments - Optional payment history array
  * @returns {Promise<Buffer>}
  */
-exports.generateWelcomePDFBuffer = (member) => {
+exports.generateWelcomePDFBuffer = (member, payments = []) => {
   console.log(
     `🚀 [DEBUG] Generating Welcome PDF for ${member.name} (Buffered Layout)`
   );
@@ -120,14 +121,20 @@ exports.generateWelcomePDFBuffer = (member) => {
       doc.moveDown(3.2);
 
       /* ================= 2. TITLE ================= */
+      const isSingleChit = member.chits?.length === 1;
       doc
         .fontSize(13)
         .font("Helvetica-Bold")
         .fillColor(primaryColor)
-        .text("MEMBERSHIP & CHIT ASSIGNMENT DETAILS", {
-          align: "center",
-          underline: false,
-        });
+        .text(
+          isSingleChit
+            ? "MEMBER CHIT ASSIGNMENT & PAYMENT SUMMARY"
+            : "MEMBERSHIP & CHIT ASSIGNMENT DETAILS",
+          {
+            align: "center",
+            underline: false,
+          }
+        );
       doc.moveDown(0.8);
 
       /* ================= 3. WELCOME MESSAGE ================= */
@@ -248,6 +255,65 @@ exports.generateWelcomePDFBuffer = (member) => {
       }
       doc.y = currentY;
       doc.moveDown(1.2);
+
+      /* ================= 5.5 PAYMENT HISTORY ================= */
+      if (payments && payments.length > 0) {
+        if (doc.y > doc.page.height - 150) doc.addPage();
+
+        doc
+          .fontSize(10)
+          .font("Helvetica-Bold")
+          .fillColor(primaryColor)
+          .text("PAYMENT HISTORY (LAST 20 TRANSACTIONS)", 50);
+        doc.moveDown(0.3);
+
+        const payCols = [
+          { x: 50, width: 90, text: "ID", align: "left" },
+          { x: 140, width: 130, text: "CHIT", align: "left" },
+          { x: 270, width: 80, text: "DATE", align: "left" },
+          { x: 350, width: 70, text: "SLOTS", align: "center" },
+          { x: 420, width: 130, text: "TOTAL PAID", align: "right" },
+        ];
+
+        currentY = drawTableRow(doc, doc.y, payCols, {
+          font: "Helvetica-Bold",
+          backgroundColor: lightGrey,
+          fillColor: primaryColor,
+          height: 18,
+        });
+
+        payments.slice(0, 20).forEach((p) => {
+          const bodyCols = [
+            { x: 50, width: 90, text: p.paymentId || "N/A", align: "left" },
+            {
+              x: 140,
+              width: 130,
+              text: (p.chitId?.chitName || "N/A").slice(0, 15),
+              align: "left",
+            },
+            {
+              x: 270,
+              width: 80,
+              text: formatDate(p.paymentDate),
+              align: "left",
+            },
+            { x: 350, width: 70, text: p.slots || 1, align: "center" },
+            {
+              x: 420,
+              width: 130,
+              text: `INR ${Number(p.paidAmount || 0).toLocaleString("en-IN")}`,
+              align: "right",
+            },
+          ];
+          currentY = drawTableRow(doc, currentY, bodyCols, { height: 18 });
+          if (currentY > doc.page.height - 60) {
+            doc.addPage();
+            currentY = doc.y;
+          }
+        });
+        doc.y = currentY;
+        doc.moveDown(1.2);
+      }
 
       /* ================= 6. TERMS & CONDITIONS ================= */
       doc

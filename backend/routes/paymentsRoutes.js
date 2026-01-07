@@ -8,6 +8,7 @@ const {
   exportPaymentsExcel,
   getPaymentHistory,
   confirmPaymentByAdmin,
+  getPaymentStatus,
 } = require("../controllers/paymentsController");
 
 const authMiddleware = require("../middleware/auth");
@@ -26,6 +27,8 @@ router.get("/details/:id", getPaymentById);
 router.get("/invoice/:id", exportInvoicePdf);
 // Export Excel
 router.get("/export/excel", exportPaymentsExcel);
+// Payment status for specific month (proactive dues check)
+router.get("/status", getPaymentStatus);
 // Payment history
 router.get("/history", getPaymentHistory);
 //  Admin confirm payment

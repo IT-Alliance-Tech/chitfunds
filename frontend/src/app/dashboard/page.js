@@ -191,6 +191,7 @@ const Dashboard = () => {
   /* ================= RENDERERS ================= */
   const renderPaymentTable = () => (
     <Box
+      className="table-container-mobile"
       sx={{
         overflowX: "auto",
         borderRadius: "8px",
@@ -381,10 +382,15 @@ const Dashboard = () => {
   ];
 
   return (
-    <Box className="min-h-screen bg-[#f8fafc]">
-      <Box component="main" sx={{ p: { xs: 2, md: 3 } }}>
+    <Box className="min-h-screen bg-[#f8fafc] mobile-page">
+      <Box
+        component="main"
+        className="main-content-mobile"
+        sx={{ p: { xs: 2, md: 3 } }}
+      >
         {/* STATS GRID - Robust CSS Grid for exact 4 columns */}
         <Box
+          className="stats-grid-mobile"
           sx={{
             display: "grid",
             gridTemplateColumns: {
@@ -400,6 +406,7 @@ const Dashboard = () => {
           {statItems.map((item, idx) => (
             <Card
               key={idx}
+              className="hover-card"
               sx={{
                 height: "100%",
                 borderRadius: "12px",

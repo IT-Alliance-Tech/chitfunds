@@ -37,7 +37,7 @@ const chitSchema = new mongoose.Schema(
     calculatedDueDate: {
       type: Date,
     },
-    membersLimit: {
+    totalSlots: {
       type: Number,
       required: true,
       min: 1,

@@ -142,7 +142,30 @@ export default function ChitDetailsPage() {
 
   return (
     <main className="p-4 md:p-6 bg-gray-100 min-h-screen space-y-6">
-      <Box sx={{ position: "relative", mb: 4 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 4,
+          width: "100%",
+        }}
+      >
+        <Typography
+          variant="h4"
+          fontWeight={800}
+          sx={{
+            color: "#1e293b",
+            fontSize: { xs: "1.25rem", sm: "2.125rem" },
+            textTransform: "capitalize",
+            flex: 1,
+            textAlign: "left",
+          }}
+        >
+          {chit.chitName}
+        </Typography>
         <Button
           variant="outlined"
           onClick={() => router.back()}
@@ -151,27 +174,17 @@ export default function ChitDetailsPage() {
             borderColor: "#cbd5e1",
             fontWeight: 700,
             borderRadius: "8px",
+            px: { xs: 1.5, sm: 3 },
+            fontSize: { xs: "12px", sm: "14px" },
             "&:hover": { borderColor: "#94a3b8", backgroundColor: "#f8fafc" },
           }}
         >
           BACK
         </Button>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-          align="center"
-          sx={{
-            color: "#1e293b",
-            mt: -4,
-            textTransform: "capitalize",
-          }}
-        >
-          {chit.chitName}
-        </Typography>
       </Box>
 
       {/* STATS */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
         <StatCard
           icon={<MonetizationOnIcon sx={{ fontSize: 34, color: "#0284c7" }} />}
           value={`₹${chit.amount?.toLocaleString("en-IN")}`}
@@ -189,8 +202,13 @@ export default function ChitDetailsPage() {
         />
         <StatCard
           icon={<GroupsIcon sx={{ fontSize: 34, color: "#ea580c" }} />}
-          value={`${members.length}/${chit.membersLimit}`}
-          label="Members"
+          value={`${members.reduce((sum, m) => {
+            const entry = m.chits?.find(
+              (c) => c.chitId === id || c.chitId?._id === id
+            );
+            return sum + (entry?.slots || 1);
+          }, 0)}/${chit.totalSlots}`}
+          label="Slots"
         />
         <StatCard
           icon={
@@ -221,7 +239,7 @@ export default function ChitDetailsPage() {
             Overview
           </Typography>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 sm:gap-y-4 gap-x-12">
             <Box
               sx={{
                 display: "flex",
@@ -276,10 +294,16 @@ export default function ChitDetailsPage() {
               }}
             >
               <Typography sx={{ color: "#64748b", fontWeight: 600 }}>
-                Total Members:
+                Total Slots:
               </Typography>
               <Typography sx={{ fontWeight: 700 }}>
-                {members.length} / {chit.membersLimit}
+                {members.reduce((sum, m) => {
+                  const entry = m.chits?.find(
+                    (c) => c.chitId === id || c.chitId?._id === id
+                  );
+                  return sum + (entry?.slots || 1);
+                }, 0)}{" "}
+                / {chit.totalSlots}
               </Typography>
             </Box>
             <Box
@@ -357,7 +381,14 @@ export default function ChitDetailsPage() {
       >
         <CardContent className="p-0">
           <Typography fontWeight={700} sx={{ p: 2, color: "#1e293b" }}>
-            Members ({members.length})
+            Slots Summary (
+            {members.reduce((sum, m) => {
+              const entry = m.chits?.find(
+                (c) => c.chitId === id || c.chitId?._id === id
+              );
+              return sum + (entry?.slots || 1);
+            }, 0)}{" "}
+            / {chit.totalSlots})
           </Typography>
 
           <Box sx={{ overflowX: "auto" }}>
@@ -367,6 +398,7 @@ export default function ChitDetailsPage() {
                   <TableCell>Name</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Address</TableCell>
+                  <TableCell align="center">Slots Taken</TableCell>
                   <TableCell align="center">Status</TableCell>
                   <TableCell align="center">Action</TableCell>
                 </TableRow>
@@ -399,6 +431,14 @@ export default function ChitDetailsPage() {
                     <TableCell sx={{ color: "#64748b" }}>{m.phone}</TableCell>
                     <TableCell sx={{ color: "#64748b", fontSize: "13px" }}>
                       {m.address || "-"}
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{ fontWeight: 700, color: "#1e293b" }}
+                    >
+                      {m.chits?.find(
+                        (c) => c.chitId === id || c.chitId?._id === id
+                      )?.slots || 1}
                     </TableCell>
                     <TableCell align="center">
                       <StatusPill status={m.status} />
@@ -459,35 +499,42 @@ function StatCard({ icon, value, label, isStatus }) {
     <Card
       elevation={0}
       sx={{
-        p: 2.5,
+        p: { xs: 1.5, sm: 2.5 },
         display: "flex",
+        flexDirection: { xs: "column", sm: "row" },
         alignItems: "center",
-        gap: 2,
+        textAlign: { xs: "center", sm: "left" },
+        gap: { xs: 1, sm: 2 },
         borderRadius: "16px",
         border: "1px solid #e2e8f0",
         backgroundColor: "white",
+        height: "100%",
       }}
     >
       <Box
         sx={{
-          p: 1.5,
+          p: { xs: 1, sm: 1.5 },
           borderRadius: "12px",
           backgroundColor: "#f8fafc",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          flexShrink: 0,
         }}
       >
         {icon}
       </Box>
-      <Box>
+      <Box sx={{ width: "100%", overflow: "hidden" }}>
         <Typography
           variant="h6"
           fontWeight={800}
           sx={{
             color: "#1e293b",
-            fontSize: "1.1rem",
+            fontSize: { xs: "0.95rem", sm: "1.1rem" },
             textTransform: isStatus ? "uppercase" : "none",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {value}
@@ -499,6 +546,7 @@ function StatCard({ icon, value, label, isStatus }) {
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            fontSize: { xs: "9px", sm: "12px" },
           }}
         >
           {label}

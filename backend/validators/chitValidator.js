@@ -11,7 +11,7 @@ const chitBody = z.object({
     .or(z.date())
     .optional()
     .transform((v) => (v ? new Date(v) : undefined)),
-  membersLimit: z.number().min(1),
+  totalSlots: z.number().min(1),
   startDate: z
     .string()
     .or(z.date())
