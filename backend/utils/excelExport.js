@@ -14,6 +14,7 @@ const generatePaymentsExcel = async (data) => {
     { header: "Invoice No", key: "invoiceNumber", width: 20 },
     { header: "Chit Name", key: "chitName", width: 25 },
     { header: "Member Name", key: "memberName", width: 25 },
+    { header: "Due Date (Every Month)", key: "dueDateEveryMonth", width: 20 },
     { header: "Phone", key: "phone", width: 15 },
     { header: "Payment Date", key: "paymentDate", width: 15 },
     { header: "Paid Amount", key: "paidAmount", width: 15 },
@@ -38,6 +39,7 @@ const generatePaymentsExcel = async (data) => {
       invoiceNumber: p.invoiceNumber || "-",
       chitName: p.chitId?.chitName || "-",
       memberName: p.memberId?.name || "-",
+      dueDateEveryMonth: p.dueDate ? new Date(p.dueDate).getDate() : "-",
       phone: p.memberId?.phone || "-",
       paymentDate: p.paymentDate
         ? new Date(p.paymentDate).toLocaleDateString("en-IN")

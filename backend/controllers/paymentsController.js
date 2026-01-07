@@ -621,6 +621,7 @@ const exportPaymentsExcel = async (req, res) => {
         paidAmount: 1,
         penaltyAmount: 1,
         paymentDate: 1,
+        dueDate: 1,
         paymentMode: 1,
         status: "$computedStatus",
         chitId: { chitName: "$chitDetails.chitName" },
