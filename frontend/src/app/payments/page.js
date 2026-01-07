@@ -101,12 +101,14 @@ const PaymentsPage = () => {
     chitId: "",
     paidAmount: "",
     penaltyAmount: 0,
+    interestPercent: 0,
     paymentDate: new Date().toISOString().split("T")[0],
     paymentMode: "cash",
-    paymentMonth: new Date().toLocaleString("default", {
-      month: "long",
-      year: "numeric",
-    }),
+    paymentMonth: new Date().toISOString().slice(0, 7), // YYYY-MM format for month picker
+    location: "",
+    dueDay: "", // Fixed day from chit
+    dueDate: "", // Full calculated date (YYYY-MM-DD)
+    monthlyPayableAmount: 0,
   };
   const [form, setForm] = useState(initialFormState);
 
@@ -129,6 +131,15 @@ const PaymentsPage = () => {
     fetchPayments();
     fetchChits();
   }, [filters]);
+
+  useEffect(() => {
+    if (form.paymentMonth && form.dueDay) {
+      const [year, month] = form.paymentMonth.split("-");
+      const day = String(form.dueDay).padStart(2, "0");
+      const calculatedDate = `${year}-${month}-${day}`;
+      setForm((prev) => ({ ...prev, dueDate: calculatedDate }));
+    }
+  }, [form.paymentMonth, form.dueDay]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -169,7 +180,7 @@ const PaymentsPage = () => {
       return;
     }
     try {
-      const res = await apiRequest(`/chit/${chitId}`);
+      const res = await apiRequest(`/chit/details/${chitId}`);
       setFilterMembers(res.data.members || []);
     } catch (err) {
       console.error(err);
@@ -179,8 +190,17 @@ const PaymentsPage = () => {
   const fetchMembers = async (chitId) => {
     if (!chitId) return;
     try {
-      const res = await apiRequest(`/chit/${chitId}`);
+      const res = await apiRequest(`/chit/details/${chitId}`);
+      const chitData = res.data.chit || {};
       setMembers(res.data.members || []);
+      setForm((prev) => ({
+        ...prev,
+        location: chitData.location || "",
+        dueDay: chitData.dueDate || "",
+        dueDate: chitData.dueDate || "", // Initially just the day or empty
+        monthlyPayableAmount: chitData.monthlyPayableAmount || 0,
+        paidAmount: chitData.monthlyPayableAmount || "",
+      }));
     } catch (err) {
       console.error(err);
     }
@@ -208,7 +228,14 @@ const PaymentsPage = () => {
 
     setPaymentLoading(true);
     try {
-      await apiRequest("/payment/create", "POST", form);
+      const res = await apiRequest("/payment/create", "POST", {
+        ...form,
+        paidAmount: Number(form.paidAmount),
+        penaltyAmount: Number(form.penaltyAmount),
+      });
+
+      const payment = res.data.payment;
+
       setSnackbar({
         open: true,
         message: "Payment recorded successfully",
@@ -217,6 +244,11 @@ const PaymentsPage = () => {
       setOpenModal(false);
       setOpenPreviewModal(false);
       fetchPayments();
+
+      // Automatically handle PDF generation
+      if (payment && (payment._id || payment.id)) {
+        handleExportPDF(payment._id || payment.id);
+      }
     } catch (err) {
       setSnackbar({
         open: true,
@@ -228,18 +260,28 @@ const PaymentsPage = () => {
     }
   };
 
+  const handleViewPayment = async (id) => {
+    try {
+      const res = await apiRequest(`/payment/details/${id}`);
+      setSelectedPayment(res.data.payment);
+      setOpenViewModal(true);
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "Failed to fetch payment details",
+        severity: "error",
+      });
+    }
+  };
+
   const handleExportPDF = async (id) => {
     try {
       const response = await apiRequest(`/payment/invoice/${id}`, "GET", null, {
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(new Blob([response]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `invoice-${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const blob = new Blob([response], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
     } catch (err) {
       setSnackbar({
         open: true,
@@ -333,10 +375,11 @@ const PaymentsPage = () => {
               sx={{
                 backgroundColor: "#2563eb",
                 borderRadius: "8px",
-                padding: "10px 24px",
+                padding: "8px 24px",
                 textTransform: "uppercase",
                 fontWeight: 700,
-                letterSpacing: "0.05em",
+                fontSize: "14px",
+                letterSpacing: "0.02em",
                 "&:hover": { backgroundColor: "#1d4ed8" },
               }}
               onClick={() => {
@@ -346,29 +389,6 @@ const PaymentsPage = () => {
               }}
             >
               ADD PAYMENT
-            </Button>
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<FileDownloadIcon />}
-              sx={{
-                mt: { xs: 1, sm: 0 },
-                ml: { sm: 2 },
-                borderRadius: "8px",
-                padding: "10px 24px",
-                textTransform: "uppercase",
-                fontWeight: 700,
-                letterSpacing: "0.05em",
-                borderColor: "#10b981",
-                color: "#10b981",
-                "&:hover": {
-                  borderColor: "#059669",
-                  backgroundColor: "rgba(16, 185, 129, 0.04)",
-                },
-              }}
-              onClick={handleExportExcel}
-            >
-              EXCEL
             </Button>
           </Box>
         </Box>
@@ -606,7 +626,7 @@ const PaymentsPage = () => {
               <Table size="small">
                 <TableHead sx={tableHeaderSx}>
                   <TableRow>
-                    <TableCell>Invoice</TableCell>
+                    <TableCell>ID</TableCell>
                     <TableCell>Chit</TableCell>
                     <TableCell>Member</TableCell>
                     <TableCell>Phone</TableCell>
@@ -647,12 +667,24 @@ const PaymentsPage = () => {
                         }}
                       >
                         <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
-                          {p.invoiceNumber || "-"}
+                          {p.paymentId || p.invoiceNumber || "-"}
                         </TableCell>
-                        <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                        <TableCell
+                          sx={{
+                            color: "#475569",
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           {p.chitId?.chitName || "-"}
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            color: "#1e293b",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
                           {p.memberId?.name || "-"}
                         </TableCell>
                         <TableCell sx={{ color: "#64748b", fontSize: "12px" }}>
@@ -718,10 +750,7 @@ const PaymentsPage = () => {
                                   color: "#2563eb",
                                 },
                               }}
-                              onClick={() => {
-                                setSelectedPayment(p);
-                                setOpenViewModal(true);
-                              }}
+                              onClick={() => handleViewPayment(p._id || p.id)}
                             >
                               VIEW
                             </Button>
@@ -786,6 +815,40 @@ const PaymentsPage = () => {
               </Select>
             </FormControl>
 
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Location"
+                  value={form.location || "-"}
+                  InputProps={{ readOnly: true }}
+                  disabled
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Due Date"
+                  value={
+                    form.dueDate && String(form.dueDate).includes("-")
+                      ? String(form.dueDate).split("-").reverse().join("/")
+                      : form.dueDate || "-"
+                  }
+                  InputProps={{ readOnly: true }}
+                  disabled
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Monthly Amt"
+                  value={form.monthlyPayableAmount || 0}
+                  InputProps={{ readOnly: true }}
+                  disabled
+                />
+              </Grid>
+            </Grid>
+
             <FormControl fullWidth disabled={!form.chitId}>
               <InputLabel>Select Member</InputLabel>
               <Select
@@ -814,9 +877,36 @@ const PaymentsPage = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Interest (%)</InputLabel>
+                  <Select
+                    label="Interest (%)"
+                    value={form.interestPercent}
+                    onChange={(e) => {
+                      const percent = e.target.value;
+                      const penalty =
+                        (Number(form.monthlyPayableAmount) * Number(percent)) /
+                        100;
+                      setForm({
+                        ...form,
+                        interestPercent: percent,
+                        penaltyAmount: penalty,
+                      });
+                    }}
+                  >
+                    <MenuItem value={0}>None</MenuItem>
+                    <MenuItem value={5}>5%</MenuItem>
+                    <MenuItem value={10}>10%</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Penalty (Optional)"
+                  label="Penalty Amount"
                   type="number"
                   value={form.penaltyAmount}
                   onChange={(e) =>
@@ -824,43 +914,49 @@ const PaymentsPage = () => {
                   }
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Payment Mode</InputLabel>
+                  <Select
+                    label="Payment Mode"
+                    value={form.paymentMode}
+                    onChange={(e) =>
+                      setForm({ ...form, paymentMode: e.target.value })
+                    }
+                  >
+                    <MenuItem value="cash">Cash</MenuItem>
+                    <MenuItem value="online">Online</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
 
-            <TextField
-              fullWidth
-              label="Payment Date"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={form.paymentDate}
-              onChange={(e) =>
-                setForm({ ...form, paymentDate: e.target.value })
-              }
-            />
-
-            <TextField
-              fullWidth
-              label="Payment Month"
-              value={form.paymentMonth}
-              onChange={(e) =>
-                setForm({ ...form, paymentMonth: e.target.value })
-              }
-              placeholder="e.g. January 2026"
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>Payment Mode</InputLabel>
-              <Select
-                label="Payment Mode"
-                value={form.paymentMode}
-                onChange={(e) =>
-                  setForm({ ...form, paymentMode: e.target.value })
-                }
-              >
-                <MenuItem value="cash">Cash</MenuItem>
-                <MenuItem value="online">Online</MenuItem>
-                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
-              </Select>
-            </FormControl>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Payment Date"
+                  type="date"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.paymentDate}
+                  onChange={(e) =>
+                    setForm({ ...form, paymentDate: e.target.value })
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Payment Month"
+                  type="month"
+                  InputLabelProps={{ shrink: true }}
+                  value={form.paymentMonth}
+                  onChange={(e) =>
+                    setForm({ ...form, paymentMonth: e.target.value })
+                  }
+                />
+              </Grid>
+            </Grid>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
@@ -879,10 +975,20 @@ const PaymentsPage = () => {
               const selectedChitName = chits.find(
                 (c) => c.id === form.chitId
               )?.chitName;
+
+              // Format month for preview (e.g. "January 2026")
+              const [year, month] = form.paymentMonth.split("-");
+              const monthName = new Date(
+                year,
+                parseInt(month) - 1
+              ).toLocaleString("default", { month: "long" });
+              const displayMonth = `${monthName} ${year}`;
+
               setPreviewData({
                 ...form,
                 memberName: selectedMemberName,
                 chitName: selectedChitName,
+                displayMonth: displayMonth,
               });
               setOpenPreviewModal(true);
             }}
@@ -898,110 +1004,384 @@ const PaymentsPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* VIEW PAYMENT MODAL */}
+      {/* VIEW PAYMENT MODAL (CLEANED UI) */}
       <Dialog
         open={openViewModal}
         onClose={() => setOpenViewModal(false)}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: "16px" } }}
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+          },
+        }}
       >
         <DialogTitle
-          sx={{ fontWeight: 800, borderBottom: "1px solid #f1f5f9" }}
+          sx={{
+            p: 2.5,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            bgcolor: "#f8fafc",
+            borderBottom: "1px solid #e2e8f0",
+          }}
         >
-          Payment Details
+          <Typography variant="h6" sx={{ fontWeight: 800, color: "#1e293b" }}>
+            Payment Receipt Details
+          </Typography>
+          <StatusPill status={selectedPayment?.status || "confirmed"} />
         </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
+        <DialogContent sx={{ p: 3 }}>
           {selectedPayment && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={700}
-                >
-                  INVOICE NUMBER
-                </Typography>
-                <Typography fontWeight={600} color="#1e293b">
-                  {selectedPayment.invoiceNumber}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={700}
-                >
-                  CHIT NAME
-                </Typography>
-                <Typography fontWeight={600} color="#1e293b">
-                  {selectedPayment.chitId?.chitName}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={700}
-                >
-                  MEMBER NAME
-                </Typography>
-                <Typography fontWeight={600} color="#1e293b">
-                  {selectedPayment.memberId?.name}
-                </Typography>
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* TOP HEADER: INVOICE & DATE */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  bgcolor: "#f1f5f9",
+                  p: 2,
+                  borderRadius: "12px",
+                }}
+              >
+                <Box>
                   <Typography
                     variant="caption"
                     color="text.secondary"
                     fontWeight={700}
                   >
-                    AMOUNT PAID
+                    INVOICE NUMBER
                   </Typography>
-                  <Typography fontWeight={700} color="#16a34a">
-                    ₹{selectedPayment.paidAmount?.toLocaleString("en-IN")}
+                  <Typography
+                    variant="body1"
+                    fontWeight={800}
+                    color="#2563eb"
+                    sx={{ letterSpacing: "0.5px" }}
+                  >
+                    {selectedPayment.invoiceNumber}
                   </Typography>
+                </Box>
+                <Box sx={{ textAlign: "right" }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    fontWeight={700}
+                  >
+                    PAYMENT DATE
+                  </Typography>
+                  <Typography variant="body1" fontWeight={700}>
+                    {new Date(selectedPayment.paymentDate).toLocaleDateString(
+                      "en-IN"
+                    )}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Grid container spacing={3}>
+                {/* CHIT DETAILS */}
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      height: "100%",
+                      borderRight: { sm: "1px solid #e2e8f0" },
+                      pr: { sm: 2 },
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      color="#0369a1"
+                      fontWeight={800}
+                      gutterBottom
+                      sx={{
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        fontSize: "11px",
+                      }}
+                    >
+                      Chit Information
+                    </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={600}
+                        >
+                          Chit Name
+                        </Typography>
+                        <Typography variant="body2" fontWeight={700}>
+                          {selectedPayment.chitId?.chitName}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={600}
+                        >
+                          Location
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {selectedPayment.chitId?.location || "-"}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: "flex", gap: 3 }}>
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={600}
+                          >
+                            Amount
+                          </Typography>
+                          <Typography variant="body2" fontWeight={800}>
+                            ₹
+                            {selectedPayment.chitId?.amount?.toLocaleString(
+                              "en-IN"
+                            )}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            fontWeight={600}
+                          >
+                            Duration
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {selectedPayment.chitId?.duration} Months
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Grid>
-                <Grid item xs={6}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    fontWeight={700}
-                  >
-                    PENALTY
-                  </Typography>
-                  <Typography fontWeight={700} color="#dc2626">
-                    ₹{selectedPayment.penaltyAmount?.toLocaleString("en-IN")}
-                  </Typography>
+
+                {/* MEMBER DETAILS */}
+                <Grid item xs={12} sm={6}>
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      color="#b45309"
+                      fontWeight={800}
+                      gutterBottom
+                      sx={{
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        fontSize: "11px",
+                      }}
+                    >
+                      Member Information
+                    </Typography>
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={600}
+                        >
+                          Full Name
+                        </Typography>
+                        <Typography variant="body2" fontWeight={800}>
+                          {selectedPayment.memberId?.name}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={600}
+                        >
+                          Contact Number
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {selectedPayment.memberId?.phone || "-"}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          fontWeight={600}
+                        >
+                          Address
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          sx={{ wordBreak: "break-all" }}
+                        >
+                          {selectedPayment.memberId?.address ||
+                            "No address provided"}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                 </Grid>
               </Grid>
+
+              <Divider />
+
+              {/* FINANCIALS */}
               <Box>
                 <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={700}
+                  variant="subtitle2"
+                  color="#1e293b"
+                  fontWeight={800}
+                  gutterBottom
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    fontSize: "11px",
+                    mb: 2,
+                  }}
                 >
-                  PAYMENT DATE
+                  Payment Breakdown
                 </Typography>
-                <Typography fontWeight={600} color="#1e293b">
-                  {new Date(selectedPayment.paymentDate).toLocaleDateString(
-                    "en-IN"
-                  )}
-                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: "#f8fafc",
+                    p: 2.5,
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <Grid container spacing={1}>
+                    <Grid item xs={4}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={600}
+                      >
+                        Base Amount
+                      </Typography>
+                      <Typography variant="h6" fontWeight={800} color="#16a34a">
+                        ₹{selectedPayment.paidAmount?.toLocaleString("en-IN")}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        fontWeight={600}
+                      >
+                        Penalty/Int.
+                      </Typography>
+                      <Typography variant="h6" fontWeight={800} color="#dc2626">
+                        ₹
+                        {selectedPayment.penaltyAmount?.toLocaleString("en-IN")}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={4} sx={{ textAlign: "right" }}>
+                      <Typography
+                        variant="caption"
+                        color="#1e293b"
+                        fontWeight={800}
+                      >
+                        TOTAL PAID
+                      </Typography>
+                      <Typography variant="h6" fontWeight={900} color="#0f172a">
+                        ₹
+                        {(
+                          Number(selectedPayment.paidAmount || 0) +
+                          Number(selectedPayment.penaltyAmount || 0)
+                        ).toLocaleString("en-IN")}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    px: 1,
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      fontWeight={600}
+                    >
+                      PAYMENT MODE
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      fontWeight={700}
+                      sx={{ textTransform: "uppercase", color: "#64748b" }}
+                    >
+                      {selectedPayment.paymentMode}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      fontWeight={600}
+                    >
+                      TRANSACTION ID
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      fontWeight={700}
+                      color="#64748b"
+                    >
+                      {selectedPayment.paymentId || "-"}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: "1px solid #f1f5f9" }}>
+        <DialogActions
+          sx={{
+            p: 2.5,
+            bgcolor: "#f8fafc",
+            borderTop: "1px solid #e2e8f0",
+            gap: 2,
+          }}
+        >
           <Button
-            fullWidth
+            variant="outlined"
+            onClick={() => handleExportPDF(selectedPayment?._id)}
+            startIcon={<FileDownloadIcon />}
+            sx={{
+              fontWeight: 800,
+              borderRadius: "8px",
+              borderColor: "#cbd5e1",
+              color: "#475569",
+              px: 3,
+            }}
+          >
+            Export PDF
+          </Button>
+          <Button
             variant="contained"
             onClick={() => setOpenViewModal(false)}
             sx={{
               backgroundColor: "#1e293b",
               borderRadius: "8px",
-              fontWeight: 700,
+              fontWeight: 800,
+              px: 4,
               "&:hover": { backgroundColor: "#0f172a" },
             }}
           >
@@ -1048,15 +1428,43 @@ const PaymentsPage = () => {
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Typography variant="body2" color="text.secondary">
-                Amount:
+                Month:
               </Typography>
-              <Typography variant="body2" fontWeight={700} color="#16a34a">
-                ₹{Number(previewData?.paidAmount).toLocaleString()}
+              <Typography variant="body2" fontWeight={700} color="#1e293b">
+                {previewData?.displayMonth}
               </Typography>
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Typography variant="body2" color="text.secondary">
-                Penalty:
+                Location:
+              </Typography>
+              <Typography variant="body2" fontWeight={700}>
+                {previewData?.location}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Due Date:
+              </Typography>
+              <Typography variant="body2" fontWeight={700}>
+                {previewData?.dueDate &&
+                String(previewData.dueDate).includes("-")
+                  ? String(previewData.dueDate).split("-").reverse().join("/")
+                  : previewData?.dueDate}
+              </Typography>
+            </Box>
+            <Divider />
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Paid Amount:
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#16a34a">
+                ₹{Number(previewData?.paidAmount || 0).toLocaleString()}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Interest ({previewData?.interestPercent}%):
               </Typography>
               <Typography variant="body2" fontWeight={700} color="#dc2626">
                 ₹{Number(previewData?.penaltyAmount || 0).toLocaleString()}
