@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Member = require("../models/Member");
 const Chit = require("../models/Chit");
+const Payment = require("../models/Payment");
 const sendResponse = require("../utils/response");
 const sendEmail = require("../utils/sendEmail");
 const { generateWelcomePDFBuffer } = require("../utils/welcomePdf");
@@ -82,14 +83,12 @@ const addMember = async (req, res) => {
         return sum + (chitEntry?.slots || 1);
       }, 0);
 
-      if (totalSlotsTaken + slots > chit.membersLimit) {
+      if (totalSlotsTaken + slots > chit.totalSlots) {
         return sendResponse(
           res,
           400,
           "error",
-          `Chit member limit reached for ${chit.chitName}. Available slots: ${
-            chit.membersLimit - totalSlotsTaken
-          }`,
+          "already slots are filled",
           null,
           "Validation Error"
         );
@@ -177,7 +176,7 @@ const getMembers = async (req, res) => {
       Member.find(query)
         .populate(
           "chits.chitId",
-          "chitName location amount duration membersLimit monthlyPayableAmount"
+          "chitName location amount duration totalSlots monthlyPayableAmount"
         )
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -225,7 +224,7 @@ const getMemberById = async (req, res) => {
 
     const member = await Member.findById(id).populate(
       "chits.chitId",
-      "chitName location amount duration membersLimit monthlyPayableAmount"
+      "chitName location amount duration totalSlots monthlyPayableAmount"
     );
 
     if (!member) {
@@ -340,14 +339,12 @@ const updateMember = async (req, res) => {
           return sum + (chitEntry?.slots || 1);
         }, 0);
 
-        if (totalOtherSlots + slots > chit.membersLimit) {
+        if (totalOtherSlots + slots > chit.totalSlots) {
           return sendResponse(
             res,
             400,
             "error",
-            `Chit member limit reached for ${chit.chitName}. Available slots: ${
-              chit.membersLimit - totalOtherSlots
-            }`,
+            "already slots are filled",
             null,
             "Validation Error"
           );
@@ -456,10 +453,70 @@ const deleteMember = async (req, res) => {
   }
 };
 
+// 6. Get Member PDF Report
+const getMemberReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { chitId } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return sendResponse(res, 400, "error", "Invalid Member ID");
+    }
+
+    const member = await Member.findById(id).populate(
+      "chits.chitId",
+      "chitName location amount duration startDate totalSlots monthlyPayableAmount"
+    );
+
+    if (!member) {
+      return sendResponse(res, 404, "error", "Member not found");
+    }
+
+    // Filter chits if chitId is provided
+    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+      member.chits = member.chits.filter(
+        (c) => c.chitId._id.toString() === chitId.toString()
+      );
+    }
+
+    // Fetch payment history
+    const paymentQuery = { memberId: id };
+    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
+      paymentQuery.chitId = chitId;
+    }
+
+    const payments = await Payment.find(paymentQuery)
+      .populate("chitId", "chitName")
+      .sort({ paymentDate: -1 })
+      .lean();
+
+    const pdfBuffer = await generateWelcomePDFBuffer(member, payments);
+    const safeName = formatFileName(member.name);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename=Member_Report_${safeName}.pdf`
+    );
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error("PDF Report Gen Error:", error);
+    return sendResponse(
+      res,
+      500,
+      "error",
+      "PDF Generation Failed",
+      null,
+      error.message
+    );
+  }
+};
+
 module.exports = {
   addMember,
   getMembers,
   getMemberById,
   updateMember,
   deleteMember,
+  getMemberReport,
 };

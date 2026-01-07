@@ -126,7 +126,7 @@ const ChitsPage = () => {
     amount: "",
     monthlyPayableAmount: "",
     duration: "",
-    membersLimit: "",
+    totalSlots: "",
     startDate: "",
     dueDate: "",
     status: "Active",
@@ -182,7 +182,7 @@ const ChitsPage = () => {
             amount: chit.amount,
             monthlyAmount: chit.monthlyPayableAmount,
             durationMonths: chit.duration,
-            membersLimit: chit.membersLimit,
+            totalSlots: chit.totalSlots,
             startDate: chit.startDate ? chit.startDate.split("T")[0] : "",
             dueDate: chit.dueDate,
             status: chit.status,
@@ -249,7 +249,7 @@ const ChitsPage = () => {
       amount: "",
       monthlyPayableAmount: "",
       duration: "",
-      membersLimit: "",
+      totalSlots: "",
       startDate: "",
       dueDate: "",
       status: "Active",
@@ -267,7 +267,7 @@ const ChitsPage = () => {
       amount: chit.amount,
       monthlyPayableAmount: chit.monthlyAmount,
       duration: chit.durationMonths,
-      membersLimit: chit.membersLimit,
+      totalSlots: chit.totalSlots,
       startDate: chit.startDate,
       dueDate: chit.dueDate,
       status: chit.status,
@@ -294,7 +294,7 @@ const ChitsPage = () => {
         amount: Number(formData.amount),
         monthlyPayableAmount: Number(formData.monthlyPayableAmount),
         duration: Number(formData.duration),
-        membersLimit: Number(formData.membersLimit),
+        totalSlots: Number(formData.totalSlots),
         startDate: formData.startDate,
         dueDate: Number(formData.dueDate),
         status: formData.status,
@@ -337,522 +337,502 @@ const ChitsPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <div className="flex-1 w-full min-w-0">
-        <main className="p-6">
-          {/* HEADER */}
-          <div className="relative mb-6">
-            <div className="flex flex-col items-center gap-3 sm:hidden">
-              <Typography
-                variant="h5"
-                fontWeight={700}
-                textAlign="center"
-                sx={{ color: "#1e293b" }}
-              >
-                Chit Management
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={openAddModal}
-                sx={{
-                  backgroundColor: "#1976d2",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "14px",
-                  px: 2.5,
-                  letterSpacing: "0.02em",
-                  "&:hover": { backgroundColor: "#1565c0" },
-                }}
-              >
-                ADD CHIT
-              </Button>
-            </div>
+    <Box
+      className="mobile-page-padding"
+      sx={{ minHeight: "100vh", bgcolor: "#f1f5f9", p: { xs: 2, md: 4 } }}
+    >
+      {/* HEADER */}
+      <div className="relative mb-6">
+        <div className="flex flex-col items-center gap-3 sm:hidden">
+          <Typography
+            variant="h5"
+            fontWeight={700}
+            textAlign="center"
+            sx={{ color: "#1e293b" }}
+          >
+            Chit Management
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openAddModal}
+            sx={{
+              backgroundColor: "#1976d2",
+              borderRadius: "8px",
+              fontWeight: 700,
+              fontSize: "14px",
+              px: 2.5,
+              letterSpacing: "0.02em",
+              "&:hover": { backgroundColor: "#1565c0" },
+            }}
+          >
+            ADD CHIT
+          </Button>
+        </div>
 
-            <div className="hidden sm:flex items-center justify-center px-16">
-              <Typography
-                variant="h4"
-                fontWeight={700}
-                sx={{ textAlign: "center", color: "#1e293b" }}
+        <div className="hidden sm:flex items-center justify-center px-16">
+          <Typography
+            variant="h4"
+            fontWeight={700}
+            sx={{ textAlign: "center", color: "#1e293b" }}
+          >
+            Chit Management
+          </Typography>
+          <div className="absolute right-0">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openAddModal}
+              sx={{
+                backgroundColor: "#1976d2",
+                borderRadius: "8px",
+                fontWeight: 700,
+                fontSize: "14px",
+                px: 3,
+                py: 1,
+                letterSpacing: "0.02em",
+                "&:hover": { backgroundColor: "#1565c0" },
+              }}
+            >
+              ADD CHIT
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* FILTERS */}
+      {mounted && (
+        <Card
+          elevation={0}
+          className="filter-card-mobile"
+          sx={{
+            p: 3,
+            mb: 4,
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            backgroundColor: "white",
+          }}
+        >
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+                lg: "repeat(6, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <TextField
+              fullWidth
+              placeholder="Chit Name"
+              size="small"
+              value={filters.name}
+              onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+            />
+            <TextField
+              fullWidth
+              placeholder="Duration"
+              type="number"
+              size="small"
+              value={filters.duration}
+              onChange={(e) =>
+                setFilters({ ...filters, duration: e.target.value })
+              }
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+            />
+            <TextField
+              fullWidth
+              placeholder="Members"
+              type="number"
+              size="small"
+              value={filters.members}
+              onChange={(e) =>
+                setFilters({ ...filters, members: e.target.value })
+              }
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+            />
+            <TextField
+              fullWidth
+              type="date"
+              size="small"
+              value={filters.startDate}
+              onChange={(e) =>
+                setFilters({ ...filters, startDate: e.target.value })
+              }
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+              placeholder="Start Date"
+            />
+            <TextField
+              fullWidth
+              placeholder="Location"
+              size="small"
+              value={filters.location}
+              onChange={(e) =>
+                setFilters({ ...filters, location: e.target.value })
+              }
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+            />
+            <FormControl fullWidth size="small">
+              <Select
+                value={filters.status}
+                displayEmpty
+                onChange={(e) =>
+                  setFilters({ ...filters, status: e.target.value })
+                }
+                sx={{ borderRadius: "8px" }}
               >
-                Chit Management
-              </Typography>
-              <div className="absolute right-0">
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={openAddModal}
-                  sx={{
-                    backgroundColor: "#1976d2",
-                    borderRadius: "8px",
-                    fontWeight: 700,
-                    fontSize: "14px",
-                    px: 3,
-                    py: 1,
-                    letterSpacing: "0.02em",
-                    "&:hover": { backgroundColor: "#1565c0" },
-                  }}
-                >
-                  ADD CHIT
-                </Button>
-              </div>
-            </div>
+                <MUIMenuItem value="">
+                  <span className="text-gray-400">Status</span>
+                </MUIMenuItem>
+                {STATUS_OPTIONS.map((s) => (
+                  <MUIMenuItem key={s} value={s}>
+                    {s}
+                  </MUIMenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Typography
+              onClick={clearFilters}
+              sx={{
+                color: "#2563eb",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
+              Clear filters
+            </Typography>
+          </Box>
+        </Card>
+      )}
+
+      {/* TABLE */}
+      <Card
+        elevation={0}
+        sx={{
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          overflow: "hidden",
+        }}
+      >
+        <CardContent className="p-0">
+          <div className="overflow-x-auto overflow-y-auto max-h-[70vh] table-container-mobile">
+            <Table className="min-w-max">
+              <TableHead>
+                <TableRow sx={tableHeaderSx}>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                  <TableCell align="right">Monthly</TableCell>
+                  <TableCell align="center">Duration</TableCell>
+                  <TableCell align="center">Total Slots</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>Location</TableCell>
+                  <TableCell align="center">Status</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {chits.map((chit) => (
+                  <TableRow
+                    key={chit.id}
+                    sx={{
+                      "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                      "&:hover": { backgroundColor: "#f1f5f9" },
+                    }}
+                  >
+                    <TableCell sx={{ color: "#64748b", fontWeight: 500 }}>
+                      {chit.chitId ||
+                        (chit.id ? chit.id.slice(-6).toUpperCase() : "N/A")}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                      {chit.name}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>
+                      ₹{chit.amount?.toLocaleString("en-IN")}
+                    </TableCell>
+                    <TableCell
+                      align="right"
+                      sx={{ fontWeight: 600, color: "#0284c7" }}
+                    >
+                      ₹{chit.monthlyAmount?.toLocaleString("en-IN")}
+                    </TableCell>
+                    <TableCell align="center">{chit.durationMonths}</TableCell>
+                    <TableCell align="center">{chit.totalSlots}</TableCell>
+                    <TableCell sx={{ color: "#64748b" }}>
+                      {chit.startDate}
+                    </TableCell>
+                    <TableCell>{chit.location}</TableCell>
+                    <TableCell align="center">
+                      <StatusPill status={chit.status} />
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        onClick={(e) => openActions(e, chit)}
+                        size="small"
+                      >
+                        <MoreVertIcon sx={{ fontSize: 20 }} />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {chits.length === 0 && !loading && (
+                  <TableRow>
+                    <TableCell colSpan={10} align="center">
+                      No chits found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
 
-          {/* FILTERS */}
-          {mounted && (
-            <Card
-              elevation={0}
-              sx={{
-                p: 3,
-                mb: 4,
-                borderRadius: "16px",
-                border: "1px solid #e2e8f0",
-                backgroundColor: "white",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "1fr",
-                    sm: "repeat(2, 1fr)",
-                    md: "repeat(3, 1fr)",
-                    lg: "repeat(6, 1fr)",
-                  },
-                  gap: 2,
-                }}
-              >
-                <TextField
-                  fullWidth
-                  placeholder="Chit Name"
-                  size="small"
-                  value={filters.name}
-                  onChange={(e) =>
-                    setFilters({ ...filters, name: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                />
-                <TextField
-                  fullWidth
-                  placeholder="Duration"
-                  type="number"
-                  size="small"
-                  value={filters.duration}
-                  onChange={(e) =>
-                    setFilters({ ...filters, duration: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                />
-                <TextField
-                  fullWidth
-                  placeholder="Members"
-                  type="number"
-                  size="small"
-                  value={filters.members}
-                  onChange={(e) =>
-                    setFilters({ ...filters, members: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                />
-                <TextField
-                  fullWidth
-                  type="date"
-                  size="small"
-                  value={filters.startDate}
-                  onChange={(e) =>
-                    setFilters({ ...filters, startDate: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                  placeholder="Start Date"
-                />
-                <TextField
-                  fullWidth
-                  placeholder="Location"
-                  size="small"
-                  value={filters.location}
-                  onChange={(e) =>
-                    setFilters({ ...filters, location: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-                />
-                <FormControl fullWidth size="small">
-                  <Select
-                    value={filters.status}
-                    displayEmpty
-                    onChange={(e) =>
-                      setFilters({ ...filters, status: e.target.value })
-                    }
-                    sx={{ borderRadius: "8px" }}
-                  >
-                    <MUIMenuItem value="">
-                      <span className="text-gray-400">Status</span>
-                    </MUIMenuItem>
-                    {STATUS_OPTIONS.map((s) => (
-                      <MUIMenuItem key={s} value={s}>
-                        {s}
-                      </MUIMenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-                <Typography
-                  onClick={clearFilters}
-                  sx={{
-                    color: "#2563eb",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    "&:hover": { textDecoration: "underline" },
-                  }}
-                >
-                  Clear filters
-                </Typography>
-              </Box>
-            </Card>
-          )}
+          <Box sx={{ borderTop: 1, borderColor: "divider" }}>
+            <TablePagination
+              component="div"
+              count={totalChits}
+              page={page - 1}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+            />
+          </Box>
+        </CardContent>
+      </Card>
 
-          {/* TABLE */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: "16px",
-              border: "1px solid #e2e8f0",
-              overflow: "hidden",
-            }}
-          >
-            <CardContent className="p-0">
-              <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
-                <Table className="min-w-max">
-                  <TableHead>
-                    <TableRow sx={tableHeaderSx}>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Name</TableCell>
-                      <TableCell align="right">Amount</TableCell>
-                      <TableCell align="right">Monthly</TableCell>
-                      <TableCell align="center">Duration</TableCell>
-                      <TableCell align="center">Members</TableCell>
-                      <TableCell>Start Date</TableCell>
-                      <TableCell>Location</TableCell>
-                      <TableCell align="center">Status</TableCell>
-                      <TableCell align="center">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {chits.map((chit) => (
-                      <TableRow
-                        key={chit.id}
-                        sx={{
-                          "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
-                          "&:hover": { backgroundColor: "#f1f5f9" },
-                        }}
-                      >
-                        <TableCell sx={{ color: "#64748b", fontWeight: 500 }}>
-                          {chit.chitId ||
-                            (chit.id ? chit.id.slice(-6).toUpperCase() : "N/A")}
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
-                          {chit.name}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700 }}>
-                          ₹{chit.amount?.toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{ fontWeight: 600, color: "#0284c7" }}
-                        >
-                          ₹{chit.monthlyAmount?.toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell align="center">
-                          {chit.durationMonths}
-                        </TableCell>
-                        <TableCell align="center">
-                          {chit.membersLimit}
-                        </TableCell>
-                        <TableCell sx={{ color: "#64748b" }}>
-                          {chit.startDate}
-                        </TableCell>
-                        <TableCell>{chit.location}</TableCell>
-                        <TableCell align="center">
-                          <StatusPill status={chit.status} />
-                        </TableCell>
-                        <TableCell align="center">
-                          <IconButton
-                            onClick={(e) => openActions(e, chit)}
-                            size="small"
-                          >
-                            <MoreVertIcon sx={{ fontSize: 20 }} />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {chits.length === 0 && !loading && (
-                      <TableRow>
-                        <TableCell colSpan={10} align="center">
-                          No chits found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+      {/* ACTIONS & MODALS */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={closeActions}>
+        <MenuItem
+          disabled={!selectedChit}
+          onClick={() => {
+            if (!selectedChit) return;
+            localStorage.setItem("selectedChit", JSON.stringify(selectedChit));
+            router.push(`/chits/${selectedChit.id}`);
+            closeActions();
+          }}
+        >
+          View
+        </MenuItem>
+        <MenuItem onClick={() => openEditModal(selectedChit)}>Edit</MenuItem>
+        <MenuItem onClick={() => handleDelete(selectedChit)}>Delete</MenuItem>
+      </Menu>
 
-              <Box sx={{ borderTop: 1, borderColor: "divider" }}>
-                <TablePagination
-                  component="div"
-                  count={totalChits}
-                  page={page - 1}
-                  onPageChange={handleChangePage}
-                  rowsPerPage={rowsPerPage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                  rowsPerPageOptions={[5, 10, 25, 50]}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* ACTIONS & MODALS */}
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={closeActions}
-          >
-            <MenuItem
-              disabled={!selectedChit}
-              onClick={() => {
-                if (!selectedChit) return;
-                localStorage.setItem(
-                  "selectedChit",
-                  JSON.stringify(selectedChit)
-                );
-                router.push(`/chits/${selectedChit.id}`);
-                closeActions();
-              }}
-            >
-              View
-            </MenuItem>
-            <MenuItem onClick={() => openEditModal(selectedChit)}>
-              Edit
-            </MenuItem>
-            <MenuItem onClick={() => handleDelete(selectedChit)}>
-              Delete
-            </MenuItem>
-          </Menu>
-
-          <Dialog
-            open={openModal}
-            onClose={() => setOpenModal(false)}
+      <Dialog
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        fullWidth
+        maxWidth="sm"
+        sx={{
+          "& .MuiPaper-root": {
+            width: "520px",
+            borderRadius: "16px",
+            padding: "20px",
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1, color: "#1e293b" }}>
+          {isEditMode ? "Edit Chit" : "Add Chit"}
+        </DialogTitle>
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 2 }}
+        >
+          <TextField
+            placeholder="Chit Name"
             fullWidth
-            maxWidth="sm"
+            value={formData.chitName}
+            onChange={(e) =>
+              setFormData({ ...formData, chitName: e.target.value })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          <TextField
+            placeholder="Location"
+            fullWidth
+            value={formData.location}
+            onChange={(e) =>
+              setFormData({ ...formData, location: e.target.value })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          {isEditMode && (
+            <FormControl fullWidth>
+              <Select
+                value={formData.status}
+                displayEmpty
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
+                sx={{ borderRadius: "10px" }}
+              >
+                {STATUS_OPTIONS.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          <TextField
+            placeholder="Amount"
+            type="number"
+            fullWidth
+            value={formData.amount}
+            onChange={(e) =>
+              setFormData({ ...formData, amount: e.target.value })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          <TextField
+            placeholder="Monthly Payable Amount"
+            type="number"
+            fullWidth
+            value={formData.monthlyPayableAmount}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                monthlyPayableAmount: e.target.value,
+              })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          <TextField
+            placeholder="Duration (Months)"
+            type="number"
+            fullWidth
+            value={formData.duration}
+            onChange={(e) =>
+              setFormData({ ...formData, duration: e.target.value })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          <TextField
+            placeholder="Total Slots"
+            type="number"
+            fullWidth
+            value={formData.totalSlots}
+            onChange={(e) =>
+              setFormData({ ...formData, totalSlots: e.target.value })
+            }
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
+            >
+              Start Date
+            </Typography>
+            <TextField
+              type="date"
+              fullWidth
+              value={formData.startDate}
+              onChange={(e) =>
+                setFormData({ ...formData, startDate: e.target.value })
+              }
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+            />
+          </Box>
+          <TextField
+            placeholder="Due Date / Cycle Day (1-31)"
+            type="number"
+            fullWidth
+            value={formData.dueDate}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "" || (Number(value) >= 1 && Number(value) <= 31)) {
+                setFormData({ ...formData, dueDate: value });
+              }
+            }}
+            inputProps={{ min: 1, max: 31 }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
+          <Button
+            onClick={() => setOpenModal(false)}
+            sx={{ color: "#64748b", fontWeight: 700 }}
+          >
+            CANCEL
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveChit}
             sx={{
-              "& .MuiPaper-root": {
-                width: "520px",
-                borderRadius: "16px",
-                padding: "20px",
-              },
+              borderRadius: "8px",
+              px: 3,
+              fontWeight: 700,
+              backgroundColor: "#1976d2",
+              "&:hover": { backgroundColor: "#1565c0" },
             }}
           >
-            <DialogTitle sx={{ fontWeight: 700, pb: 1, color: "#1e293b" }}>
-              {isEditMode ? "Edit Chit" : "Add Chit"}
-            </DialogTitle>
-            <DialogContent
-              sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 2 }}
-            >
-              <TextField
-                placeholder="Chit Name"
-                fullWidth
-                value={formData.chitName}
-                onChange={(e) =>
-                  setFormData({ ...formData, chitName: e.target.value })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              <TextField
-                placeholder="Location"
-                fullWidth
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              {isEditMode && (
-                <FormControl fullWidth>
-                  <Select
-                    value={formData.status}
-                    displayEmpty
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
-                    sx={{ borderRadius: "10px" }}
-                  >
-                    {STATUS_OPTIONS.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {status}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-              <TextField
-                placeholder="Amount"
-                type="number"
-                fullWidth
-                value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              <TextField
-                placeholder="Monthly Payable Amount"
-                type="number"
-                fullWidth
-                value={formData.monthlyPayableAmount}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    monthlyPayableAmount: e.target.value,
-                  })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              <TextField
-                placeholder="Duration (Months)"
-                type="number"
-                fullWidth
-                value={formData.duration}
-                onChange={(e) =>
-                  setFormData({ ...formData, duration: e.target.value })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              <TextField
-                placeholder="Members Limit"
-                type="number"
-                fullWidth
-                value={formData.membersLimit}
-                onChange={(e) =>
-                  setFormData({ ...formData, membersLimit: e.target.value })
-                }
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{ color: "#64748b", mb: 0.5, display: "block", ml: 0.5 }}
-                >
-                  Start Date
-                </Typography>
-                <TextField
-                  type="date"
-                  fullWidth
-                  value={formData.startDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, startDate: e.target.value })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-                />
-              </Box>
-              <TextField
-                placeholder="Due Date / Cycle Day (1-31)"
-                type="number"
-                fullWidth
-                value={formData.dueDate}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (
-                    value === "" ||
-                    (Number(value) >= 1 && Number(value) <= 31)
-                  ) {
-                    setFormData({ ...formData, dueDate: value });
-                  }
-                }}
-                inputProps={{ min: 1, max: 31 }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
-              />
-            </DialogContent>
-            <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
-              <Button
-                onClick={() => setOpenModal(false)}
-                sx={{ color: "#64748b", fontWeight: 700 }}
-              >
-                CANCEL
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleSaveChit}
-                sx={{
-                  borderRadius: "8px",
-                  px: 3,
-                  fontWeight: 700,
-                  backgroundColor: "#1976d2",
-                  "&:hover": { backgroundColor: "#1565c0" },
-                }}
-              >
-                {isEditMode ? "SAVE CHANGES" : "CREATE CHIT"}
-              </Button>
-            </DialogActions>
-          </Dialog>
+            {isEditMode ? "SAVE CHANGES" : "CREATE CHIT"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-          <Snackbar
-            open={notification.open}
-            autoHideDuration={4000}
-            onClose={handleCloseNotification}
-            anchorOrigin={{ vertical: "top", horizontal: "right" }}
-          >
-            <Alert
-              onClose={handleCloseNotification}
-              severity={notification.severity}
-              variant="filled"
-              sx={{ width: "100%", boxShadow: 3 }}
-            >
-              {notification.message}
-            </Alert>
-          </Snackbar>
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: "100%", boxShadow: 3 }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
 
-          <Dialog
-            open={confirmOpen}
-            onClose={() => setConfirmOpen(false)}
-            sx={{
-              "& .MuiPaper-root": {
-                borderRadius: "16px",
-                padding: "10px",
-              },
-            }}
+      <Dialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        sx={{
+          "& .MuiPaper-root": {
+            borderRadius: "16px",
+            padding: "10px",
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: "#1e293b" }}>
+          Delete Confirmation
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: "#64748b" }}>
+            Are you sure you want to delete &quot;
+            <b style={{ color: "#1e293b" }}>{chitToDelete?.name}</b>&quot;? This
+            action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0, gap: 1 }}>
+          <Button
+            onClick={() => setConfirmOpen(false)}
+            sx={{ color: "#64748b", fontWeight: 700 }}
           >
-            <DialogTitle sx={{ fontWeight: 700, color: "#1e293b" }}>
-              Delete Confirmation
-            </DialogTitle>
-            <DialogContent>
-              <Typography sx={{ color: "#64748b" }}>
-                Are you sure you want to delete &quot;
-                <b style={{ color: "#1e293b" }}>{chitToDelete?.name}</b>&quot;?
-                This action cannot be undone.
-              </Typography>
-            </DialogContent>
-            <DialogActions sx={{ p: 2, pt: 0, gap: 1 }}>
-              <Button
-                onClick={() => setConfirmOpen(false)}
-                sx={{ color: "#64748b", fontWeight: 700 }}
-              >
-                CANCEL
-              </Button>
-              <Button
-                onClick={confirmDeleteAction}
-                variant="contained"
-                color="error"
-                autoFocus
-                sx={{ borderRadius: "8px", fontWeight: 700 }}
-              >
-                DELETE
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </main>
-      </div>
-    </div>
+            CANCEL
+          </Button>
+          <Button
+            onClick={confirmDeleteAction}
+            variant="contained"
+            color="error"
+            autoFocus
+            sx={{ borderRadius: "8px", fontWeight: 700 }}
+          >
+            DELETE
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

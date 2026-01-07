@@ -69,7 +69,7 @@ const Sidebar = () => {
               src="/logo.png"
               alt="LNS Logo"
               style={{
-                width: "140px",
+                width: "100px",
                 height: "auto",
                 objectFit: "contain",
               }}
@@ -114,8 +114,8 @@ const Sidebar = () => {
           onClick={() => setOpen(true)}
           sx={{
             position: "fixed",
-            top: 150,
-            left: 5,
+            top: 18,
+            left: 10,
             zIndex: 60,
             width: 45,
             height: 45,
@@ -166,7 +166,7 @@ const Sidebar = () => {
                   src="/logo.png"
                   alt="LNS Logo"
                   style={{
-                    width: "110px",
+                    width: "80px",
                     height: "auto",
                     objectFit: "contain",
                   }}

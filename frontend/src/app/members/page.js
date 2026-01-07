@@ -33,6 +33,9 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ReactSelect from "react-select";
 import makeAnimated from "react-select/animated";
 import { apiRequest } from "@/config/api";
@@ -261,9 +264,10 @@ const MembersPage = () => {
             id: c.chitId?._id || c.chitId,
             name: c.chitId?.chitName || "Unknown Chit",
             location: c.chitId?.location,
+            totalSlots: c.chitId?.totalSlots,
             slots: c.slots || 1,
           })),
-          documents: m.securityDocuments || [],
+          securityDocuments: m.securityDocuments || [],
         };
       });
 
@@ -309,6 +313,16 @@ const MembersPage = () => {
     setAnchorEl(null);
   };
 
+  const handleViewPDF = () => {
+    if (!selectedMember) return;
+    const token = localStorage.getItem("token");
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    const reportUrl = `${baseUrl}/member/report/${selectedMember.id}?token=${token}`;
+    window.open(reportUrl, "_blank");
+    handleMenuClose();
+  };
+
   const handleAddMember = () => {
     setIsEdit(false);
     setChitLimitError("");
@@ -338,7 +352,7 @@ const MembersPage = () => {
       email: selectedMember.email,
       address: selectedMember.address,
       chitIds: selectedMember.chitIds || [], // This is now [{ chitId, slots }]
-      documents: selectedMember.documents || [],
+      documents: selectedMember.securityDocuments || [],
       status: selectedMember.status,
       sendEmail: false,
     });
@@ -402,7 +416,7 @@ const MembersPage = () => {
     } catch (err) {
       const msg =
         err.response?.data?.message || err.message || "Failed to save member";
-      if (msg.includes("Chit member limit reached")) {
+      if (msg.includes("already slots are filled")) {
         setChitLimitError(msg);
       }
       showNotification(msg, "error");
@@ -478,6 +492,7 @@ const MembersPage = () => {
         {/* FILTERS */}
         <Card
           elevation={0}
+          className="filter-card-mobile"
           sx={{
             p: 2.5,
             mb: 4,
@@ -485,7 +500,7 @@ const MembersPage = () => {
             border: "1px solid #e2e8f0",
           }}
         >
-          <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex flex-wrap gap-4 items-center filters-container-mobile">
             <TextField
               size="small"
               placeholder="Search Name/Phone"
@@ -520,14 +535,16 @@ const MembersPage = () => {
                   width: "100%",
                   height: "40px",
                   fontSize: "14px",
-                  borderRadius: "10px",
+                  borderRadius: "0 10px 10px 0",
                   borderColor: "#cbd5e1",
+                  borderLeft: "none",
                 }}
                 countrySelectorStyleProps={{
                   buttonStyle: {
                     height: "40px",
                     borderRadius: "10px 0 0 10px",
                     borderColor: "#cbd5e1",
+                    padding: "0 8px",
                   },
                 }}
               />
@@ -620,7 +637,7 @@ const MembersPage = () => {
             overflow: "hidden",
           }}
         >
-          <CardContent className="p-0">
+          <CardContent className="p-0 table-container-mobile">
             <div className="overflow-x-auto">
               <Table className="min-w-max">
                 <TableHead sx={tableHeaderSx}>
@@ -729,21 +746,55 @@ const MembersPage = () => {
             onClick={() =>
               (window.location.href = `/members/${selectedMember?.id}`)
             }
-            sx={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", py: 1 }}
+            sx={{
+              fontWeight: 600,
+              color: "#1e293b",
+              fontSize: "14px",
+              py: 1.2,
+              gap: 1.5,
+            }}
           >
+            <VisibilityIcon sx={{ fontSize: 18, color: "#64748b" }} />
             View Details
           </MenuItem>
           <MenuItem
             onClick={handleEditMember}
-            sx={{ fontWeight: 600, color: "#1e293b", fontSize: "14px", py: 1 }}
+            sx={{
+              fontWeight: 600,
+              color: "#1e293b",
+              fontSize: "14px",
+              py: 1.2,
+              gap: 1.5,
+            }}
           >
+            <EditIcon sx={{ fontSize: 18, color: "#64748b" }} />
             Edit
+          </MenuItem>
+          <MenuItem
+            onClick={handleViewPDF}
+            sx={{
+              fontWeight: 600,
+              color: "#1e293b",
+              fontSize: "14px",
+              py: 1.2,
+              gap: 1.5,
+            }}
+          >
+            <PictureAsPdfIcon sx={{ fontSize: 18, color: "#166534" }} />
+            View PDF Report
           </MenuItem>
           <Divider sx={{ my: 0.5, borderColor: "#f1f5f9" }} />
           <MenuItem
             onClick={handleDelete}
-            sx={{ fontWeight: 600, color: "#ef4444", fontSize: "14px", py: 1 }}
+            sx={{
+              fontWeight: 600,
+              color: "#ef4444",
+              fontSize: "14px",
+              py: 1.2,
+              gap: 1.5,
+            }}
           >
+            <DeleteIcon sx={{ fontSize: 18, color: "#ef4444" }} />
             Delete
           </MenuItem>
         </Menu>
@@ -764,6 +815,40 @@ const MembersPage = () => {
             {isEdit ? "Edit Member" : "Add Member"}
           </DialogTitle>
           <DialogContent>
+            <Box
+              sx={{
+                mb: 3,
+                mt: 1,
+                p: 1.5,
+                backgroundColor: "#fff7ed",
+                borderRadius: "10px",
+                border: "1px solid #ffedd5",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 5,
+                  height: 40,
+                  backgroundColor: "#ea580c",
+                  borderRadius: "4px",
+                }}
+              />
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#9a3412",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  lineHeight: 1.4,
+                }}
+              >
+                Important: A valid email address is required for the member to
+                receive their welcome PDF report automatically.
+              </Typography>
+            </Box>
             <TextField
               fullWidth
               sx={{
@@ -802,14 +887,16 @@ const MembersPage = () => {
                   width: "100%",
                   height: "56px",
                   fontSize: "16px",
-                  borderRadius: "10px",
+                  borderRadius: "0 10px 10px 0",
                   borderColor: "#cbd5e1",
+                  borderLeft: "none",
                 }}
                 countrySelectorStyleProps={{
                   buttonStyle: {
                     height: "56px",
                     borderRadius: "10px 0 0 10px",
                     borderColor: "#cbd5e1",
+                    padding: "0 12px",
                   },
                 }}
               />
