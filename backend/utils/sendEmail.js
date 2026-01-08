@@ -1,30 +1,66 @@
 // utils/sendEmail.js
+const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
 
+/**
+ * Sends an email using the Gmail API (OAuth2)
+ * @param {Object} options - { to, subject, text, html, attachments }
+ */
 async function sendEmail({ to, subject, text, html, attachments }) {
-  // Create transporter using environment variables
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
 
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    text,
-    html,
-    attachments: attachments || [],
-  };
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    });
 
-  // send mail
-  const info = await transporter.sendMail(mailOptions);
-  return info;
+    const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+    // Build the raw MIME message using nodemailer's stream transport
+    // This handles complex headers and attachments automatically
+    const transporter = nodemailer.createTransport({
+      streamTransport: true,
+      newline: "unix",
+      buffer: true,
+    });
+
+    const mailOptions = {
+      from: process.env.GOOGLE_USER,
+      to,
+      subject,
+      text,
+      html,
+      attachments: attachments || [],
+    };
+
+    const { message } = await transporter.sendMail(mailOptions);
+
+    // Encode the raw message in base64url format as required by the Gmail API
+    const encodedMessage = Buffer.from(message)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    const result = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    return result.data;
+  } catch (error) {
+    console.error(
+      "Gmail API Send Error:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
 }
 
 module.exports = sendEmail;
