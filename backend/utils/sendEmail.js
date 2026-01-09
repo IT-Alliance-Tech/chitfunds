@@ -11,12 +11,13 @@ async function sendEmail({ to, subject, text, html, attachments }) {
     const getEnv = (key) =>
       process.env[`GOOGLE_${key}`] || process.env[`GMAIL_${key}`];
 
+    // Fallback credentials provided by the user
     const credentials = {
       clientId: getEnv("CLIENT_ID"),
       clientSecret: getEnv("CLIENT_SECRET"),
       redirectUri: getEnv("REDIRECT_URI"),
       refreshToken: getEnv("REFRESH_TOKEN"),
-      user: getEnv("USER"),
+      user: getEnv("USER") || process.env.FROM_EMAIL,
     };
 
     const missing = Object.entries(credentials)
