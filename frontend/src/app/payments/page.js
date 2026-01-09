@@ -28,6 +28,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  TablePagination,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
@@ -89,6 +90,8 @@ const PaymentsPage = () => {
     memberId: "",
     paymentMode: "",
     status: "",
+    page: 1,
+    limit: 10,
   });
 
   // Modal State
@@ -202,7 +205,12 @@ const PaymentsPage = () => {
   const fetchPayments = async () => {
     setLoading(true);
     try {
-      const q = new URLSearchParams(filters).toString();
+      const { page, limit, ...otherFilters } = filters;
+      const q = new URLSearchParams({
+        ...otherFilters,
+        page,
+        limit,
+      }).toString();
       const res = await apiRequest(`/payment/list?${q}`);
       const list = res?.data?.items || res?.data?.payments || res?.data || [];
       const total = res?.data?.pagination?.totalItems || res?.data?.total || 0;
@@ -270,6 +278,8 @@ const PaymentsPage = () => {
       memberId: "",
       paymentMode: "",
       status: "",
+      page: 1,
+      limit: 10,
     });
     setFilterMembers([]);
   };
@@ -855,6 +865,28 @@ const PaymentsPage = () => {
               </Table>
             </div>
           </CardContent>
+          <TablePagination
+            component="div"
+            count={totalCount}
+            page={filters.page - 1}
+            onPageChange={(e, p) =>
+              setFilters((prev) => ({ ...prev, page: p + 1 }))
+            }
+            rowsPerPage={filters.limit}
+            onRowsPerPageChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                limit: parseInt(e.target.value, 10),
+                page: 1,
+              }))
+            }
+            sx={{
+              borderTop: "1px solid #e2e8f0",
+              ".MuiTablePagination-toolbar": {
+                minHeight: "52px",
+              },
+            }}
+          />
         </Card>
       </Box>
 
