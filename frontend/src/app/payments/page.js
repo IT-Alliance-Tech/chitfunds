@@ -99,19 +99,16 @@ const PaymentsPage = () => {
   const initialFormState = {
     memberId: "",
     chitId: "",
-    paidAmount: "",
-    penaltyAmount: 0,
-    interestPercent: 0,
     paymentDate: new Date().toISOString().split("T")[0],
     paymentMode: "cash",
-    paymentMonth: new Date().toISOString().slice(0, 7), // YYYY-MM format for month picker
+    paymentMonth: new Date().toISOString().slice(0, 7),
     location: "",
-    dueDay: "", // Fixed day from chit
-    dueDate: "", // Full calculated date (YYYY-MM-DD)
+    dueDay: "",
+    dueDate: "",
     monthlyPayableAmount: 0,
-    slotsPaid: 1, // Number of slots being paid in this transaction
-    totalAssignedSlots: 1, // Total slots member has in this chit
-    alreadyPaidSlots: 0,
+    totalAssignedSlots: 1,
+    sendEmail: false,
+    slotDetails: [], // Array of { slotNumber, paidAmount, interestAmount, penaltyAmount, paymentMode, paymentDate, paymentMonth, isPaid }
   };
   const [form, setForm] = useState(initialFormState);
   const [paymentStatus, setPaymentStatus] = useState(null);
@@ -160,35 +157,41 @@ const PaymentsPage = () => {
       );
       const data = res.data;
       setPaymentStatus(data);
+
+      const totalSlots = data.totalSlots || 1;
+      const paidSlotNumbers = data.paidSlotNumbers || [];
+
+      // Build slot details array
+      const details = [];
+      for (let i = 1; i <= totalSlots; i++) {
+        const isPaid = paidSlotNumbers.includes(i);
+        const prevPay = data.previousPayments?.find((p) => p.slotNumber === i);
+
+        details.push({
+          slotNumber: i,
+          paidAmount: isPaid
+            ? prevPay.paidAmount || 0
+            : data.monthlyAmount || 0,
+          interestAmount: isPaid ? prevPay.interestAmount || 0 : 0,
+          penaltyAmount: isPaid ? prevPay.penaltyAmount || 0 : 0,
+          paymentMode: isPaid
+            ? prevPay.paymentMode || "cash"
+            : form.paymentMode || "cash",
+          paymentDate: isPaid
+            ? new Date(prevPay.paymentDate).toISOString().split("T")[0]
+            : form.paymentDate,
+          paymentMonth: isPaid ? prevPay.paymentMonth || month : month,
+          interestPercent: isPaid ? prevPay.interestPercent || 0 : 0,
+          isPaid: isPaid,
+          selected: !isPaid,
+        });
+      }
+
       setForm((prev) => ({
         ...prev,
-        totalAssignedSlots: data.totalSlots || 1,
-        slotsPaid: data.remainingSlots || 1,
-        alreadyPaidSlots: data.paidSlots || 0,
-        paidAmount:
-          (data.remainingSlots || 1) * (prev.monthlyPayableAmount || 0),
+        totalAssignedSlots: totalSlots,
+        slotDetails: details,
       }));
-
-      // Auto check for penalty
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const [year, m] = month.split("-");
-      const dueDateObj = new Date(year, parseInt(m) - 1, form.dueDay || 15);
-      dueDateObj.setHours(0, 0, 0, 0);
-
-      if (today > dueDateObj) {
-        // Late - auto set 10%
-        setForm((prev) => {
-          const penalty = (Number(prev.paidAmount) * 10) / 100;
-          return { ...prev, interestPercent: 10, penaltyAmount: penalty };
-        });
-      } else {
-        setForm((prev) => ({
-          ...prev,
-          interestPercent: 0,
-          penaltyAmount: 0,
-        }));
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -272,7 +275,7 @@ const PaymentsPage = () => {
   };
 
   const handleCreatePayment = async () => {
-    if (!form.memberId || !form.chitId || !form.paidAmount) {
+    if (!form.memberId || !form.chitId) {
       setSnackbar({
         open: true,
         message: "Please fill all required fields",
@@ -281,30 +284,40 @@ const PaymentsPage = () => {
       return;
     }
 
+    const unPaidSlotsToPay = form.slotDetails.filter(
+      (s) => !s.isPaid && s.selected
+    );
+
+    if (unPaidSlotsToPay.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "Please select at least one unpaid slot to pay",
+        severity: "info",
+      });
+      return;
+    }
+
     setPaymentLoading(true);
     try {
       const res = await apiRequest("/payment/create", "POST", {
-        ...form,
-        paidAmount: Number(form.paidAmount),
-        penaltyAmount: Number(form.penaltyAmount),
-        slotsPaid: Number(form.slotsPaid),
+        chitId: form.chitId,
+        memberId: form.memberId,
+        slotPayments: unPaidSlotsToPay.map((s) => ({
+          ...s,
+          sendEmail: form.sendEmail,
+        })),
       });
-
-      const payment = res.data.payment;
 
       setSnackbar({
         open: true,
-        message: "Payment recorded successfully",
+        message: "Payments recorded successfully",
         severity: "success",
       });
       setOpenModal(false);
       setOpenPreviewModal(false);
       fetchPayments();
 
-      // Automatically handle PDF generation
-      if (payment && (payment._id || payment.id)) {
-        handleExportPDF(payment._id || payment.id);
-      }
+      // Export PDF for the first one or all? Let's just refresh.
     } catch (err) {
       setSnackbar({
         open: true,
@@ -1017,128 +1030,198 @@ const PaymentsPage = () => {
               </Box>
             )}
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Slots to Pay"
-                  type="number"
-                  inputProps={{ min: 1, max: form.totalAssignedSlots }}
-                  value={form.slotsPaid}
-                  onChange={(e) => {
-                    const val = Math.max(
-                      1,
-                      Math.min(form.totalAssignedSlots, Number(e.target.value))
-                    );
-                    const newPaidAmount = val * form.monthlyPayableAmount;
-                    const newPenalty =
-                      (newPaidAmount * form.interestPercent) / 100;
-                    setForm({
-                      ...form,
-                      slotsPaid: val,
-                      paidAmount: newPaidAmount,
-                      penaltyAmount: newPenalty,
-                    });
+            {/* PER-SLOT INPUTS */}
+            {form.slotDetails.map((slot, index) => (
+              <Box
+                key={slot.slotNumber}
+                sx={{
+                  p: 2,
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  bgcolor: slot.isPaid ? "#f8fafc" : "#ffffff",
+                  position: "relative",
+                  opacity: slot.isPaid ? 0.8 : 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 2,
                   }}
-                  helperText={`Member has total ${form.totalAssignedSlots} slots`}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Paid Amount"
-                  type="number"
-                  value={form.paidAmount}
-                  onChange={(e) =>
-                    setForm({ ...form, paidAmount: e.target.value })
-                  }
-                />
-              </Grid>
-            </Grid>
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {!slot.isPaid && (
+                      <input
+                        type="checkbox"
+                        checked={slot.selected}
+                        onChange={(e) => {
+                          const newDetails = [...form.slotDetails];
+                          newDetails[index].selected = e.target.checked;
+                          setForm({ ...form, slotDetails: newDetails });
+                        }}
+                        style={{ cursor: "pointer", width: 16, height: 16 }}
+                      />
+                    )}
+                    <Typography
+                      variant="subtitle2"
+                      fontWeight={800}
+                      color="#334155"
+                    >
+                      Slot {slot.slotNumber}
+                    </Typography>
+                  </Box>
+                  {slot.isPaid && (
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: "10px",
+                        bgcolor: "#dcfce7",
+                        color: "#166534",
+                        px: 1,
+                        py: 0.2,
+                        borderRadius: "4px",
+                      }}
+                    >
+                      PAID
+                    </Box>
+                  )}
+                </Box>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Interest (%)</InputLabel>
-                  <Select
-                    label="Interest (%)"
-                    value={form.interestPercent}
-                    onChange={(e) => {
-                      const percent = e.target.value;
-                      const penalty =
-                        (Number(form.paidAmount) * Number(percent)) / 100;
-                      setForm({
-                        ...form,
-                        interestPercent: percent,
-                        penaltyAmount: penalty,
-                      });
-                    }}
-                  >
-                    <MenuItem value={0}>None</MenuItem>
-                    <MenuItem value={5}>5%</MenuItem>
-                    <MenuItem value={10}>10%</MenuItem>
-                    <MenuItem value={15}>15%</MenuItem>
-                    <MenuItem value={20}>20%</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Penalty Amount"
-                  type="number"
-                  value={form.penaltyAmount}
-                  onChange={(e) =>
-                    setForm({ ...form, penaltyAmount: e.target.value })
-                  }
-                />
-              </Grid>
-            </Grid>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Paid Amount"
+                      type="number"
+                      size="small"
+                      disabled={slot.isPaid}
+                      value={slot.paidAmount}
+                      onChange={(e) => {
+                        const newDetails = [...form.slotDetails];
+                        newDetails[index].paidAmount = e.target.value;
+                        setForm({ ...form, slotDetails: newDetails });
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Interest (%)</InputLabel>
+                      <Select
+                        label="Interest (%)"
+                        disabled={slot.isPaid}
+                        value={slot.interestPercent || 0}
+                        onChange={(e) => {
+                          const percent = e.target.value;
+                          const interest =
+                            (Number(slot.paidAmount) * Number(percent)) / 100;
+                          const newDetails = [...form.slotDetails];
+                          newDetails[index].interestPercent = percent;
+                          newDetails[index].interestAmount = interest;
+                          setForm({ ...form, slotDetails: newDetails });
+                        }}
+                      >
+                        <MenuItem value={0}>0%</MenuItem>
+                        <MenuItem value={5}>5%</MenuItem>
+                        <MenuItem value={10}>10%</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    <TextField
+                      fullWidth
+                      label="Penalty"
+                      type="number"
+                      size="small"
+                      disabled={slot.isPaid}
+                      value={slot.penaltyAmount}
+                      onChange={(e) => {
+                        const newDetails = [...form.slotDetails];
+                        newDetails[index].penaltyAmount = e.target.value;
+                        setForm({ ...form, slotDetails: newDetails });
+                      }}
+                    />
+                  </Grid>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Payment Mode</InputLabel>
-                  <Select
-                    label="Payment Mode"
-                    value={form.paymentMode}
-                    onChange={(e) =>
-                      setForm({ ...form, paymentMode: e.target.value })
-                    }
-                  >
-                    <MenuItem value="cash">Cash</MenuItem>
-                    <MenuItem value="online">Online</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Mode</InputLabel>
+                      <Select
+                        label="Mode"
+                        disabled={slot.isPaid}
+                        value={slot.paymentMode}
+                        onChange={(e) => {
+                          const newDetails = [...form.slotDetails];
+                          newDetails[index].paymentMode = e.target.value;
+                          setForm({ ...form, slotDetails: newDetails });
+                        }}
+                      >
+                        <MenuItem value="cash">Cash</MenuItem>
+                        <MenuItem value="online">Online</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Payment Date"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                  value={form.paymentDate}
-                  onChange={(e) =>
-                    setForm({ ...form, paymentDate: e.target.value })
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Payment Month"
-                  type="month"
-                  InputLabelProps={{ shrink: true }}
-                  value={form.paymentMonth}
-                  onChange={(e) =>
-                    setForm({ ...form, paymentMonth: e.target.value })
-                  }
-                />
-              </Grid>
-            </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Date"
+                      type="date"
+                      size="small"
+                      disabled={slot.isPaid}
+                      InputLabelProps={{ shrink: true }}
+                      value={slot.paymentDate}
+                      onChange={(e) => {
+                        const newDetails = [...form.slotDetails];
+                        newDetails[index].paymentDate = e.target.value;
+                        setForm({ ...form, slotDetails: newDetails });
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Month"
+                      type="month"
+                      size="small"
+                      disabled={slot.isPaid}
+                      InputLabelProps={{ shrink: true }}
+                      value={slot.paymentMonth}
+                      onChange={(e) => {
+                        const newDetails = [...form.slotDetails];
+                        newDetails[index].paymentMonth = e.target.value;
+                        setForm({ ...form, slotDetails: newDetails });
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
+            ))}
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+              <input
+                type="checkbox"
+                id="sendEmail"
+                checked={form.sendEmail}
+                onChange={(e) =>
+                  setForm({ ...form, sendEmail: e.target.checked })
+                }
+                style={{ cursor: "pointer", width: 18, height: 18 }}
+              />
+              <label
+                htmlFor="sendEmail"
+                style={{
+                  fontWeight: 700,
+                  color: "#475569",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                }}
+              >
+                Send Payment Invoice via Email
+              </label>
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

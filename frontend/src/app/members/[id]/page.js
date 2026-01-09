@@ -200,9 +200,7 @@ export default function MemberDetailsPage() {
 
   const handleDownloadMemberChitPDF = (chitId) => {
     const token = localStorage.getItem("token");
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-    const reportUrl = `${baseUrl}/member/report/${id}?chitId=${chitId}&token=${token}`;
+    const reportUrl = `${BASE_URL}/member/report/${id}?chitId=${chitId}&token=${token}`;
     window.open(reportUrl, "_blank");
   };
 

@@ -33,12 +33,23 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       default: 1,
     },
+    slotNumber: {
+      type: Number,
+      default: 1,
+    },
     paidAmount: {
       type: Number,
       required: true,
-      min: 1,
+      min: 0,
     },
-
+    interestAmount: {
+      type: Number,
+      default: 0,
+    },
+    interestPercent: {
+      type: Number,
+      default: 0,
+    },
     penaltyAmount: {
       type: Number,
       default: 0,
