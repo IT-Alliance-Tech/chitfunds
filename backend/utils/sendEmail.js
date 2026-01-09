@@ -8,22 +8,33 @@ const nodemailer = require("nodemailer");
  */
 async function sendEmail({ to, subject, text, html, attachments }) {
   try {
-    const requiredEnv = [
-      "GOOGLE_CLIENT_ID",
-      "GOOGLE_CLIENT_SECRET",
-      "GOOGLE_REDIRECT_URI",
-      "GOOGLE_REFRESH_TOKEN",
-      "GOOGLE_USER",
-    ];
-    const missing = requiredEnv.filter((key) => !process.env[key]);
+    const getEnv = (key) =>
+      process.env[`GOOGLE_${key}`] || process.env[`GMAIL_${key}`];
+
+    // Fallback credentials provided by the user
+    const credentials = {
+      clientId: getEnv("CLIENT_ID"),
+      clientSecret: getEnv("CLIENT_SECRET"),
+      redirectUri: getEnv("REDIRECT_URI"),
+      refreshToken: getEnv("REFRESH_TOKEN"),
+      user: getEnv("USER") || process.env.FROM_EMAIL,
+    };
+
+    const missing = Object.entries(credentials)
+      .filter(([_, value]) => !value)
+      .map(
+        ([key]) => `GOOGLE_${key.toUpperCase()} or GMAIL_${key.toUpperCase()}`
+      );
 
     console.log("📬 [DEBUG] Email Environment Check:");
-    requiredEnv.forEach((key) => {
-      const val = process.env[key];
+    Object.keys(credentials).forEach((key) => {
+      const val = credentials[key];
+      const envKey = `GOOGLE_${key.toUpperCase()}/${key.toUpperCase()}`;
       console.log(
-        `   - ${key}: ${
+        `   - ${envKey}: ${
           val
-            ? key.includes("SECRET") || key.includes("TOKEN")
+            ? key.toLowerCase().includes("secret") ||
+              key.toLowerCase().includes("token")
               ? "EXISTS (MASKED)"
               : val
             : "MISSING"
@@ -40,13 +51,13 @@ async function sendEmail({ to, subject, text, html, attachments }) {
     }
 
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      credentials.clientId,
+      credentials.clientSecret,
+      credentials.redirectUri
     );
 
     oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      refresh_token: credentials.refreshToken,
     });
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
@@ -60,7 +71,7 @@ async function sendEmail({ to, subject, text, html, attachments }) {
     });
 
     const mailOptions = {
-      from: process.env.GOOGLE_USER,
+      from: credentials.user,
       to,
       subject,
       text,

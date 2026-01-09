@@ -217,26 +217,77 @@ const getPayments = async (req, res) => {
       { $unwind: "$memberDetails" },
       {
         $addFields: {
+          memberTotalSlots: {
+            $let: {
+              vars: {
+                targetChit: {
+                  $filter: {
+                    input: "$memberDetails.chits",
+                    as: "c",
+                    cond: { $eq: ["$$c.chitId", "$chitId"] },
+                  },
+                },
+              },
+              in: { $ifNull: [{ $arrayElemAt: ["$$targetChit.slots", 0] }, 1] },
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "payments",
+          let: { mId: "$memberId", cId: "$chitId", month: "$paymentMonth" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$memberId", "$$mId"] },
+                    { $eq: ["$chitId", "$$cId"] },
+                    { $eq: ["$paymentMonth", "$$month"] },
+                  ],
+                },
+              },
+            },
+            { $count: "count" },
+          ],
+          as: "monthlyPayments",
+        },
+      },
+      {
+        $addFields: {
+          paidSlotsCount: {
+            $ifNull: [{ $arrayElemAt: ["$monthlyPayments.count", 0] }, 0],
+          },
+        },
+      },
+      {
+        $addFields: {
           totalPaid: { $add: ["$paidAmount", "$penaltyAmount"] },
           computedStatus: {
             $cond: {
               if: {
-                $gte: [
-                  "$paidAmount",
+                $and: [
                   {
-                    $multiply: ["$chitDetails.monthlyPayableAmount", "$slots"],
+                    $gte: ["$paidAmount", "$chitDetails.monthlyPayableAmount"],
                   },
+                  { $gte: ["$paidSlotsCount", "$memberTotalSlots"] },
                 ],
               },
               then: "paid",
               else: {
                 $cond: {
-                  if: { $lt: ["$dueDate", new Date()] },
-                  then: "overdue",
+                  if: {
+                    $or: [
+                      { $gt: ["$paidAmount", 0] },
+                      { $gt: ["$paidSlotsCount", 0] },
+                    ],
+                  },
+                  then: "partial",
                   else: {
                     $cond: {
-                      if: { $gt: ["$paidAmount", 0] },
-                      then: "partial",
+                      if: { $lt: ["$dueDate", new Date()] },
+                      then: "overdue",
                       else: "pending",
                     },
                   },

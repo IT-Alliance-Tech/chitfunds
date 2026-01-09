@@ -130,10 +130,13 @@ const getDashboardAnalytics = async (req, res) => {
         Payment.find()
           .sort({ createdAt: -1 })
           .limit(5)
+          .populate({
+            path: "memberId",
+            select: "name chits",
+          })
           .populate("chitId", "chitName location monthlyPayableAmount")
-          .populate("memberId", "name")
           .select(
-            "paidAmount penaltyAmount status dueDate createdAt chitId memberId slots"
+            "paidAmount penaltyAmount status dueDate createdAt chitId memberId slots paymentMonth"
           )
           .lean(),
       ]),
@@ -177,25 +180,43 @@ const getDashboardAnalytics = async (req, res) => {
     // 4. FORMAT RECENT ACTIVITIES
     const [recentChitsData, recentMembersData, recentPaymentsData] = recentData;
 
-    const recentPayments = recentPaymentsData.map((p) => {
-      const totalRequired =
-        (p.chitId?.monthlyPayableAmount || 0) * (p.slots || 1);
-      let calculatedStatus = "pending";
+    // Fetch monthly records for recent payments to decide status
+    const recentPaymentSummaries = await Promise.all(
+      recentPaymentsData.map(async (p) => {
+        const memberTotalSlots =
+          p.memberId?.chits?.find(
+            (c) => String(c.chitId) === String(p.chitId?._id)
+          )?.slots || 1;
 
-      if (p.paidAmount >= totalRequired) {
-        calculatedStatus = "paid";
-      } else if (new Date(p.dueDate) < new Date()) {
-        calculatedStatus = "overdue";
-      } else if (p.paidAmount > 0) {
-        calculatedStatus = "partial";
-      }
+        // Count how many records for this member/chit/month
+        const paidSlotsCount = await Payment.countDocuments({
+          memberId: p.memberId?._id,
+          chitId: p.chitId?._id,
+          paymentMonth: p.paymentMonth,
+        });
 
-      return {
-        ...p,
-        totalPaid: (p.paidAmount || 0) + (p.penaltyAmount || 0),
-        status: calculatedStatus,
-      };
-    });
+        const totalRequired = p.chitId?.monthlyPayableAmount || 0;
+        let calculatedStatus = "pending";
+
+        if (
+          p.paidAmount >= totalRequired &&
+          paidSlotsCount >= memberTotalSlots
+        ) {
+          calculatedStatus = "paid";
+        } else if (p.paidAmount > 0 || paidSlotsCount > 0) {
+          calculatedStatus = "partial";
+        } else if (new Date(p.dueDate) < new Date()) {
+          calculatedStatus = "overdue";
+        }
+
+        return {
+          ...p,
+          memberId: { _id: p.memberId?._id, name: p.memberId?.name },
+          totalPaid: (p.paidAmount || 0) + (p.penaltyAmount || 0),
+          status: calculatedStatus,
+        };
+      })
+    );
 
     const recentMembers = recentMembersData.map((m) => {
       const primaryChit = m.chits?.[0]?.chitId || {};
@@ -232,7 +253,7 @@ const getDashboardAnalytics = async (req, res) => {
 
       recentChits: recentChitsData,
       recentMembers,
-      recentPayments,
+      recentPayments: recentPaymentSummaries,
       _debug: process.env.NODE_ENV !== "production" ? timings : undefined,
     });
   } catch (error) {
