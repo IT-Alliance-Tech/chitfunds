@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/config/api";
 import { Snackbar, Alert } from "@mui/material";
@@ -66,6 +66,10 @@ const LoginPage = () => {
     severity: "success",
   });
 
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState(120);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+
   /* ================= HELPERS ================= */
 
   const showNotification = (message, severity = "success") => {
@@ -79,6 +83,26 @@ const LoginPage = () => {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    let timer;
+    if (isTimerActive && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setIsTimerActive(false);
+    }
+    return () => clearInterval(timer);
+  }, [isTimerActive, timeLeft]);
 
   /* ================= HANDLERS ================= */
 
@@ -111,6 +135,8 @@ const LoginPage = () => {
         email: formData.email,
       });
       setView("otp");
+      setTimeLeft(120);
+      setIsTimerActive(true);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
     } finally {
@@ -247,7 +273,27 @@ const LoginPage = () => {
               onChange={(e) => setOtp(e.target.value)}
             />
 
-            <PrimaryButton loading={loading} label="Verify OTP" />
+            <div className="flex flex-col items-center space-y-3">
+              {isTimerActive ? (
+                <p className="text-sm text-gray-500">
+                  Resend OTP in{" "}
+                  <span className="font-mono text-blue-600">
+                    {formatTime(timeLeft)}
+                  </span>
+                </p>
+              ) : (
+                <span
+                  className="text-sm text-blue-600 cursor-pointer hover:underline font-medium"
+                  onClick={handleSendOtp}
+                >
+                  Resend OTP
+                </span>
+              )}
+
+              <PrimaryButton loading={loading} label="Verify OTP" />
+            </div>
+
+            <BackToLogin onClick={() => setView("login")} />
           </form>
         )}
 
