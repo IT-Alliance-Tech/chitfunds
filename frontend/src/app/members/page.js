@@ -38,7 +38,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import ReactSelect from "react-select";
 import makeAnimated from "react-select/animated";
-import { apiRequest } from "@/config/api";
+import { apiRequest, BASE_URL } from "@/config/api";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 
@@ -316,9 +316,7 @@ const MembersPage = () => {
   const handleViewPDF = () => {
     if (!selectedMember) return;
     const token = localStorage.getItem("token");
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-    const reportUrl = `${baseUrl}/member/report/${selectedMember.id}?token=${token}`;
+    const reportUrl = `${BASE_URL}/member/report/${selectedMember.id}?token=${token}`;
     window.open(reportUrl, "_blank");
     handleMenuClose();
   };

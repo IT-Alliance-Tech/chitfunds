@@ -30,25 +30,16 @@ const createPayment = async (req, res) => {
     const {
       chitId,
       memberId,
-      paymentDate: pDate,
-      paidAmount,
-      penaltyAmount,
-      interestPercent,
-      dueDate,
-      paymentMode,
-      slotsPaid,
+      slotPayments = [], // Expecting array of { slotNumber, paidAmount, interestAmount, penaltyAmount, paymentMode, paymentDate, paymentMonth, sendEmail }
     } = req.body;
+
+    if (!Array.isArray(slotPayments) || slotPayments.length === 0) {
+      return sendResponse(res, 400, "error", "No slot payments provided");
+    }
 
     const chit = await Chit.findById(chitId);
     if (!chit) {
-      return sendResponse(
-        res,
-        404,
-        "error",
-        "Chit not found",
-        null,
-        "Resource Missing"
-      );
+      return sendResponse(res, 404, "error", "Chit not found");
     }
 
     const member = await Member.findById(memberId);
@@ -56,94 +47,115 @@ const createPayment = async (req, res) => {
       return sendResponse(res, 404, "error", "Member not found");
     }
 
-    const chitAssignment = member?.chits?.find(
-      (c) => c.chitId.toString() === chitId.toString()
-    );
-    const totalAssignedSlots = chitAssignment?.slots || 1;
-    const finalSlotsPaid = Number(slotsPaid || totalAssignedSlots);
+    const createdPayments = [];
 
-    const dateObj = pDate ? new Date(pDate) : new Date();
-    let finalDueDate = dueDate;
+    for (const slotPay of slotPayments) {
+      const {
+        slotNumber,
+        paidAmount,
+        interestAmount,
+        interestPercent,
+        penaltyAmount,
+        paymentMode,
+        paymentDate,
+        paymentMonth,
+        sendEmail: shouldSendEmail,
+      } = slotPay;
 
-    if (
-      typeof dueDate === "number" ||
-      (!isNaN(Number(dueDate)) && String(dueDate).length <= 2)
-    ) {
-      const d = new Date(dateObj);
-      d.setDate(Number(dueDate));
-      d.setHours(0, 0, 0, 0);
-      finalDueDate = d;
-    } else if (typeof dueDate === "string" && dueDate !== "") {
-      finalDueDate = normalizeDate(dueDate);
-    } else {
-      finalDueDate = normalizeDate(chit.calculatedDueDate || dateObj);
-    }
+      // Basic validation for existing payment for this slot/month
+      const existing = await Payment.findOne({
+        chitId,
+        memberId,
+        paymentMonth,
+        slotNumber,
+      });
 
-    let calculatedPenalty = Number(penaltyAmount || 0);
-    const normalizedPaymentDate = normalizeDate(dateObj);
-    const normalizedDueDate = normalizeDate(finalDueDate);
-
-    if (normalizedPaymentDate > normalizedDueDate) {
-      const effectiveInterest = Number(interestPercent || 10);
-      calculatedPenalty =
-        (Number(chit.monthlyPayableAmount) *
-          finalSlotsPaid *
-          effectiveInterest) /
-        100;
-    }
-    let { paymentMonth, paymentYear } = getMonthYear(dateObj);
-
-    // If paymentMonth is provided in format "YYYY-MM", use it directly
-    if (req.body.paymentMonth && req.body.paymentMonth.includes("-")) {
-      paymentMonth = req.body.paymentMonth;
-      paymentYear = Number(paymentMonth.split("-")[0]);
-    }
-
-    const payment = await Payment.create({
-      chitId,
-      memberId,
-      paymentMonth: String(paymentMonth),
-      paymentYear: Number(paymentYear),
-      slots: finalSlotsPaid,
-      paidAmount: Number(paidAmount),
-      penaltyAmount: calculatedPenalty,
-      dueDate: finalDueDate,
-      paymentMode,
-      paymentDate: dateObj,
-      invoiceNumber: `INV-${Date.now()}`,
-      isAdminConfirmed: false,
-    });
-
-    const payments = await Payment.find({ chitId, memberId });
-
-    // GROUP BY MONTH
-    const monthlySummary = {};
-    payments.forEach((p) => {
-      if (!monthlySummary[p.paymentMonth]) {
-        monthlySummary[p.paymentMonth] = {
-          paymentMonth: p.paymentMonth,
-          payments: [],
-          totalPaid: 0,
-          status: "unpaid",
-        };
+      if (existing) {
+        // Skip or handle error? The requirement says "no edit option give", so we should ideally skip or fail.
+        continue;
       }
-      monthlySummary[p.paymentMonth].payments.push(p);
-      monthlySummary[p.paymentMonth].totalPaid += p.paidAmount;
-    });
 
-    // CALCULATE STATUS PER MONTH
-    Object.values(monthlySummary).forEach((m) => {
-      const totalRequired = chit.monthlyPayableAmount * totalAssignedSlots;
-      if (m.totalPaid >= totalRequired) m.status = "paid";
-      else if (m.totalPaid > 0) m.status = "partial";
-    });
+      const dateObj = paymentDate ? new Date(paymentDate) : new Date();
+      let parts = paymentMonth.split("-");
+      let paymentYear = Number(parts[0]);
 
-    const totalPaidForChit = payments.reduce((sum, p) => sum + p.paidAmount, 0);
+      // Calculate Due Date based on Chit
+      const d = new Date(dateObj);
+      d.setDate(Number(chit.dueDate || 1));
+      d.setHours(0, 0, 0, 0);
+      const finalDueDate = d;
 
-    return sendResponse(res, 201, "success", "Payment saved successfully", {
-      payment,
-      monthlySummary: Object.values(monthlySummary),
-    });
+      const payment = await Payment.create({
+        chitId,
+        memberId,
+        paymentMonth,
+        paymentYear,
+        slotNumber: Number(slotNumber) || 0,
+        slots: 1, // Individual slot tracking
+        paidAmount: isNaN(Number(paidAmount)) ? 0 : Number(paidAmount),
+        interestAmount: isNaN(Number(interestAmount))
+          ? 0
+          : Number(interestAmount),
+        interestPercent: isNaN(Number(interestPercent))
+          ? 0
+          : Number(interestPercent),
+        penaltyAmount: isNaN(Number(penaltyAmount)) ? 0 : Number(penaltyAmount),
+        dueDate: finalDueDate,
+        paymentMode,
+        paymentDate: dateObj,
+        invoiceNumber: `INV-${Date.now()}-${slotNumber}`,
+        isAdminConfirmed: false,
+      });
+
+      createdPayments.push(payment);
+
+      // Handle Email if requested
+      if (shouldSendEmail && member.email) {
+        // We'll use a background task for email
+        setImmediate(async () => {
+          try {
+            const populatedPayment = await Payment.findById(payment._id)
+              .populate("chitId")
+              .populate("memberId");
+
+            // We need a way to get PDF buffer
+            const { generateInvoicePDFBuffer } = require("../utils/invoicePdf");
+            const pdfBuffer = await generateInvoicePDFBuffer(populatedPayment);
+
+            const sendEmailUtil = require("../utils/sendEmail");
+            await sendEmailUtil({
+              to: member.email,
+              subject: `Payment Invoice - ${chit.chitName} - Slot ${slotNumber}`,
+              html: `
+                <p>Dear ${member.name},</p>
+                <p>Thank you for your payment for <b>${chit.chitName}</b> (Slot ${slotNumber}) for the month of ${paymentMonth}.</p>
+                <p>Please find the attached invoice for your records.</p>
+                <p>Best Regards,<br/>LNS CHITFUND Team</p>
+              `,
+              attachments: [
+                {
+                  filename: `Invoice_${payment.invoiceNumber}.pdf`,
+                  content: pdfBuffer,
+                },
+              ],
+            });
+          } catch (emailErr) {
+            console.error("Payment Email Failed:", emailErr);
+          }
+        });
+      }
+    }
+
+    return sendResponse(
+      res,
+      201,
+      "success",
+      "Payments processed successfully",
+      {
+        count: createdPayments.length,
+        payments: createdPayments,
+      }
+    );
   } catch (error) {
     return sendResponse(
       res,
@@ -673,22 +685,10 @@ const getPaymentStatus = async (req, res) => {
       );
     }
 
-    let query = { chitId, memberId, paymentMonth };
-    if (paymentMonth.includes("-")) {
-      const parts = paymentMonth.split("-");
-      const year = Number(parts[0]);
-      const month = parts[1];
-      query = {
-        chitId,
-        memberId,
-        $or: [{ paymentMonth }, { paymentMonth: month, paymentYear: year }],
-      };
-    }
-
     const [chit, member, previousPayments] = await Promise.all([
       Chit.findById(chitId).lean(),
       Member.findById(memberId).lean(),
-      Payment.find(query).lean(),
+      Payment.find({ chitId, memberId, paymentMonth }).lean(),
     ]);
 
     if (!chit || !member) {
@@ -699,28 +699,19 @@ const getPaymentStatus = async (req, res) => {
       (c) => (c.chitId?._id || c.chitId).toString() === chitId.toString()
     );
     const totalSlots = chitAssignment?.slots || 1;
-    const paidSlots = previousPayments.reduce(
-      (sum, p) => sum + (p.slots || 1),
-      0
-    );
-    const totalPaidAmount = previousPayments.reduce(
-      (sum, p) => sum + p.paidAmount,
-      0
-    );
 
-    // Also check for any unpaid months prior to this one
-    // We'll simplify: just check if there are any months between chit start and current month that don't have full payments
-    // This is more complex, but let's start with basic status for now.
+    // Map existing payments to slot numbers
+    const paidSlotNumbers = previousPayments.map((p) => p.slotNumber);
 
     const status = {
       totalSlots,
-      paidSlots,
-      remainingSlots: Math.max(0, totalSlots - paidSlots),
+      paidSlotNumbers,
+      remainingSlots: Math.max(0, totalSlots - paidSlotNumbers.length),
       monthlyAmount: chit.monthlyPayableAmount,
-      totalPaidAmount,
-      isFullyPaid: paidSlots >= totalSlots,
+      isFullyPaid: paidSlotNumbers.length >= totalSlots,
       dueDate: chit.dueDate,
       calculatedDueDate: chit.calculatedDueDate,
+      previousPayments, // Send full details to help frontend show "Paid" info
     };
 
     return sendResponse(res, 200, "success", "Payment status fetched", status);

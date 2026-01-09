@@ -1,34 +1,27 @@
 const { z } = require("zod");
 
-const paymentBody = z.object({
-  chitId: z.string().min(1, "Chit ID is required"),
-  memberId: z.string().min(1, "Member ID is required"),
-  paidAmount: z.coerce.number().min(1, "Paid amount must be greater than 0"),
+const slotPaymentSchema = z.object({
+  slotNumber: z.coerce.number().min(1, "Slot number is required"),
+  paidAmount: z.coerce.number().min(0, "Paid amount must be at least 0"),
   penaltyAmount: z.coerce.number().min(0).optional().default(0),
+  interestAmount: z.coerce.number().min(0).optional().default(0),
   interestPercent: z.coerce.number().min(0).optional().default(0),
   paymentMonth: z.string().optional(),
-  dueDate: z
-    .any()
-    .optional()
-    .transform((v) => {
-      if (v instanceof Date) return v;
-      if (typeof v === "number") return v;
-      if (typeof v === "string" && v !== "") {
-        const d = new Date(v);
-        return isNaN(d.getTime()) ? v : d;
-      }
-      return v;
-    }),
   paymentDate: z
     .any()
     .optional()
     .transform((v) => (v ? new Date(v) : undefined)),
-  slotsPaid: z.coerce.number().min(1).optional(),
   paymentMode: z.enum(["cash", "online"]),
 });
 
 const createPaymentSchema = z.object({
-  body: paymentBody,
+  body: z.object({
+    chitId: z.string().min(1, "Chit ID is required"),
+    memberId: z.string().min(1, "Member ID is required"),
+    slotPayments: z
+      .array(slotPaymentSchema)
+      .min(1, "At least one slot payment is required"),
+  }),
 });
 
 module.exports = {
