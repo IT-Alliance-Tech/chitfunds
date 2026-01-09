@@ -28,7 +28,6 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState({
     termsAndConditions: [],
     companyName: "",
-    paymentDueDate: 10,
   });
   const [newTerm, setNewTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -122,8 +121,8 @@ const SettingsPage = () => {
         </Typography>
 
         <Grid container spacing={4}>
-          {/* General & Payment Settings */}
-          <Grid item xs={12} md={6}>
+          {/* General Branding */}
+          <Grid item xs={12}>
             <Card
               elevation={0}
               sx={{
@@ -155,47 +154,6 @@ const SettingsPage = () => {
                   }
                   sx={{
                     mb: 3,
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      "&.Mui-focused fieldset": { borderColor: "#10b981" },
-                    },
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card
-              elevation={0}
-              sx={{
-                borderRadius: "20px",
-                border: "1px solid #e2e8f0",
-                height: "100%",
-                background: "white",
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                  sx={{ mb: 3, color: "#0f172a" }}
-                >
-                  Payment Settings
-                </Typography>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Default Due Day of Month"
-                  helperText="Day of month when payments are considered overdue (1-31)"
-                  value={settings.paymentDueDate}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val >= 1 && val <= 31) {
-                      setSettings({ ...settings, paymentDueDate: val });
-                    }
-                  }}
-                  sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "12px",
                       "&.Mui-focused fieldset": { borderColor: "#10b981" },
