@@ -17,6 +17,20 @@ async function sendEmail({ to, subject, text, html, attachments }) {
     ];
     const missing = requiredEnv.filter((key) => !process.env[key]);
 
+    console.log("📬 [DEBUG] Email Environment Check:");
+    requiredEnv.forEach((key) => {
+      const val = process.env[key];
+      console.log(
+        `   - ${key}: ${
+          val
+            ? key.includes("SECRET") || key.includes("TOKEN")
+              ? "EXISTS (MASKED)"
+              : val
+            : "MISSING"
+        }`
+      );
+    });
+
     if (missing.length > 0) {
       console.error(
         "❌ [ERROR] Gmail API credentials missing:",
@@ -70,12 +84,29 @@ async function sendEmail({ to, subject, text, html, attachments }) {
       },
     });
 
+    console.log(
+      "✅ [SUCCESS] Email sent successfully via Gmail API. ID:",
+      result.data.id
+    );
     return result.data;
   } catch (error) {
-    console.error(
-      "Gmail API Send Error:",
-      error.response?.data || error.message
-    );
+    console.error("❌ [GMAIL ERROR] Full details:");
+    if (error.response) {
+      console.error("   Status:", error.response.status);
+      console.error("   Data:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("   Message:", error.message);
+      console.error("   Stack:", error.stack);
+    }
+    // Specific hint for common OAuth2 issues
+    if (
+      error.message?.includes("invalid_grant") ||
+      JSON.stringify(error.response?.data)?.includes("invalid_grant")
+    ) {
+      console.error(
+        "   💡 [HINT] 'invalid_grant' usually means the Refresh Token is invalid or has expired. Try generating a new one in the Google OAuth Playground."
+      );
+    }
     throw error;
   }
 }

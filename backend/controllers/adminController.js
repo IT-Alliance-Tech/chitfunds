@@ -6,6 +6,7 @@ const AdminOTP = require("../models/AdminOTP");
 const generateOTP = require("../utils/generateOTP");
 const sendEmail = require("../utils/sendEmail");
 const sendResponse = require("../utils/response");
+const { getOTPTemplate } = require("../utils/emailTemplates");
 
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
 const JWT_SECRET = process.env.JWT_SECRET || "replace_me";
@@ -107,7 +108,7 @@ const forgotPassword = async (req, res) => {
       to: admin.email,
       subject: "Your OTP for Admin Password Reset",
       text: `Your OTP is ${otp}. It expires in 5 minutes.`,
-      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
+      html: getOTPTemplate(otp, "5 minutes"),
     });
 
     return sendResponse(res, 200, "success", "OTP sent successfully");

@@ -19,7 +19,7 @@ const formatDate = (date) => {
 // 1. Export Chits Report
 const exportChitsReport = async (req, res) => {
   try {
-    const chits = await Chit.find().sort({ createdAt: -1 });
+    const chits = await Chit.find().sort({ createdAt: -1 }).lean();
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Total Chits");
@@ -85,7 +85,8 @@ const exportMembersReport = async (req, res) => {
   try {
     const members = await Member.find()
       .populate("chits.chitId")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Total Members");
@@ -153,7 +154,8 @@ const exportPaymentsReport = async (req, res) => {
     const payments = await Payment.find()
       .populate("chitId", "chitName")
       .populate("memberId", "name")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Payment History");

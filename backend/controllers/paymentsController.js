@@ -195,7 +195,7 @@ const getPayments = async (req, res) => {
       matchStage.paymentMode = paymentMode;
     }
 
-    const pipeline = [
+    const basePipeline = [
       { $match: matchStage },
       {
         $lookup: {
@@ -249,17 +249,21 @@ const getPayments = async (req, res) => {
     ];
 
     if (status) {
-      pipeline.push({ $match: { computedStatus: status } });
+      basePipeline.push({ $match: { computedStatus: status } });
     }
 
-    const countPipeline = [...pipeline, { $count: "total" }];
-    const countResult = await Payment.aggregate(countPipeline);
+    // Count before pagination
+    const countPipeline = [...basePipeline, { $count: "total" }];
+    const countResult = await Payment.aggregate(countPipeline).option({
+      maxTimeMS: 5000,
+    });
     const total = countResult[0]?.total || 0;
 
-    pipeline.push({ $sort: { createdAt: -1 } });
-    pipeline.push({ $skip: skip });
-    pipeline.push({ $limit: limitNum });
-    pipeline.push({
+    // Final result with pagination
+    basePipeline.push({ $sort: { createdAt: -1 } });
+    basePipeline.push({ $skip: skip });
+    basePipeline.push({ $limit: limitNum });
+    basePipeline.push({
       $project: {
         _id: 1,
         paymentId: 1,
@@ -290,7 +294,9 @@ const getPayments = async (req, res) => {
       },
     });
 
-    const payments = await Payment.aggregate(pipeline);
+    const payments = await Payment.aggregate(basePipeline).option({
+      maxTimeMS: 5000,
+    });
 
     return sendResponse(res, 200, "success", "Payments fetched successfully", {
       items: payments,

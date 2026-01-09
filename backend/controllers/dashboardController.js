@@ -22,114 +22,122 @@ const getDashboardAnalytics = async (req, res) => {
 
     const parallelStart = Date.now();
 
-    // 2. Converged Multi-Collection Aggregations
-    const [statsResult, mStatsResult, pStatsResult, paidMonthsAgg, recentData] =
-      await Promise.all([
-        // A. CHIT AGGREGATION
-        Chit.aggregate([
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              active: {
-                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-              },
-              closed: {
-                $sum: {
-                  $cond: [{ $in: ["$status", ["Closed", "Completed"]] }, 1, 0],
-                },
-              },
-              totalAmount: { $sum: "$amount" },
+    // 2. Optimized Parallel Aggregations
+    const [
+      statsResult,
+      mStatsResult,
+      pStatsResult,
+      monthlyCollectedResult,
+      paidMonthsAgg,
+      recentData,
+    ] = await Promise.all([
+      // A. CHIT AGGREGATION
+      Chit.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: {
+              $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
             },
+            closed: {
+              $sum: {
+                $cond: [{ $in: ["$status", ["Closed", "Completed"]] }, 1, 0],
+              },
+            },
+            totalAmount: { $sum: "$amount" },
           },
-        ]),
+        },
+      ]).option({ maxTimeMS: 5000 }),
 
-        // B. MEMBER AGGREGATION (Consolidated Total, Active, Inactive + SLOTS)
-        Member.aggregate([
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              active: {
-                $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
-              },
-              inactive: {
-                $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
-              },
-              slotsInActiveChits: {
-                $sum: {
-                  $reduce: {
-                    input: "$chits",
-                    initialValue: 0,
-                    in: {
-                      $add: [
-                        "$$value",
-                        {
-                          $cond: [
-                            { $in: ["$$this.chitId", activeChitIds] },
-                            { $ifNull: ["$$this.slots", 1] },
-                            0,
-                          ],
-                        },
-                      ],
-                    },
+      // B. MEMBER AGGREGATION
+      Member.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: {
+              $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] },
+            },
+            inactive: {
+              $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] },
+            },
+            slotsInActiveChits: {
+              $sum: {
+                $reduce: {
+                  input: "$chits",
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      "$$value",
+                      {
+                        $cond: [
+                          { $in: ["$$this.chitId", activeChitIds] },
+                          { $ifNull: ["$$this.slots", 1] },
+                          0,
+                        ],
+                      },
+                    ],
                   },
                 },
               },
             },
           },
-        ]),
+        },
+      ]).option({ maxTimeMS: 5000 }),
 
-        // C. PAYMENT AGGREGATION (Consolidated Total Paid, Count, Monthly Collected)
-        Payment.aggregate([
-          {
-            $group: {
-              _id: null,
-              totalPaid: { $sum: "$paidAmount" },
-              count: { $sum: 1 },
-              collectedThisMonth: {
-                $sum: {
-                  $cond: [
-                    { $gte: ["$createdAt", startOfMonth] },
-                    "$paidAmount",
-                    0,
-                  ],
-                },
-              },
-            },
+      // C. PAYMENT TOTAL STATS
+      Payment.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalPaid: { $sum: "$paidAmount" },
+            count: { $sum: 1 },
           },
-        ]),
+        },
+      ]).option({ maxTimeMS: 5000 }),
 
-        // D. PAID MONTHS Grouping
-        Payment.aggregate([
-          { $match: { chitId: { $in: activeChitIds } } },
-          { $group: { _id: "$chitId", paidMonths: { $sum: 1 } } },
-        ]),
+      // D. PAYMENT MONTHLY STATS (Separate for efficiency)
+      Payment.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth } } },
+        {
+          $group: {
+            _id: null,
+            collectedThisMonth: { $sum: "$paidAmount" },
+          },
+        },
+      ]).option({ maxTimeMS: 5000 }),
 
-        // E. RECENT ACTIVITIES
-        Promise.all([
-          Chit.find()
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .select("chitName location amount createdAt status")
-            .lean(),
-          Member.find()
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .populate("chits.chitId", "chitName amount location")
-            .select("name address chits createdAt status")
-            .lean(),
-          Payment.find()
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .populate("chitId", "chitName location monthlyPayableAmount")
-            .populate("memberId", "name")
-            .select(
-              "paidAmount penaltyAmount status dueDate createdAt chitId memberId slots"
-            )
-            .lean(),
-        ]),
-      ]);
+      // E. PAID MONTHS Grouping
+      Payment.aggregate([
+        { $match: { chitId: { $in: activeChitIds } } },
+        { $group: { _id: "$chitId", paidMonths: { $sum: 1 } } },
+      ]).option({ maxTimeMS: 5000 }),
+
+      // F. RECENT ACTIVITIES (Optimized with lean and projection)
+      Promise.all([
+        Chit.find()
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .select("chitName location amount createdAt status")
+          .lean(),
+        Member.find()
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate("chits.chitId", "chitName amount location")
+          .select("name address chits createdAt status")
+          .lean(),
+        Payment.find()
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .populate("chitId", "chitName location monthlyPayableAmount")
+          .populate("memberId", "name")
+          .select(
+            "paidAmount penaltyAmount status dueDate createdAt chitId memberId slots"
+          )
+          .lean(),
+      ]),
+    ]);
 
     timings.parallelAggrs = Date.now() - parallelStart;
 
@@ -148,8 +156,9 @@ const getDashboardAnalytics = async (req, res) => {
     const pStats = pStatsResult[0] || {
       totalPaid: 0,
       count: 0,
-      collectedThisMonth: 0,
     };
+    const collectedThisMonth =
+      monthlyCollectedResult[0]?.collectedThisMonth || 0;
 
     // 3. REMAINING MONTHS CALCULATION
     const calcStart = Date.now();
@@ -219,7 +228,7 @@ const getDashboardAnalytics = async (req, res) => {
         0
       ),
       remainingMonths,
-      collectedThisMonth: pStats.collectedThisMonth,
+      collectedThisMonth: collectedThisMonth,
 
       recentChits: recentChitsData,
       recentMembers,
