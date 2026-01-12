@@ -1206,7 +1206,7 @@ const TransactionListPage = () => {
                   REMARKS
                 </Typography>
                 <Typography variant="body2" sx={{ fontStyle: "italic" }}>
-                  "{finalPreviewData.description}"
+                  &ldquo;{finalPreviewData.description}&rdquo;
                 </Typography>
               </Box>
             )}
@@ -1261,7 +1261,7 @@ const TransactionListPage = () => {
             ) : addLoading ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
-              "CONFIRM & SAVE"
+              "CONFIRM &amp; SAVE"
             )}
           </Button>
         </DialogActions>
