@@ -17,7 +17,7 @@ const formatDate = (date) => {
 };
 
 // 1. Export Chits Report
-const exportChitsReport = async (req, res) => {
+const exportChitsReport = async (req, res, next) => {
   try {
     const chits = await Chit.find().sort({ createdAt: -1 }).lean();
 
@@ -69,19 +69,12 @@ const exportChitsReport = async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Export Chits Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Failed to export chits report",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 2. Export Members Report
-const exportMembersReport = async (req, res) => {
+const exportMembersReport = async (req, res, next) => {
   try {
     const members = await Member.find()
       .populate("chits.chitId")
@@ -137,19 +130,12 @@ const exportMembersReport = async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Export Members Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Failed to export members report",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 3. Export Total Paid Report (History)
-const exportPaymentsReport = async (req, res) => {
+const exportPaymentsReport = async (req, res, next) => {
   try {
     const payments = await Payment.find()
       .populate("chitId", "chitName")
@@ -206,19 +192,12 @@ const exportPaymentsReport = async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Export Payments Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Failed to export payments report",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 4. Export Monthly Collections Report
-const exportMonthlyReport = async (req, res) => {
+const exportMonthlyReport = async (req, res, next) => {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -273,14 +252,7 @@ const exportMonthlyReport = async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Export Monthly Collections Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Failed to export monthly report",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

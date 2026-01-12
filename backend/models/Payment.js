@@ -42,10 +42,6 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    interestAmount: {
-      type: Number,
-      default: 0,
-    },
     interestPercent: {
       type: Number,
       default: 0,
@@ -82,11 +78,6 @@ const paymentSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
-
-    isAdminConfirmed: {
-      type: Boolean,
-      default: false,
-    },
   },
   { timestamps: true }
 );
@@ -95,7 +86,6 @@ paymentSchema.index({ chitId: 1, memberId: 1, paymentMonth: 1 });
 paymentSchema.index({ paymentYear: 1, paymentMonth: 1 });
 paymentSchema.index({ createdAt: -1 });
 paymentSchema.index({ paymentDate: -1 });
-paymentSchema.index({ isAdminConfirmed: 1 });
 
 // Pre-save hook to auto-generate paymentId
 paymentSchema.pre("save", async function (next) {

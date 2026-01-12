@@ -32,53 +32,10 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import { apiRequest } from "@/config/api";
+import StatusPill from "@/components/shared/StatusPill";
+import { tableHeaderSx } from "@/utils/statusUtils";
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
-
-const getStatusColor = (status) => {
-  const s = status?.toLowerCase();
-  if (["active", "paid"].includes(s)) return { bg: "#dcfce7", text: "#166534" }; // Green
-  if (["inactive", "overdue", "closed", "completed"].includes(s))
-    return { bg: "#fee2e2", text: "#991b1b" }; // Red
-  if (["partial", "upcoming", "pending"].includes(s))
-    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
-  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
-};
-
-const tableHeaderSx = {
-  backgroundColor: "#e2e8f0",
-  "& th": {
-    fontWeight: 700,
-    fontSize: "12px",
-    color: "#1e293b",
-    textTransform: "uppercase",
-    py: 1.5,
-    borderBottom: "1px solid #cbd5e1",
-  },
-};
-
-const StatusPill = ({ status }) => {
-  const { bg, text } = getStatusColor(status);
-  return (
-    <Box
-      sx={{
-        display: "inline-block",
-        px: 1.5,
-        py: 0.5,
-        borderRadius: "12px",
-        backgroundColor: bg,
-        color: text,
-        fontSize: "11px",
-        fontWeight: 700,
-        textTransform: "uppercase",
-        textAlign: "center",
-        minWidth: "70px",
-      }}
-    >
-      {status}
-    </Box>
-  );
-};
 
 const ChitsPage = () => {
   const router = useRouter();
@@ -148,6 +105,8 @@ const ChitsPage = () => {
     filters.location,
     filters.status,
     filters.duration,
+    filters.members,
+    filters.startDate,
   ]);
 
   /* ===================== API CALLS ====================== */
@@ -165,6 +124,8 @@ const ChitsPage = () => {
       if (filters.location) params.append("location", filters.location);
       if (filters.status) params.append("status", filters.status);
       if (filters.duration) params.append("duration", filters.duration);
+      if (filters.members) params.append("totalSlots", filters.members);
+      if (filters.startDate) params.append("startDate", filters.startDate);
 
       const response = await apiRequest(`/chit/list?${params.toString()}`);
 
@@ -446,7 +407,7 @@ const ChitsPage = () => {
             />
             <TextField
               fullWidth
-              placeholder="Members"
+              placeholder="Slot"
               type="number"
               size="small"
               value={filters.members}

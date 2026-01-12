@@ -2,7 +2,7 @@ const Settings = require("../models/Settings");
 const sendResponse = require("../utils/response");
 
 // 1. Get Settings
-const getSettings = async (req, res) => {
+const getSettings = async (req, res, next) => {
   try {
     let settings = await Settings.findOne();
     if (!settings) {
@@ -13,19 +13,12 @@ const getSettings = async (req, res) => {
       settings,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 2. Update Settings
-const updateSettings = async (req, res) => {
+const updateSettings = async (req, res, next) => {
   try {
     const { termsAndConditions, companyName, paymentDueDate } = req.body;
 
@@ -50,14 +43,7 @@ const updateSettings = async (req, res) => {
       settings,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

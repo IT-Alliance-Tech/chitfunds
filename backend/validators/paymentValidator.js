@@ -4,7 +4,6 @@ const slotPaymentSchema = z.object({
   slotNumber: z.coerce.number().min(1, "Slot number is required"),
   paidAmount: z.coerce.number().min(0, "Paid amount must be at least 0"),
   penaltyAmount: z.coerce.number().min(0).optional().default(0),
-  interestAmount: z.coerce.number().min(0).optional().default(0),
   interestPercent: z.coerce.number().min(0).optional().default(0),
   paymentMonth: z.string().optional(),
   paymentDate: z

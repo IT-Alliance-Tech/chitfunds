@@ -33,51 +33,8 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { apiRequest } from "@/config/api";
-
-const getStatusColor = (status) => {
-  const s = status?.toLowerCase();
-  if (["active", "paid", "success"].includes(s))
-    return { bg: "#dcfce7", text: "#166534" }; // Green
-  if (["inactive", "overdue", "closed", "failed", "pending"].includes(s))
-    return { bg: "#fee2e2", text: "#991b1b" }; // Red
-  if (["partial"].includes(s)) return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
-  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
-};
-
-const tableHeaderSx = {
-  backgroundColor: "#e2e8f0",
-  "& th": {
-    fontWeight: 700,
-    fontSize: "12px",
-    color: "#1e293b",
-    textTransform: "uppercase",
-    py: 1.5,
-    borderBottom: "1px solid #cbd5e1",
-  },
-};
-
-const StatusPill = ({ status }) => {
-  const { bg, text } = getStatusColor(status);
-  return (
-    <Box
-      sx={{
-        display: "inline-block",
-        px: 1.5,
-        py: 0.5,
-        borderRadius: "12px",
-        backgroundColor: bg,
-        color: text,
-        fontSize: "11px",
-        fontWeight: 700,
-        textTransform: "uppercase",
-        textAlign: "center",
-        minWidth: "70px",
-      }}
-    >
-      {status}
-    </Box>
-  );
-};
+import StatusPill from "@/components/shared/StatusPill";
+import { tableHeaderSx } from "@/utils/statusUtils";
 
 const PaymentsPage = () => {
   const [payments, setPayments] = useState([]);
@@ -111,7 +68,7 @@ const PaymentsPage = () => {
     monthlyPayableAmount: 0,
     totalAssignedSlots: 1,
     sendEmail: false,
-    slotDetails: [], // Array of { slotNumber, paidAmount, interestAmount, penaltyAmount, paymentMode, paymentDate, paymentMonth, isPaid }
+    slotDetails: [],
   };
   const [form, setForm] = useState(initialFormState);
   const [paymentStatus, setPaymentStatus] = useState(null);
@@ -175,8 +132,6 @@ const PaymentsPage = () => {
           paidAmount: isPaid
             ? prevPay.paidAmount || 0
             : data.monthlyAmount || 0,
-          interestAmount: isPaid ? prevPay.interestAmount || 0 : 0,
-          penaltyAmount: isPaid ? prevPay.penaltyAmount || 0 : 0,
           paymentMode: isPaid
             ? prevPay.paymentMode || "cash"
             : form.paymentMode || "cash",
@@ -229,6 +184,7 @@ const PaymentsPage = () => {
     try {
       const res = await apiRequest("/chit/list?limit=100");
       const list = res.data.items || res.data.chits || res.data || [];
+      list.sort((a, b) => a.chitName.localeCompare(b.chitName));
       setChits(
         list.map((c) => ({
           id: c._id || c.id,
@@ -786,7 +742,8 @@ const PaymentsPage = () => {
                           ₹{p.paidAmount?.toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell align="right" sx={{ color: "#dc2626" }}>
-                          ₹{p.penaltyAmount?.toLocaleString("en-IN")}
+                          ₹
+                          {Number(p.penaltyAmount || 0).toLocaleString("en-IN")}
                         </TableCell>
                         <TableCell
                           align="right"
@@ -1043,7 +1000,9 @@ const PaymentsPage = () => {
                 >
                   {paymentStatus.isFullyPaid
                     ? `This member has fully cleared all ${paymentStatus.totalSlots} slots!`
-                    : `Member has paid ${paymentStatus.paidSlots} out of ${paymentStatus.totalSlots} slots.`}
+                    : `Member has paid ${
+                        paymentStatus.paidSlotNumbers?.length || 0
+                      } out of ${paymentStatus.totalSlots} slots.`}
                 </Typography>
                 {!paymentStatus.isFullyPaid && (
                   <Typography
@@ -1150,7 +1109,8 @@ const PaymentsPage = () => {
                             (Number(slot.paidAmount) * Number(percent)) / 100;
                           const newDetails = [...form.slotDetails];
                           newDetails[index].interestPercent = percent;
-                          newDetails[index].interestAmount = interest;
+                          // Sync calculated interest into penalty field as requested by user
+                          newDetails[index].penaltyAmount = interest;
                           setForm({ ...form, slotDetails: newDetails });
                         }}
                       >
@@ -1168,6 +1128,7 @@ const PaymentsPage = () => {
                       size="small"
                       disabled={slot.isPaid}
                       value={slot.penaltyAmount}
+                      InputLabelProps={{ shrink: true }}
                       onChange={(e) => {
                         const newDetails = [...form.slotDetails];
                         newDetails[index].penaltyAmount = e.target.value;
@@ -1175,7 +1136,6 @@ const PaymentsPage = () => {
                       }}
                     />
                   </Grid>
-
                   <Grid item xs={12} sm={4}>
                     <FormControl fullWidth size="small">
                       <InputLabel>Mode</InputLabel>
@@ -1281,11 +1241,36 @@ const PaymentsPage = () => {
               ).toLocaleString("default", { month: "long" });
               const displayMonth = `${monthName} ${year}`;
 
+              // Aggregate data from selected slots
+              const unPaidSlotsToPay = form.slotDetails.filter(
+                (s) => !s.isPaid && s.selected
+              );
+              const totalAggregatedPaidAmount = unPaidSlotsToPay.reduce(
+                (sum, s) => sum + Number(s.paidAmount || 0),
+                0
+              );
+              const totalAggregatedPenaltyAmount = unPaidSlotsToPay.reduce(
+                (sum, s) => sum + Number(s.penaltyAmount || 0),
+                0
+              );
+              const totalSlotsPaid = unPaidSlotsToPay.length;
+
+              // Get common interest percent if all selected slots have the same
+              const uniquePercents = [
+                ...new Set(unPaidSlotsToPay.map((s) => s.interestPercent || 0)),
+              ];
+              const displayInterestPercent =
+                uniquePercents.length === 1 ? uniquePercents[0] : "Multiple";
+
               setPreviewData({
                 ...form,
                 memberName: selectedMemberName,
                 chitName: selectedChitName,
                 displayMonth: displayMonth,
+                paidAmount: totalAggregatedPaidAmount,
+                penaltyAmount: totalAggregatedPenaltyAmount,
+                slotsPaid: totalSlotsPaid,
+                interestPercent: displayInterestPercent,
               });
               setOpenPreviewModal(true);
             }}
@@ -1603,7 +1588,9 @@ const PaymentsPage = () => {
                         color="#dc2626"
                       >
                         ₹
-                        {selectedPayment.penaltyAmount?.toLocaleString("en-IN")}
+                        {Number(
+                          selectedPayment.penaltyAmount || 0
+                        ).toLocaleString("en-IN")}
                       </Typography>
                     </Grid>
                     <Grid item xs={3} sx={{ textAlign: "right" }}>
@@ -1793,7 +1780,17 @@ const PaymentsPage = () => {
             </Box>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <Typography variant="body2" color="text.secondary">
-                Interest ({previewData?.interestPercent}%):
+                Interest (%):
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="#dc2626">
+                {previewData?.interestPercent === "Multiple"
+                  ? "Multiple"
+                  : `${previewData?.interestPercent || 0}%`}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <Typography variant="body2" color="text.secondary">
+                Penalty:
               </Typography>
               <Typography variant="body2" fontWeight={700} color="#dc2626">
                 ₹{Number(previewData?.penaltyAmount || 0).toLocaleString()}

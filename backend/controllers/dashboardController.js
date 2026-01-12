@@ -5,7 +5,7 @@ const Payment = require("../models/Payment");
 const sendResponse = require("../utils/response");
 
 // ================= DASHBOARD ANALYTICS =================
-const getDashboardAnalytics = async (req, res) => {
+const getDashboardAnalytics = async (req, res, next) => {
   const startTotal = Date.now();
   const timings = {};
 
@@ -228,9 +228,6 @@ const getDashboardAnalytics = async (req, res) => {
       };
     });
 
-    const totalTime = Date.now() - startTotal;
-    console.log(`>>> Dashboard Analytics optimized: ${totalTime}ms`, timings);
-
     return sendResponse(res, 200, "success", "Dashboard analytics fetched", {
       totalChits: stats.total,
       activeChits: stats.active,
@@ -258,14 +255,7 @@ const getDashboardAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error("Dashboard error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

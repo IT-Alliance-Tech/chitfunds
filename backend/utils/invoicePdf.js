@@ -2,487 +2,509 @@ const PDFDocument = require("pdfkit");
 const path = require("path");
 const Settings = require("../models/Settings");
 
-/**
- * Format date to DD-MM-YYYY
- */
+/* =========================
+   UTILITIES
+   ========================= */
+
 const formatDate = (date) => {
   if (!date) return "N/A";
   const d = new Date(date);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${String(
+    d.getMonth() + 1
+  ).padStart(2, "0")}-${d.getFullYear()}`;
 };
 
-/**
- * Helper to draw a table row with borders
- */
-const drawTableRow = (doc, y, columns, options = {}) => {
-  const {
-    height = 18,
-    fontSize = 9,
-    font = "Helvetica",
-    fillColor = "#333",
-    backgroundColor = null,
-    showBorders = true,
-    borderBottom = true,
-  } = options;
+const numberToWords = (num) => {
+  if (num === 0) return "Zero";
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
+  const scales = ["", "Thousand", "Lakh", "Crore"];
 
-  if (backgroundColor) {
-    doc.rect(50, y, 500, height).fill(backgroundColor);
+  const convertLessThanOneThousand = (n) => {
+    if (n === 0) return "";
+    if (n < 20) return ones[n] + " ";
+    if (n < 100) return tens[Math.floor(n / 10)] + " " + ones[n % 10] + " ";
+    return (
+      ones[Math.floor(n / 100)] +
+      " Hundred " +
+      convertLessThanOneThousand(n % 100)
+    );
+  };
+
+  const integerPart = Math.floor(num);
+  const decimalPart = Math.round((num - integerPart) * 100);
+
+  let result = "";
+  let n = integerPart;
+
+  if (n >= 10000000) {
+    result += convertLessThanOneThousand(Math.floor(n / 10000000)) + "Crore ";
+    n %= 10000000;
+  }
+  if (n >= 100000) {
+    result += convertLessThanOneThousand(Math.floor(n / 100000)) + "Lakh ";
+    n %= 100000;
+  }
+  if (n >= 1000) {
+    result += convertLessThanOneThousand(Math.floor(n / 1000)) + "Thousand ";
+    n %= 1000;
+  }
+  result += convertLessThanOneThousand(n);
+
+  result = result.trim() + " Rupees Only";
+
+  if (decimalPart > 0) {
+    result +=
+      " and " + convertLessThanOneThousand(decimalPart).trim() + " Paise Only";
   }
 
-  doc.fontSize(fontSize).font(font).fillColor(fillColor);
-
-  columns.forEach((col) => {
-    doc.text(col.text || "", col.x, y + (height - fontSize) / 2, {
-      width: col.width,
-      align: col.align || "left",
-      lineBreak: false,
-    });
-  });
-
-  if (showBorders && borderBottom) {
-    doc
-      .moveTo(50, y + height)
-      .lineTo(550, y + height)
-      .strokeColor("#ccc")
-      .lineWidth(0.5)
-      .stroke();
-  }
-
-  return y + height;
+  return result;
 };
 
-// Shared Layout Settings
-const LOGO_PATH = path.join(__dirname, "logo.png");
-const PRIMARY_COLOR = "#000000";
-const SECONDARY_COLOR = "#444444";
-const LIGHT_GREY = "#f9f9f9";
+const drawLine = (doc, y, color = "#000", width = 1) => {
+  doc.moveTo(50, y).lineTo(550, y).strokeColor(color).lineWidth(width).stroke();
+};
 
-const drawHeader = (doc) => {
-  doc.save();
-  try {
-    doc.image(LOGO_PATH, 50, 40, { width: 55 });
-  } catch (err) {
-    console.error("Logo image not found for PDF:", err);
-  }
+const drawTableFrame = (doc, y, height) => {
   doc
-    .fontSize(16)
-    .font("Helvetica-Bold")
-    .fillColor(PRIMARY_COLOR)
-    .text("LNS CHITFUND", 115, 55, { align: "left" });
-  doc
-    .fontSize(9)
-    .font("Helvetica")
-    .fillColor(SECONDARY_COLOR)
-    .text("Expert Chit Fund Management & Financial Services", 115, 73, {
-      align: "left",
-    });
-  doc.restore();
+    .rect(50, y, 500, height)
+    .strokeColor("#e2e8f0") // Subtle gray border
+    .lineWidth(0.8)
+    .stroke();
 };
 
-const drawFooter = (doc, pageNum, totalPages) => {
+const drawFooter = (doc) => {
+  const footerY = 750; // Higher up to ensure it's on the same page
   doc.save();
-  const footerY = doc.page.height - 60;
+
+  // Top line
   doc
     .moveTo(50, footerY)
     .lineTo(550, footerY)
-    .strokeColor("#ccc")
+    .strokeColor("#000")
     .lineWidth(0.5)
     .stroke();
-  doc.fontSize(8).font("Helvetica").fillColor("#999");
+
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#000")
+    .text(
+      "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
+      50,
+      footerY + 10,
+      { align: "center", width: 500 }
+    );
+
   doc.text(
-    "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
+    "Page 1 of 1 | E. & O.E. | This is a system-generated document.",
     50,
-    footerY + 8,
+    footerY + 22,
     { align: "center", width: 500 }
   );
-  doc.text(
-    `Page ${pageNum} of ${totalPages} | E. & O.E. | This is a system-generated document.`,
-    50,
-    footerY + 18,
-    { align: "center", width: 500 }
-  );
+
+  // Bottom line
+  doc
+    .moveTo(50, footerY + 35)
+    .lineTo(550, footerY + 35)
+    .strokeColor("#000")
+    .lineWidth(0.5)
+    .stroke();
+
   doc.restore();
 };
 
-/**
- * Generates a professional table-based Invoice PDF
- * @param {Object} res - Express response object
- * @param {Object} payment - Payment object with populated memberId and chitId
- */
-exports.generateInvoicePDF = async (res, payment) => {
-  console.log(
-    `🚀 [DEBUG] Generating Invoice PDF for ${payment.invoiceNumber} (Fixed Drawing Order)`
+/* =========================
+   MAIN CONTENT GENERATOR
+   ========================= */
+
+const generateDocumentContent = async (doc, payment) => {
+  const settings = await Settings.findOne();
+  const LOGO_PATH = path.join(__dirname, "logo.png");
+
+  // --- HEADER SECTION ---
+  const headerY = 45;
+
+  // Left side: Logo
+  try {
+    doc.image(LOGO_PATH, 50, headerY - 10, { width: 60 });
+  } catch (err) {
+    // console.error("Logo not found at:", LOGO_PATH);
+    // Draw a placeholder or just skip
+  }
+
+  // Right side: Company Name & Tagline (Aligned horizontally with logo)
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(22)
+    .text("LNS CHITFUND", 200, headerY, { align: "right", width: 350 });
+
+  doc
+    .font("Helvetica")
+    .fontSize(10)
+    .fillColor("#444")
+    .text(
+      "Expert Chit Fund Management & Financial Services",
+      200,
+      headerY + 25,
+      {
+        align: "right",
+        width: 350,
+      }
+    );
+
+  doc.fillColor("#000");
+
+  let y = headerY + 55;
+  // Thin horizontal line below header
+  drawLine(doc, y, "#000", 0.5);
+  y += 25;
+
+  // --- INVOICE TITLE ---
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(14)
+    .text(
+      `TAX INVOICE / PAYMENT RECEIPT - SLOT ${payment.slotNumber || 1}`,
+      50,
+      y,
+      { align: "center", width: 500 }
+    );
+
+  y += 35;
+
+  // --- INVOICE DETAILS (TWO COLUMN) ---
+  const detailsY = y;
+  const leftColX = 50;
+  const rightColX = 320;
+  const labelWidth = 90;
+
+  const drawDetailRow = (label, value, x) => {
+    doc.font("Helvetica-Bold").fontSize(9).text(label, x, y);
+    doc.font("Helvetica").text(`: ${value || "N/A"}`, x + labelWidth, y);
+    y += 15;
+  };
+
+  drawDetailRow("Invoice Number", payment.invoiceNumber, leftColX);
+  y = detailsY; // Reset Y for right col
+  drawDetailRow("Invoice Date", formatDate(payment.paymentDate), rightColX);
+
+  y = detailsY + 15;
+  drawDetailRow("Member ID", payment.memberId?.memberId || "N/A", leftColX);
+  y = detailsY + 15;
+  drawDetailRow(
+    "Payment Mode",
+    (payment.paymentMode || "online").toUpperCase(),
+    rightColX
   );
-  return new Promise(async (resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: "A4",
-        margins: { top: 120, bottom: 85, left: 50, right: 50 },
-        font: "Helvetica",
-        bufferPages: true,
-      });
 
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename=invoice-${payment.invoiceNumber}.pdf`
-      );
+  y = detailsY + 30;
+  drawDetailRow("Slot Number", `Slot ${payment.slotNumber || 1}`, leftColX);
 
-      doc.pipe(res);
-      res.on("finish", () => resolve());
-      res.on("error", (err) => reject(err));
-      doc.on("error", (err) => reject(err));
+  y += 20;
+  drawLine(doc, y, "#eee", 1);
+  y += 20;
 
-      const settings = await Settings.findOne();
-      const termsAndConditions = settings?.termsAndConditions || [];
+  // --- COMPANY & BILL TO SECTIONS ---
+  const sectionY = y;
 
-      /* ================= TITLE ================= */
-      doc
-        .fontSize(13)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text(
-          `TAX INVOICE / PAYMENT RECEIPT ${
-            payment.slotNumber ? `- SLOT ${payment.slotNumber}` : ""
-          }`,
-          50,
-          doc.y,
-          { align: "center" }
-        );
-      doc.moveDown(0.8);
+  // COMPANY DETAILS
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("COMPANY DETAILS", leftColX, sectionY);
+  doc
+    .moveTo(leftColX, sectionY + 12)
+    .lineTo(leftColX + 100, sectionY + 12)
+    .strokeColor("#cbd5e1")
+    .lineWidth(0.5)
+    .stroke();
 
-      /* ================= REFERENCE DETAILS ================= */
-      let currentY = doc.y;
-      const refCols = [
-        ["Invoice Number", payment.invoiceNumber || "N/A"],
-        ["Invoice Date", formatDate(payment.paymentDate)],
-        ["Member ID", payment.memberId?.memberId || "N/A"],
-        ["Payment Mode", (payment.paymentMode || "N/A").toUpperCase()],
-        [
-          "Slot Number",
-          payment.slotNumber ? `Slot ${payment.slotNumber}` : "N/A",
-        ],
-      ];
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .fillColor("#1e293b")
+    .text("LNS CHITFUND", leftColX, sectionY + 22);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#475569")
+    .text("No.456, Gold Plaza, RR Nagar,", leftColX, sectionY + 36);
+  doc.text("Bangalore, Karnataka - 560098", leftColX, sectionY + 48);
+  doc.font("Helvetica-Bold").text("GSTIN: ", leftColX, sectionY + 60);
+  doc.font("Helvetica").text("29LNSCF1234F1Z5", leftColX + 35, sectionY + 60);
+  doc.font("Helvetica-Bold").text("Email: ", leftColX, sectionY + 72);
+  doc
+    .font("Helvetica")
+    .text("contact@lnschitfund.com", leftColX + 35, sectionY + 72);
+  doc.fillColor("#000");
 
-      refCols.forEach((row, i) => {
-        currentY = drawTableRow(
-          doc,
-          currentY,
-          [
-            { x: 50, width: 120, text: row[0] },
-            { x: 170, width: 10, text: "|" },
-            { x: 185, width: 170, text: row[1] },
-          ],
-          {
-            font: i === 0 ? "Helvetica-Bold" : "Helvetica",
-            height: 16,
-            borderBottom: i === refCols.length - 1,
-          }
-        );
-      });
-      doc.moveDown(1);
+  // BILL TO (MEMBER DETAILS) in Table Format
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("BILL TO (MEMBER DETAILS)", rightColX, sectionY);
+  doc
+    .moveTo(rightColX, sectionY + 12)
+    .lineTo(rightColX + 150, sectionY + 12)
+    .strokeColor("#cbd5e1")
+    .lineWidth(0.5)
+    .stroke();
 
-      /* ================= COMPANY DETAILS ================= */
-      doc
-        .fontSize(10)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("COMPANY DETAILS", 50);
-      doc.font("Helvetica").fontSize(9).fillColor(SECONDARY_COLOR);
-      doc.text("LNS CHITFUND", 50);
-      doc.text(
-        "No. 456, 2nd Floor, Gold Plaza, RR Nagar, Bangalore, Karnataka - 560098",
-        50
-      );
-      doc.text("GSTIN: 29LNSCF1234F1Z5 | Email: contact@lnschitfund.com", 50);
-      doc.moveDown(1.2);
+  const memberData = [
+    ["Name", payment.memberId?.name],
+    ["Phone", payment.memberId?.phone],
+    ["Email", payment.memberId?.email],
+    ["Address", payment.memberId?.address],
+  ];
 
-      /* ================= BILL TO ================= */
-      doc
-        .fontSize(10)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("BILL TO (MEMBER DETAILS)", 50);
-      doc.moveDown(0.3);
-      currentY = doc.y;
-      const memberDetails = [
-        ["Name", payment.memberId?.name || "N/A"],
-        ["Phone", payment.memberId?.phone || "N/A"],
-        ["Email", payment.memberId?.email || "N/A"],
-        ["Address", payment.memberId?.address || "N/A"],
-      ];
-      memberDetails.forEach((detail, index) => {
-        currentY = drawTableRow(
-          doc,
-          currentY,
-          [
-            { x: 50, width: 80, text: detail[0] },
-            { x: 130, width: 10, text: "|" },
-            { x: 145, width: 405, text: detail[1] },
-          ],
-          { height: 16, borderBottom: index === memberDetails.length - 1 }
-        );
-      });
-      doc.moveDown(1.5);
-
-      /* ================= DESCRIPTION ================= */
-      const gridCols = [
-        { x: 50, width: 190, text: "DESCRIPTION / CHIT NAME", align: "left" },
-        { x: 240, width: 100, text: "LOCATION", align: "left" },
-        { x: 340, width: 100, text: "DATE", align: "right" },
-        { x: 440, width: 110, text: "AMOUNT (INR)", align: "right" },
-      ];
-
-      currentY = drawTableRow(doc, doc.y, gridCols, {
-        font: "Helvetica-Bold",
-        backgroundColor: LIGHT_GREY,
-        fillColor: PRIMARY_COLOR,
-        height: 20,
-      });
-      const chit = payment.chitId || {};
-      currentY = drawTableRow(
-        doc,
-        currentY,
-        [
-          {
-            x: 50,
-            width: 190,
-            text: chit.chitName || "Monthly Installment",
-            align: "left",
-          },
-          { x: 240, width: 100, text: chit.location || "N/A", align: "left" },
-          {
-            x: 340,
-            width: 100,
-            text: formatDate(payment.paymentDate),
-            align: "right",
-          },
-          {
-            x: 440,
-            width: 110,
-            text: `INR ${Number(payment.paidAmount || 0).toLocaleString(
-              "en-IN"
-            )}.00`,
-            align: "right",
-          },
-        ],
-        { height: 20 }
-      );
-      doc.moveDown(0.8);
-
-      /* ================= SUMMARY ================= */
-      const summaryX = 350;
-      const grandTotal =
-        Number(payment.paidAmount || 0) +
-        Number(payment.penaltyAmount || 0) +
-        Number(payment.interestAmount || 0);
-      const summaryRows = [
-        [
-          "Sub Total",
-          `INR ${Number(payment.paidAmount || 0).toLocaleString("en-IN")}.00`,
-        ],
-        [
-          "Interest",
-          `INR ${Number(payment.interestAmount || 0).toLocaleString(
-            "en-IN"
-          )}.00`,
-        ],
-        [
-          "Penalty Charges",
-          `INR ${Number(payment.penaltyAmount || 0).toLocaleString(
-            "en-IN"
-          )}.00`,
-        ],
-        ["GRAND TOTAL", `INR ${grandTotal.toLocaleString("en-IN")}.00`],
-      ];
-
-      summaryRows.forEach((row, i) => {
-        currentY = drawTableRow(
-          doc,
-          currentY,
-          [
-            { x: summaryX, width: 100, text: row[0], align: "left" },
-            { x: summaryX + 100, width: 10, text: "|" },
-            { x: summaryX + 110, width: 90, text: row[1], align: "right" },
-          ],
-          {
-            height: i === 3 ? 20 : 16,
-            font: i === 3 ? "Helvetica-Bold" : "Helvetica",
-            backgroundColor: i === 3 ? LIGHT_GREY : null,
-            borderBottom: false,
-          }
-        );
-      });
-      doc.moveDown(1.5);
-
-      /* ================= DECLARATION ================= */
-      if (doc.y > doc.page.height - 100) doc.addPage();
-      doc
-        .fontSize(10)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("DECLARATION", 50);
-      doc
-        .fontSize(9)
-        .font("Helvetica")
-        .fillColor(SECONDARY_COLOR)
-        .text(
-          "We hereby declare that this invoice shows the actual price of the services described and that all particulars are true and correct.",
-          50,
-          doc.y + 3,
-          { width: 500 }
-        );
-      doc.moveDown(1.5);
-
-      /* ================= SIGNATURE ================= */
-      if (doc.y > doc.page.height - 120) doc.addPage();
-      doc
-        .fontSize(10)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("FOR LNS CHITFUND", 400, doc.y, { align: "right" });
-      doc.moveDown(1.5);
-      doc
-        .fontSize(8)
-        .font("Helvetica-Oblique")
-        .text("(Digitally Signed)", 400, doc.y + 2, { align: "right" });
-      doc.moveDown(1.5);
-
-      /* ================= TERMS ================= */
-      if (termsAndConditions.length > 0) {
-        if (doc.y > doc.page.height - 150) doc.addPage();
-        doc
-          .fontSize(10)
-          .font("Helvetica-Bold")
-          .fillColor(PRIMARY_COLOR)
-          .text("TERMS AND CONDITIONS", 50);
-        doc.moveDown(0.3);
-        termsAndConditions.forEach((term, i) => {
-          if (doc.y > doc.page.height - 80) doc.addPage();
-          doc
-            .fontSize(8)
-            .font("Helvetica")
-            .fillColor(SECONDARY_COLOR)
-            .text(`${i + 1}. ${term}`, 50, doc.y + 1, { width: 500 });
-        });
-      }
-
-      // Final pass: Draw headers and footers on ALL pages before ending the stream
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        drawHeader(doc);
-        drawFooter(doc, i + 1, range.count);
-      }
-
-      doc.end();
-    } catch (error) {
-      console.error("PDF Generation Error:", error);
-      if (!res.headersSent) res.status(500).send("Internal Error");
-      reject(error);
-    }
+  let memberY = sectionY + 22;
+  memberData.forEach(([label, value]) => {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .fillColor("#1e293b")
+      .text(label, rightColX, memberY, { width: 50 });
+    doc
+      .font("Helvetica")
+      .fillColor("#475569")
+      .text(`: ${value || "N/A"}`, rightColX + 50, memberY, { width: 180 });
+    memberY += 14;
   });
+  doc.fillColor("#000");
+
+  y = Math.max(sectionY + 85, memberY + 10);
+  y += 10;
+
+  // --- DESCRIPTION TABLE ---
+  const tableY = y;
+  const headerHeight = 22;
+
+  // Header Background
+  doc.rect(50, tableY, 500, headerHeight).fill("#f1f5f9");
+  doc.fillColor("#1e293b"); // Modern dark text
+
+  doc.font("Helvetica-Bold").fontSize(9);
+  doc.text("Description / Chit Name", 65, tableY + 7);
+  doc.text("Location", 280, tableY + 7);
+  doc.text("Date", 380, tableY + 7);
+  doc.text("Amount (INR)", 475, tableY + 7, { width: 65, align: "right" });
+
+  y = tableY + headerHeight;
+
+  // Row content (Alternating)
+  doc.font("Helvetica").fontSize(9).fillColor("#000");
+  const rowHeight = 28;
+
+  // Example for alternating row (if we had multiple, we would loop)
+  // doc.rect(50, y, 500, rowHeight).fill("#fafafa"); // Very light stripe
+  doc.fillColor("#000");
+
+  doc.text(payment.chitId?.chitName || "N/A", 65, y + 10, { width: 195 });
+  doc.text(payment.chitId?.location || "N/A", 280, y + 10, { width: 85 });
+  doc.text(formatDate(payment.paymentDate), 380, y + 10);
+  doc
+    .font("Helvetica-Bold")
+    .text(Number(payment.paidAmount || 0).toFixed(2), 475, y + 10, {
+      width: 65,
+      align: "right",
+    });
+
+  y += rowHeight;
+
+  // Table Border & Lines (Subtle Slate)
+  doc.save();
+  doc.strokeColor("#94a3b8").lineWidth(0.6); // Slightly darker slate for frame
+
+  // Frame
+  doc.rect(50, tableY, 500, y - tableY).stroke();
+
+  // Horizontal Line after header
+  doc
+    .moveTo(50, tableY + headerHeight)
+    .lineTo(550, tableY + headerHeight)
+    .stroke();
+
+  // Vertical Column Separators (Clean design)
+  const colLines = [270, 370, 470];
+  colLines.forEach((lx) => {
+    doc.moveTo(lx, tableY).lineTo(lx, y).stroke();
+  });
+  doc.restore();
+
+  y += 20;
+
+  // --- SUMMARY CALCULATION ---
+  const subTotal = Number(payment.paidAmount || 0);
+  const penalty = Number(payment.penaltyAmount || 0);
+  const interest = 0;
+  const grandTotal = subTotal + penalty + interest;
+
+  // --- TOTAL IN WORDS ---
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .fillColor("#1e293b")
+    .text("Total Amount in Words:", 50, y);
+  doc
+    .font("Helvetica-Oblique")
+    .fontSize(8)
+    .fillColor("#475569")
+    .text(numberToWords(grandTotal), 50, y + 12, { width: 280 });
+  doc.fillColor("#000");
+
+  // --- SUMMARY TOTALS UI ---
+  const summaryX = 350;
+  const summaryValueX = 470;
+
+  const drawSummaryRow = (label, value, isBold = false) => {
+    doc.font(isBold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
+    doc.text(label, summaryX, y);
+    doc.text(value.toFixed(2), summaryValueX, y, { width: 70, align: "right" });
+    y += 18;
+  };
+
+  drawSummaryRow("Sub Total", subTotal);
+  drawSummaryRow("Interest", interest);
+  drawSummaryRow("Penalty Charges", penalty);
+
+  y -= 5;
+  doc
+    .moveTo(summaryX, y)
+    .lineTo(550, y)
+    .strokeColor("#000")
+    .lineWidth(0.5)
+    .stroke();
+  y += 8;
+
+  // GRAND TOTAL highlight
+  doc.rect(summaryX - 5, y - 4, 205, 22).fill("#1e293b"); // Deep slate background
+  doc.fillColor("#ffffff"); // White text for grand total
+  drawSummaryRow("GRAND TOTAL", grandTotal, true);
+  doc.fillColor("#000000");
+
+  y += 20;
+
+  // --- DECLARATION ---
+  doc.font("Helvetica-Bold").fontSize(9).text("DECLARATION", 50, y);
+  y += 15;
+  doc
+    .font("Helvetica")
+    .fontSize(7)
+    .fillColor("#475569")
+    .text(
+      "I/We hereby certify that my/our registration certificate under the Goods and Service Tax Act 2017 is in force on the date on which the supply of the services specified in this tax invoice is made by me/us and that the transaction of service covered by this tax invoice has been effected by me/us and it shall be accounted for in the turnover while filing of return and the due tax, if any, payable on the service has been paid or shall be paid.",
+      50,
+      y,
+      { width: 500, align: "justify" }
+    );
+  doc.fillColor("#000");
+  y += 40;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text("FOR LNS CHITFUND", 400, y, { align: "right", width: 150 });
+  y += 15;
+  doc
+    .font("Helvetica-Oblique")
+    .fontSize(8)
+    .text("(Digitally Signed)", 400, y, { align: "right", width: 150 });
+
+  y += 35;
+
+  // --- TERMS AND CONDITIONS ---
+  doc.font("Helvetica-Bold").fontSize(9).text("TERMS AND CONDITIONS", 50, y);
+  y += 15;
+  const terms = [
+    "Payment should be made within the due date to avoid penalties.",
+    "The management is not responsible for any cash payments made without a valid receipt.",
+    "Chit installments are subject to the rules and regulations of the Chit Fund Act.",
+    "Membership cannot be transferred or cancelled without prior written approval.",
+    "All disputes are subject to the jurisdiction of the local courts in Bangalore.",
+    "This is a system-generated document and does not require a physical signature.",
+  ];
+
+  terms.forEach((term, i) => {
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .text(`${i + 1}. ${term}`, 50, y, { width: 500 });
+    y += 12;
+  });
+
+  // FINAL FOOTER (Locked at bottom)
+  drawFooter(doc);
 };
 
-/**
- * Generates an Invoice PDF as a Buffer for email attachments
- */
+/* =========================
+   EXPORTS
+   ========================= */
+
+exports.generateInvoicePDF = async (res, payment) => {
+  const doc = new PDFDocument({
+    size: "A4",
+    margins: { top: 40, bottom: 60, left: 50, right: 50 },
+    bufferPages: true,
+  });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `inline; filename=receipt-${payment.invoiceNumber}.pdf`
+  );
+
+  doc.pipe(res);
+  await generateDocumentContent(doc, payment);
+  doc.end();
+};
+
 exports.generateInvoicePDFBuffer = async (payment) => {
   return new Promise(async (resolve, reject) => {
     try {
       const doc = new PDFDocument({
         size: "A4",
-        margins: { top: 120, bottom: 85, left: 50, right: 50 },
-        font: "Helvetica",
+        margins: { top: 40, bottom: 60, left: 50, right: 50 },
         bufferPages: true,
       });
 
-      let chunks = [];
-      doc.on("data", (chunk) => chunks.push(chunk));
-      doc.on("end", () => {
-        resolve(Buffer.concat(chunks));
-      });
+      const chunks = [];
+      doc.on("data", (c) => chunks.push(c));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", (err) => reject(err));
 
-      const settings = await Settings.findOne();
-
-      // ... Generation logic for Buffer (simplified but stable) ...
-      doc
-        .fontSize(13)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text(
-          `TAX INVOICE / PAYMENT RECEIPT ${
-            payment.slotNumber ? `- SLOT ${payment.slotNumber}` : ""
-          }`,
-          { align: "center" }
-        );
-      doc.moveDown(1);
-
-      let currentY = doc.y;
-      const refDetails = [
-        ["Invoice No", payment.invoiceNumber],
-        ["Date", formatDate(payment.paymentDate)],
-        ["Member ID", payment.memberId?.memberId || "N/A"],
-        ["Chit Name", payment.chitId?.chitName || "N/A"],
-        [
-          "Slot Details",
-          `Slot ${payment.slotNumber || "N/A"} of ${
-            payment.chitId?.totalSlots || "N/A"
-          }`,
-        ],
-      ];
-
-      refDetails.forEach((row, i) => {
-        currentY = drawTableRow(
-          doc,
-          currentY,
-          [
-            { x: 50, width: 100, text: row[0] },
-            { x: 150, width: 10, text: ":" },
-            { x: 165, width: 385, text: row[1] },
-          ],
-          { height: 16, borderBottom: i === refDetails.length - 1 }
-        );
-      });
-      doc.moveDown(1);
-
-      doc.font("Helvetica-Bold").text("MEMBER DETAILS");
-      doc.font("Helvetica").text(`Name: ${payment.memberId?.name}`);
-      doc.text(`Phone: ${payment.memberId?.phone}`);
-      doc.moveDown(1);
-
-      doc.font("Helvetica-Bold").text("PAYMENT DETAILS");
-      const grandTotal =
-        (payment.paidAmount || 0) +
-        (payment.interestAmount || 0) +
-        (payment.penaltyAmount || 0);
-      const payRows = [
-        ["Paid Amount", `INR ${payment.paidAmount}`],
-        ["Interest", `INR ${payment.interestAmount || 0}`],
-        ["Penalty", `INR ${payment.penaltyAmount || 0}`],
-        ["Total Paid", `INR ${grandTotal}`],
-      ];
-
-      payRows.forEach((row, i) => {
-        doc
-          .font(i === payRows.length - 1 ? "Helvetica-Bold" : "Helvetica")
-          .text(`${row[0]}: ${row[1]}`);
-      });
-      doc.moveDown(2);
-      doc.fontSize(8).text("This is an electronically generated invoice.");
-
-      // Final pass: Branding
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        drawHeader(doc);
-        drawFooter(doc, i + 1, range.count);
-      }
-
+      await generateDocumentContent(doc, payment);
       doc.end();
     } catch (error) {
       reject(error);
