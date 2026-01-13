@@ -19,6 +19,22 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    transferFromChit: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Chit",
+      required: function () {
+        return this.type === "transfer";
+      },
+      index: true,
+    },
+    transferToChit: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Chit",
+      required: function () {
+        return this.type === "transfer";
+      },
+      index: true,
+    },
     memberId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Member",

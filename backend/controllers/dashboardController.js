@@ -29,6 +29,7 @@ const getDashboardAnalytics = async (req, res, next) => {
       pStatsResult,
       monthlyCollectedResult,
       paidMonthsAgg,
+      expectedCollectionResult,
       recentData,
     ] = await Promise.all([
       // A. CHIT AGGREGATION
@@ -114,6 +115,39 @@ const getDashboardAnalytics = async (req, res, next) => {
         { $group: { _id: "$chitId", paidMonths: { $sum: 1 } } },
       ]).option({ maxTimeMS: 5000 }),
 
+      // G. EXPECTED COLLECTION THIS MONTH
+      Member.aggregate([
+        { $unwind: "$chits" },
+        {
+          $match: {
+            "chits.chitId": { $in: activeChitIds },
+            "chits.status": "Active",
+          },
+        },
+        {
+          $lookup: {
+            from: "chits",
+            localField: "chits.chitId",
+            foreignField: "_id",
+            as: "chitInfo",
+          },
+        },
+        { $unwind: "$chitInfo" },
+        {
+          $group: {
+            _id: null,
+            expectedAmount: {
+              $sum: {
+                $multiply: [
+                  "$chitInfo.monthlyPayableAmount",
+                  { $ifNull: ["$chits.slots", 1] },
+                ],
+              },
+            },
+          },
+        },
+      ]).option({ maxTimeMS: 5000 }),
+
       // F. RECENT ACTIVITIES (Optimized with lean and projection)
       Promise.all([
         Chit.find()
@@ -162,6 +196,7 @@ const getDashboardAnalytics = async (req, res, next) => {
     };
     const collectedThisMonth =
       monthlyCollectedResult[0]?.collectedThisMonth || 0;
+    const expectedThisMonth = expectedCollectionResult[0]?.expectedAmount || 0;
 
     // 3. REMAINING MONTHS CALCULATION
     const calcStart = Date.now();
@@ -247,6 +282,7 @@ const getDashboardAnalytics = async (req, res, next) => {
       ),
       remainingMonths,
       collectedThisMonth: collectedThisMonth,
+      expectedToCollect: expectedThisMonth,
 
       recentChits: recentChitsData,
       recentMembers,

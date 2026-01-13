@@ -63,8 +63,10 @@ const TransactionListPage = () => {
   // Add Modal State
   const [openAddModal, setOpenAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
-  const [members, setMembers] = useState([]);
-  const [selectedChitForAdd, setSelectedChitForAdd] = useState("");
+  const [fromMembers, setFromMembers] = useState([]);
+  const [toMembers, setToMembers] = useState([]);
+  const [fromChitId, setFromChitId] = useState("");
+  const [toChitId, setToChitId] = useState("");
   const [addForm, setAddForm] = useState({
     type: "transfer",
     memberId: "",
@@ -106,13 +108,21 @@ const TransactionListPage = () => {
   }, [filters]);
 
   useEffect(() => {
-    if (selectedChitForAdd) {
-      fetchMembers(selectedChitForAdd);
+    if (fromChitId) {
+      fetchMembers(fromChitId, setFromMembers);
     } else {
-      setMembers([]);
+      setFromMembers([]);
       setMemberHistory([]);
     }
-  }, [selectedChitForAdd]);
+  }, [fromChitId]);
+
+  useEffect(() => {
+    if (toChitId) {
+      fetchMembers(toChitId, setToMembers);
+    } else {
+      setToMembers([]);
+    }
+  }, [toChitId]);
 
   useEffect(() => {
     const fetchFilterMembers = async () => {
@@ -131,12 +141,12 @@ const TransactionListPage = () => {
   }, [filters.chitId]);
 
   useEffect(() => {
-    if (selectedChitForAdd && addForm.memberId) {
-      fetchMemberHistory(selectedChitForAdd, addForm.memberId);
+    if (fromChitId && addForm.transferFrom) {
+      fetchMemberHistory(fromChitId, addForm.transferFrom);
     } else {
       setMemberHistory([]);
     }
-  }, [selectedChitForAdd, addForm.memberId]);
+  }, [fromChitId, addForm.transferFrom]);
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -165,10 +175,14 @@ const TransactionListPage = () => {
     }
   };
 
-  const fetchMembers = async (chitId) => {
+  const fetchMembers = async (chitId, setter) => {
     try {
       const res = await apiRequest(`/chit/details/${chitId}`);
-      setMembers(res.data.members || []);
+      if (setter) {
+        setter(res.data.members || []);
+      } else {
+        setFromMembers(res.data.members || []);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -219,11 +233,58 @@ const TransactionListPage = () => {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
+      if (selectedFile.size > 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: "File size exceeds 1MB limit.",
+          severity: "error",
+        });
+        e.target.value = "";
+        return;
+      }
       setFile(selectedFile);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(selectedFile);
     }
+  };
+
+  const compressImage = async (file, { quality = 0.6, maxWidth = 1000 }) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              const compressedFile = new File([blob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+      };
+    });
   };
 
   const uploadImage = async (file) => {
@@ -264,7 +325,8 @@ const TransactionListPage = () => {
   const handleAddSubmit = async (e) => {
     if (e) e.preventDefault();
     if (
-      !selectedChitForAdd ||
+      !fromChitId ||
+      !toChitId ||
       !addForm.transferFrom ||
       !addForm.transferTo ||
       !addForm.amount ||
@@ -286,7 +348,8 @@ const TransactionListPage = () => {
       if (file) {
         setUploading(true);
         try {
-          imageProofUrl = await uploadImage(file);
+          const compressedFile = await compressImage(file, { quality: 0.5 });
+          imageProofUrl = await uploadImage(compressedFile);
         } catch (uploadErr) {
           console.error("Upload error:", uploadErr);
           setUploading(false);
@@ -305,7 +368,8 @@ const TransactionListPage = () => {
       const transactionBody = {
         ...formData,
         type: "transfer", // Explicitly ensure type is transfer
-        chitId: selectedChitForAdd,
+        transferFromChit: fromChitId,
+        transferToChit: toChitId,
         imageProofUrl,
         status: "paid",
       };
@@ -338,8 +402,10 @@ const TransactionListPage = () => {
   };
 
   const resetAddForm = () => {
-    setSelectedChitForAdd("");
-    setMembers([]);
+    setFromChitId("");
+    setToChitId("");
+    setFromMembers([]);
+    setToMembers([]);
     setMemberHistory([]);
     setSelectedHistoryId("");
     setAddForm({
@@ -524,7 +590,8 @@ const TransactionListPage = () => {
             <TableHead sx={tableHeaderSx}>
               <TableRow>
                 <TableCell>ID</TableCell>
-                <TableCell>Chit</TableCell>
+                <TableCell>From Chit</TableCell>
+                <TableCell>To Chit</TableCell>
                 <TableCell>Transfer From</TableCell>
                 <TableCell>Transfer To</TableCell>
                 <TableCell>Date</TableCell>
@@ -553,7 +620,16 @@ const TransactionListPage = () => {
                     <TableCell sx={{ fontWeight: 600 }}>
                       {t.transactionId}
                     </TableCell>
-                    <TableCell>{t.chitId?.chitName}</TableCell>
+                    <TableCell>
+                      {t.type === "transfer"
+                        ? t.transferFromChit?.chitName
+                        : t.chitId?.chitName}
+                    </TableCell>
+                    <TableCell>
+                      {t.type === "transfer"
+                        ? t.transferToChit?.chitName
+                        : "-"}
+                    </TableCell>
                     <TableCell>
                       {t.type === "transfer"
                         ? t.transferFrom?.name
@@ -631,8 +707,18 @@ const TransactionListPage = () => {
                         ).toLocaleDateString(),
                       },
                       {
-                        label: "Chit Name",
-                        value: selectedTransaction.chitId?.chitName,
+                        label: "From Chit",
+                        value:
+                          selectedTransaction.type === "transfer"
+                            ? selectedTransaction.transferFromChit?.chitName
+                            : selectedTransaction.chitId?.chitName,
+                      },
+                      {
+                        label: "To Chit",
+                        value:
+                          selectedTransaction.type === "transfer"
+                            ? selectedTransaction.transferToChit?.chitName
+                            : "-",
                       },
                       {
                         label: "Payment Mode",
@@ -844,21 +930,45 @@ const TransactionListPage = () => {
             onSubmit={handleAddSubmit}
             sx={{ display: "flex", flexDirection: "column", gap: 3 }}
           >
-            <FormControl fullWidth required>
-              <InputLabel>Select Chit</InputLabel>
-              <Select
-                value={selectedChitForAdd}
-                label="Select Chit"
-                onChange={(e) => setSelectedChitForAdd(e.target.value)}
-                sx={{ borderRadius: "8px" }}
-              >
-                {chits.map((c) => (
-                  <MenuItem key={c._id} value={c._id}>
-                    {c.chitName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+              }}
+            >
+              <FormControl fullWidth required sx={{ flex: 1 }}>
+                <InputLabel>From Chit</InputLabel>
+                <Select
+                  value={fromChitId}
+                  label="From Chit"
+                  onChange={(e) => setFromChitId(e.target.value)}
+                  sx={{ borderRadius: "8px" }}
+                >
+                  {chits.map((c) => (
+                    <MenuItem key={c._id} value={c._id}>
+                      {c.chitName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth required sx={{ flex: 1 }}>
+                <InputLabel>To Chit</InputLabel>
+                <Select
+                  value={toChitId}
+                  label="To Chit"
+                  onChange={(e) => setToChitId(e.target.value)}
+                  sx={{ borderRadius: "8px" }}
+                >
+                  {chits.map((c) => (
+                    <MenuItem key={c._id} value={c._id}>
+                      {c.chitName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
             <Box
               sx={{
@@ -870,7 +980,7 @@ const TransactionListPage = () => {
               <FormControl
                 fullWidth
                 required
-                disabled={!selectedChitForAdd}
+                disabled={!fromChitId}
                 sx={{ flex: 1 }}
               >
                 <InputLabel>Transfer From</InputLabel>
@@ -882,7 +992,7 @@ const TransactionListPage = () => {
                   }
                   sx={{ borderRadius: "8px" }}
                 >
-                  {members.map((m) => (
+                  {fromMembers.map((m) => (
                     <MenuItem key={m._id} value={m._id}>
                       {m.name}
                     </MenuItem>
@@ -893,7 +1003,7 @@ const TransactionListPage = () => {
               <FormControl
                 fullWidth
                 required
-                disabled={!selectedChitForAdd}
+                disabled={!toChitId}
                 sx={{ flex: 1 }}
               >
                 <InputLabel>Transfer To</InputLabel>
@@ -905,7 +1015,7 @@ const TransactionListPage = () => {
                   }
                   sx={{ borderRadius: "8px" }}
                 >
-                  {members.map((m) => (
+                  {toMembers.map((m) => (
                     <MenuItem key={m._id} value={m._id}>
                       {m.name}
                     </MenuItem>
@@ -1018,7 +1128,7 @@ const TransactionListPage = () => {
                   variant="caption"
                   sx={{ color: "#94a3b8", mt: 0.5 }}
                 >
-                  Support: JPG, PNG (Max 5MB)
+                  Support: JPG, PNG (Max 1MB)
                 </Typography>
               </Box>
               {preview && (
@@ -1054,7 +1164,8 @@ const TransactionListPage = () => {
             variant="contained"
             onClick={() => {
               if (
-                !selectedChitForAdd ||
+                !fromChitId ||
+                !toChitId ||
                 !addForm.transferFrom ||
                 !addForm.transferTo ||
                 !addForm.amount ||
@@ -1070,21 +1181,25 @@ const TransactionListPage = () => {
                 return;
               }
 
-              const selectedFrom = members.find(
+              const selectedFrom = fromMembers.find(
                 (m) => m._id === addForm.transferFrom
               );
-              const selectedTo = members.find(
+              const selectedTo = toMembers.find(
                 (m) => m._id === addForm.transferTo
               );
-              const selectedChit = chits.find(
-                (c) => c._id === selectedChitForAdd
+              const selectedFromChit = chits.find(
+                (c) => c._id === fromChitId
+              );
+              const selectedToChit = chits.find(
+                (c) => c._id === toChitId
               );
               setFinalPreviewData({
                 ...addForm,
                 type: "transfer", // Ensure type is set to transfer
                 transferFromName: selectedFrom?.name,
                 transferToName: selectedTo?.name,
-                chitName: selectedChit?.chitName,
+                fromChitName: selectedFromChit?.chitName,
+                toChitName: selectedToChit?.chitName,
               });
               setOpenPreviewModal(true);
             }}
@@ -1156,10 +1271,19 @@ const TransactionListPage = () => {
 
             <Box>
               <Typography variant="caption" color="#94a3b8" fontWeight={700}>
-                CHIT NAME
+                FROM CHIT
               </Typography>
               <Typography variant="body1" fontWeight={700} color="#64748b">
-                {finalPreviewData?.chitName}
+                {finalPreviewData?.fromChitName}
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="caption" color="#94a3b8" fontWeight={700}>
+                TO CHIT
+              </Typography>
+              <Typography variant="body1" fontWeight={700} color="#64748b">
+                {finalPreviewData?.toChitName}
               </Typography>
             </Box>
 

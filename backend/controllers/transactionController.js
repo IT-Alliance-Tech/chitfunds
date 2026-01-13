@@ -11,6 +11,8 @@ exports.createTransaction = async (req, res) => {
     const {
       type,
       chitId,
+      transferFromChit,
+      transferToChit,
       memberId,
       transferFrom,
       transferTo,
@@ -40,7 +42,8 @@ exports.createTransaction = async (req, res) => {
       }
     } else if (transactionType === "transfer") {
       if (
-        !chitId ||
+        !transferFromChit ||
+        !transferToChit ||
         !transferFrom ||
         !transferTo ||
         !amount ||
@@ -52,7 +55,9 @@ exports.createTransaction = async (req, res) => {
           res,
           400,
           "error",
-          `Missing fields for transfer: ${!chitId ? "chitId " : ""}${
+          `Missing fields for transfer: ${
+            !transferFromChit ? "transferFromChit " : ""
+          }${!transferToChit ? "transferToChit " : ""}${
             !transferFrom ? "transferFrom " : ""
           }${!transferTo ? "transferTo " : ""}${!amount ? "amount " : ""}${
             !paymentMode ? "paymentMode " : ""
@@ -72,7 +77,11 @@ exports.createTransaction = async (req, res) => {
 
     const transaction = await Transaction.create({
       type: transactionType,
-      chitId,
+      chitId: transactionType === "transaction" ? chitId : transferFromChit,
+      transferFromChit:
+        transactionType === "transfer" ? transferFromChit : undefined,
+      transferToChit:
+        transactionType === "transfer" ? transferToChit : undefined,
       memberId: transactionType === "transaction" ? memberId : undefined,
       transferFrom: transactionType === "transfer" ? transferFrom : undefined,
       transferTo: transactionType === "transfer" ? transferTo : undefined,
@@ -132,6 +141,8 @@ exports.getTransactions = async (req, res) => {
     const total = await Transaction.countDocuments(query);
     const transactions = await Transaction.find(query)
       .populate("chitId", "chitName")
+      .populate("transferFromChit", "chitName")
+      .populate("transferToChit", "chitName")
       .populate("memberId", "name phone")
       .populate("transferFrom", "name phone")
       .populate("transferTo", "name phone")
@@ -167,6 +178,8 @@ exports.getTransactionDetails = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
       .populate("chitId", "chitName")
+      .populate("transferFromChit", "chitName")
+      .populate("transferToChit", "chitName")
       .populate("memberId", "name phone")
       .populate("transferFrom", "name phone")
       .populate("transferTo", "name phone");
