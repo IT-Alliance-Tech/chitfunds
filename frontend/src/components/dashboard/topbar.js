@@ -17,6 +17,7 @@ const Topbar = () => {
       <button
         className="bg-gray-900 text-white px-5 py-2 rounded-lg hover:bg-gray-800 transition"
         onClick={handleLogout}
+        suppressHydrationWarning
       >
         Logout
       </button>

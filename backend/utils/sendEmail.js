@@ -2,45 +2,19 @@
 const { google } = require("googleapis");
 const nodemailer = require("nodemailer");
 
+const { GMAIL_CREDENTIALS } = require("../config/constants");
+
 /**
  * Sends an email using the Gmail API (OAuth2)
  * @param {Object} options - { to, subject, text, html, attachments }
  */
 async function sendEmail({ to, subject, text, html, attachments }) {
   try {
-    const getEnv = (key) =>
-      process.env[`GOOGLE_${key}`] || process.env[`GMAIL_${key}`];
-
-    // Fallback credentials provided by the user
-    const credentials = {
-      clientId: getEnv("CLIENT_ID"),
-      clientSecret: getEnv("CLIENT_SECRET"),
-      redirectUri: getEnv("REDIRECT_URI"),
-      refreshToken: getEnv("REFRESH_TOKEN"),
-      user: getEnv("USER") || process.env.FROM_EMAIL,
-    };
+    const credentials = GMAIL_CREDENTIALS;
 
     const missing = Object.entries(credentials)
       .filter(([_, value]) => !value)
-      .map(
-        ([key]) => `GOOGLE_${key.toUpperCase()} or GMAIL_${key.toUpperCase()}`
-      );
-
-    console.log("📬 [DEBUG] Email Environment Check:");
-    Object.keys(credentials).forEach((key) => {
-      const val = credentials[key];
-      const envKey = `GOOGLE_${key.toUpperCase()}/${key.toUpperCase()}`;
-      console.log(
-        `   - ${envKey}: ${
-          val
-            ? key.toLowerCase().includes("secret") ||
-              key.toLowerCase().includes("token")
-              ? "EXISTS (MASKED)"
-              : val
-            : "MISSING"
-        }`
-      );
-    });
+      .map(([key]) => key);
 
     if (missing.length > 0) {
       console.error(

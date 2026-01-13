@@ -100,6 +100,11 @@ const Sidebar = () => {
               label="Payments"
             />
             <SidebarItem
+              href="/transactions"
+              icon={<CreditCard size={20} />}
+              label="Transactions"
+            />
+            <SidebarItem
               href="/settings"
               icon={<SettingsIcon size={20} />}
               label="Settings"
@@ -210,6 +215,12 @@ const Sidebar = () => {
                 href="/payments"
                 icon={<CreditCard size={20} />}
                 label="Payments"
+                onClick={() => setOpen(false)}
+              />
+              <SidebarItem
+                href="/transactions"
+                icon={<CreditCard size={20} />}
+                label="Transactions"
                 onClick={() => setOpen(false)}
               />
               <SidebarItem

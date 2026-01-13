@@ -5,7 +5,7 @@ const Payment = require("../models/Payment");
 const sendResponse = require("../utils/response");
 
 // ================= DASHBOARD ANALYTICS =================
-const getDashboardAnalytics = async (req, res) => {
+const getDashboardAnalytics = async (req, res, next) => {
   const startTotal = Date.now();
   const timings = {};
 
@@ -29,6 +29,7 @@ const getDashboardAnalytics = async (req, res) => {
       pStatsResult,
       monthlyCollectedResult,
       paidMonthsAgg,
+      expectedCollectionResult,
       recentData,
     ] = await Promise.all([
       // A. CHIT AGGREGATION
@@ -114,6 +115,39 @@ const getDashboardAnalytics = async (req, res) => {
         { $group: { _id: "$chitId", paidMonths: { $sum: 1 } } },
       ]).option({ maxTimeMS: 5000 }),
 
+      // G. EXPECTED COLLECTION THIS MONTH
+      Member.aggregate([
+        { $unwind: "$chits" },
+        {
+          $match: {
+            "chits.chitId": { $in: activeChitIds },
+            "chits.status": "Active",
+          },
+        },
+        {
+          $lookup: {
+            from: "chits",
+            localField: "chits.chitId",
+            foreignField: "_id",
+            as: "chitInfo",
+          },
+        },
+        { $unwind: "$chitInfo" },
+        {
+          $group: {
+            _id: null,
+            expectedAmount: {
+              $sum: {
+                $multiply: [
+                  "$chitInfo.monthlyPayableAmount",
+                  { $ifNull: ["$chits.slots", 1] },
+                ],
+              },
+            },
+          },
+        },
+      ]).option({ maxTimeMS: 5000 }),
+
       // F. RECENT ACTIVITIES (Optimized with lean and projection)
       Promise.all([
         Chit.find()
@@ -162,6 +196,7 @@ const getDashboardAnalytics = async (req, res) => {
     };
     const collectedThisMonth =
       monthlyCollectedResult[0]?.collectedThisMonth || 0;
+    const expectedThisMonth = expectedCollectionResult[0]?.expectedAmount || 0;
 
     // 3. REMAINING MONTHS CALCULATION
     const calcStart = Date.now();
@@ -228,9 +263,6 @@ const getDashboardAnalytics = async (req, res) => {
       };
     });
 
-    const totalTime = Date.now() - startTotal;
-    console.log(`>>> Dashboard Analytics optimized: ${totalTime}ms`, timings);
-
     return sendResponse(res, 200, "success", "Dashboard analytics fetched", {
       totalChits: stats.total,
       activeChits: stats.active,
@@ -250,6 +282,7 @@ const getDashboardAnalytics = async (req, res) => {
       ),
       remainingMonths,
       collectedThisMonth: collectedThisMonth,
+      expectedToCollect: expectedThisMonth,
 
       recentChits: recentChitsData,
       recentMembers,
@@ -258,14 +291,7 @@ const getDashboardAnalytics = async (req, res) => {
     });
   } catch (error) {
     console.error("Dashboard error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

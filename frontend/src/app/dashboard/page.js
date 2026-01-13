@@ -326,12 +326,12 @@ const Dashboard = () => {
       icon: <PendingActionsIcon />,
       color: "#f43f5e",
     },
-    {
+    /* {
       label: "Total Chit Amount",
       value: `₹${data.totalChitAmount.toLocaleString("en-IN")}`,
       icon: <AccountBalanceIcon />,
       color: "#0284c7",
-    },
+    }, */
     {
       label: "Total Members",
       value: data.totalMembers,
@@ -351,14 +351,14 @@ const Dashboard = () => {
       icon: <GroupsIcon />,
       color: "#ef4444",
     },
-    {
+    /* {
       label: "Total Paid",
       value: `₹${data.totalPaid.toLocaleString("en-IN")}`,
       icon: <MonetizationOnIcon />,
       color: "#16a34a",
       isCircle: true,
       canDownload: true,
-    },
+    }, */
     {
       label: "Collected This Month",
       value: `₹${data.collectedThisMonth.toLocaleString("en-IN")}`,
@@ -368,11 +368,17 @@ const Dashboard = () => {
       canDownload: true,
     },
     {
+      label: "Expected to Collect",
+      value: `₹${(data.expectedToCollect || 0).toLocaleString("en-IN")}`,
+      icon: <PendingActionsIcon />,
+      color: "#f59e0b",
+    },
+    /* {
       label: "Remaining Amount",
       value: `₹${data.remainingTotalChitAmount.toLocaleString("en-IN")}`,
       icon: <PendingActionsIcon />,
       color: "#f59e0b",
-    },
+    }, */
     {
       label: "Remaining Months",
       value: data.remainingMonths,
@@ -399,6 +405,7 @@ const Dashboard = () => {
               md: "repeat(3, 1fr)",
               lg: "repeat(4, 1fr)",
             },
+            gridAutoRows: "1fr", // Force all rows to have the same height
             gap: 3,
             mb: 4,
           }}
@@ -409,6 +416,7 @@ const Dashboard = () => {
               className="hover-card"
               sx={{
                 height: "100%",
+                minHeight: "110px", // Fixed minimum height for consistency
                 borderRadius: "12px",
                 border: "1px solid #e2e8f0",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
