@@ -7,7 +7,6 @@ const {
   exportInvoicePdf,
   exportPaymentsExcel,
   getPaymentHistory,
-  confirmPaymentByAdmin,
   getPaymentStatus,
 } = require("../controllers/paymentsController");
 
@@ -31,7 +30,5 @@ router.get("/export/excel", exportPaymentsExcel);
 router.get("/status", getPaymentStatus);
 // Payment history
 router.get("/history", getPaymentHistory);
-//  Admin confirm payment
-router.put("/confirm/:paymentId", confirmPaymentByAdmin);
 
 module.exports = router;

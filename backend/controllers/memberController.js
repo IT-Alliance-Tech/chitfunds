@@ -18,7 +18,7 @@ const escapeRegExp = (string) => {
 };
 
 // 1. Add Member
-const addMember = async (req, res) => {
+const addMember = async (req, res, next) => {
   try {
     const {
       name,
@@ -137,19 +137,12 @@ const addMember = async (req, res) => {
       member,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 2. Get Members
-const getMembers = async (req, res) => {
+const getMembers = async (req, res, next) => {
   try {
     const { chitId, page = 1, limit = 10, search, status } = req.query;
 
@@ -195,34 +188,23 @@ const getMembers = async (req, res) => {
       },
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 3. Get Member By ID
-const getMemberById = async (req, res) => {
+const getMemberById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendResponse(
-        res,
-        400,
-        "error",
-        "Invalid Member ID",
-        null,
-        "Bad Request"
-      );
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.memberId = id;
     }
 
-    const member = await Member.findById(id).populate(
+    const member = await Member.findOne(query).populate(
       "chits.chitId",
       "chitName location amount duration totalSlots monthlyPayableAmount"
     );
@@ -246,19 +228,12 @@ const getMemberById = async (req, res) => {
       { member }
     );
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 4. Update Member
-const updateMember = async (req, res) => {
+const updateMember = async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -272,18 +247,14 @@ const updateMember = async (req, res) => {
       sendEmail: shouldSendEmail,
     } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendResponse(
-        res,
-        400,
-        "error",
-        "Invalid Member ID",
-        null,
-        "Bad Request"
-      );
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.memberId = id;
     }
 
-    const member = await Member.findById(id);
+    const member = await Member.findOne(query);
     if (!member) {
       return sendResponse(
         res,
@@ -399,34 +370,23 @@ const updateMember = async (req, res) => {
       member,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 5. Delete Member
-const deleteMember = async (req, res) => {
+const deleteMember = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendResponse(
-        res,
-        400,
-        "error",
-        "Invalid Member ID",
-        null,
-        "Bad Request"
-      );
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.memberId = id;
     }
 
-    const member = await Member.findById(id);
+    const member = await Member.findOne(query);
     if (!member) {
       return sendResponse(
         res,
@@ -442,28 +402,24 @@ const deleteMember = async (req, res) => {
 
     return sendResponse(res, 200, "success", "Member deleted successfully");
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 6. Get Member PDF Report
-const getMemberReport = async (req, res) => {
+const getMemberReport = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { chitId } = req.query;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendResponse(res, 400, "error", "Invalid Member ID");
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.memberId = id;
     }
 
-    const member = await Member.findById(id).populate(
+    const member = await Member.findOne(query).populate(
       "chits.chitId",
       "chitName location amount duration startDate totalSlots monthlyPayableAmount"
     );
@@ -480,9 +436,14 @@ const getMemberReport = async (req, res) => {
     }
 
     // Fetch payment history
-    const paymentQuery = { memberId: id };
-    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
-      paymentQuery.chitId = chitId;
+    const paymentQuery = { memberId: member._id };
+    if (chitId) {
+      if (mongoose.Types.ObjectId.isValid(chitId)) {
+        paymentQuery.chitId = chitId;
+      } else {
+        const chit = await Chit.findOne({ chitId }).select("_id");
+        if (chit) paymentQuery.chitId = chit._id;
+      }
     }
 
     const payments = await Payment.find(paymentQuery)
@@ -501,14 +462,7 @@ const getMemberReport = async (req, res) => {
     res.send(pdfBuffer);
   } catch (error) {
     console.error("PDF Report Gen Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "PDF Generation Failed",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

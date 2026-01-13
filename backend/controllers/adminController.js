@@ -8,12 +8,14 @@ const sendEmail = require("../utils/sendEmail");
 const sendResponse = require("../utils/response");
 const { getOTPTemplate } = require("../utils/emailTemplates");
 
-const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
-const JWT_SECRET = process.env.JWT_SECRET || "replace_me";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const {
+  SALT_ROUNDS,
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+} = require("../config/constants");
 
 // 1. Admin Login
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password, accessKey } = req.body;
 
@@ -66,19 +68,12 @@ const login = async (req, res) => {
       token,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 2. Forgot Password
-const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -113,19 +108,12 @@ const forgotPassword = async (req, res) => {
 
     return sendResponse(res, 200, "success", "OTP sent successfully");
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 3. Verify OTP
-const verifyOTP = async (req, res) => {
+const verifyOTP = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
@@ -151,19 +139,12 @@ const verifyOTP = async (req, res) => {
 
     return sendResponse(res, 200, "success", "OTP verified successfully");
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // 4. Reset Password
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   try {
     const { email, newPassword } = req.body;
 
@@ -207,14 +188,7 @@ const resetPassword = async (req, res) => {
 
     return sendResponse(res, 200, "success", "Password reset successful");
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 

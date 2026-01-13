@@ -2,8 +2,13 @@ const mongoose = require("mongoose");
 const Payment = require("../models/Payment");
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
-const { generateInvoicePDF } = require("../utils/invoicePdf");
+const {
+  generateInvoicePDF,
+  generateInvoicePDFBuffer,
+} = require("../utils/invoicePdf");
 const sendResponse = require("../utils/response");
+const sendEmailUtil = require("../utils/sendEmail");
+const { generatePaymentsExcel } = require("../utils/excelExport");
 
 // Helper: Normalize Date to 00:00:00
 const normalizeDate = (date) => {
@@ -25,24 +30,36 @@ const getMonthYear = (date = new Date()) => {
 };
 
 // create payment
-const createPayment = async (req, res) => {
+const createPayment = async (req, res, next) => {
   try {
     const {
       chitId,
       memberId,
-      slotPayments = [], // Expecting array of { slotNumber, paidAmount, interestAmount, penaltyAmount, paymentMode, paymentDate, paymentMonth, sendEmail }
+      slotPayments = [], // Expecting array of { slotNumber, paidAmount, penaltyAmount, paymentMode, paymentDate, paymentMonth, sendEmail }
     } = req.body;
 
     if (!Array.isArray(slotPayments) || slotPayments.length === 0) {
       return sendResponse(res, 400, "error", "No slot payments provided");
     }
 
-    const chit = await Chit.findById(chitId);
+    let chitQuery = {};
+    if (mongoose.Types.ObjectId.isValid(chitId)) {
+      chitQuery._id = chitId;
+    } else {
+      chitQuery.chitId = chitId;
+    }
+    const chit = await Chit.findOne(chitQuery);
     if (!chit) {
       return sendResponse(res, 404, "error", "Chit not found");
     }
 
-    const member = await Member.findById(memberId);
+    let memberQuery = {};
+    if (mongoose.Types.ObjectId.isValid(memberId)) {
+      memberQuery._id = memberId;
+    } else {
+      memberQuery.memberId = memberId;
+    }
+    const member = await Member.findOne(memberQuery);
     if (!member) {
       return sendResponse(res, 404, "error", "Member not found");
     }
@@ -53,7 +70,6 @@ const createPayment = async (req, res) => {
       const {
         slotNumber,
         paidAmount,
-        interestAmount,
         interestPercent,
         penaltyAmount,
         paymentMode,
@@ -63,9 +79,10 @@ const createPayment = async (req, res) => {
       } = slotPay;
 
       // Basic validation for existing payment for this slot/month
+      // Use chit._id and member._id here too
       const existing = await Payment.findOne({
-        chitId,
-        memberId,
+        chitId: chit._id,
+        memberId: member._id,
         paymentMonth,
         slotNumber,
       });
@@ -86,16 +103,13 @@ const createPayment = async (req, res) => {
       const finalDueDate = d;
 
       const payment = await Payment.create({
-        chitId,
-        memberId,
+        chitId: chit._id,
+        memberId: member._id,
         paymentMonth,
         paymentYear,
         slotNumber: Number(slotNumber) || 0,
         slots: 1, // Individual slot tracking
         paidAmount: isNaN(Number(paidAmount)) ? 0 : Number(paidAmount),
-        interestAmount: isNaN(Number(interestAmount))
-          ? 0
-          : Number(interestAmount),
         interestPercent: isNaN(Number(interestPercent))
           ? 0
           : Number(interestPercent),
@@ -104,7 +118,6 @@ const createPayment = async (req, res) => {
         paymentMode,
         paymentDate: dateObj,
         invoiceNumber: `INV-${Date.now()}-${slotNumber}`,
-        isAdminConfirmed: false,
       });
 
       createdPayments.push(payment);
@@ -118,11 +131,8 @@ const createPayment = async (req, res) => {
               .populate("chitId")
               .populate("memberId");
 
-            // We need a way to get PDF buffer
-            const { generateInvoicePDFBuffer } = require("../utils/invoicePdf");
             const pdfBuffer = await generateInvoicePDFBuffer(populatedPayment);
 
-            const sendEmailUtil = require("../utils/sendEmail");
             await sendEmailUtil({
               to: member.email,
               subject: `Payment Invoice - ${chit.chitName} - Slot ${slotNumber}`,
@@ -157,19 +167,12 @@ const createPayment = async (req, res) => {
       }
     );
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // get payments
-const getPayments = async (req, res) => {
+const getPayments = async (req, res, next) => {
   try {
     const {
       chitId,
@@ -185,11 +188,25 @@ const getPayments = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const matchStage = {};
-    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
-      matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+    if (chitId) {
+      if (mongoose.Types.ObjectId.isValid(chitId)) {
+        matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+      } else {
+        // Find chit by chitId and get its _id
+        const chit = await Chit.findOne({ chitId }).select("_id");
+        if (chit) matchStage.chitId = chit._id;
+        else matchStage.chitId = new mongoose.Types.ObjectId(); // No match
+      }
     }
-    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
-      matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+    if (memberId) {
+      if (mongoose.Types.ObjectId.isValid(memberId)) {
+        matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+      } else {
+        // Find member by memberId and get its _id
+        const member = await Member.findOne({ memberId }).select("_id");
+        if (member) matchStage.memberId = member._id;
+        else matchStage.memberId = new mongoose.Types.ObjectId(); // No match
+      }
     }
     if (paymentMode) {
       matchStage.paymentMode = paymentMode;
@@ -359,34 +376,23 @@ const getPayments = async (req, res) => {
       },
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // get payment by id
-const getPaymentById = async (req, res) => {
+const getPaymentById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendResponse(
-        res,
-        400,
-        "error",
-        "Invalid Payment ID",
-        null,
-        "Bad Request"
-      );
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.paymentId = id;
     }
 
-    const payment = await Payment.findById(id)
+    const payment = await Payment.findOne(query)
       .populate(
         "chitId",
         "chitName amount duration monthlyPayableAmount location"
@@ -421,19 +427,12 @@ const getPaymentById = async (req, res) => {
       payment,
     });
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // get payment history
-const getPaymentHistory = async (req, res) => {
+const getPaymentHistory = async (req, res, next) => {
   try {
     const { memberId, chitId } = req.query;
 
@@ -448,7 +447,19 @@ const getPaymentHistory = async (req, res) => {
       );
     }
 
-    const chit = await Chit.findById(chitId);
+    let realMemberId = memberId;
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+      const member = await Member.findOne({ memberId }).select("_id");
+      if (member) realMemberId = member._id;
+    }
+
+    let realChitId = chitId;
+    if (!mongoose.Types.ObjectId.isValid(chitId)) {
+      const chit = await Chit.findOne({ chitId }).select("_id");
+      if (chit) realChitId = chit._id;
+    }
+
+    const chit = await Chit.findById(realChitId);
     if (!chit) {
       return sendResponse(
         res,
@@ -460,7 +471,10 @@ const getPaymentHistory = async (req, res) => {
       );
     }
 
-    const payments = await Payment.find({ memberId, chitId }).sort({
+    const payments = await Payment.find({
+      memberId: realMemberId,
+      chitId: realChitId,
+    }).sort({
       paymentYear: -1,
       paymentMonth: -1,
     });
@@ -497,23 +511,23 @@ const getPaymentHistory = async (req, res) => {
       }
     );
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // export invoice pdf
-const exportInvoicePdf = async (req, res) => {
+const exportInvoicePdf = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const payment = await Payment.findById(id)
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      query._id = id;
+    } else {
+      query.paymentId = id;
+    }
+
+    const payment = await Payment.findOne(query)
       .populate("chitId")
       .populate("memberId");
 
@@ -548,76 +562,33 @@ const exportInvoicePdf = async (req, res) => {
     return await generateInvoicePDF(res, payment);
   } catch (error) {
     console.error("Error in exportInvoicePdf:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
-
-// confirm payment by admin
-const confirmPaymentByAdmin = async (req, res) => {
-  try {
-    const { paymentId } = req.params;
-
-    const payment = await Payment.findById(paymentId);
-    if (!payment) {
-      return sendResponse(
-        res,
-        404,
-        "error",
-        "Payment not found",
-        null,
-        "Resource Missing"
-      );
-    }
-
-    if (payment.isAdminConfirmed) {
-      return sendResponse(
-        res,
-        400,
-        "error",
-        "Payment already confirmed",
-        null,
-        "Validation Error"
-      );
-    }
-
-    payment.isAdminConfirmed = true;
-    await payment.save();
-
-    return sendResponse(res, 200, "success", "Payment confirmed by admin", {
-      payment,
-    });
-  } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
-  }
-};
-
-const { generatePaymentsExcel } = require("../utils/excelExport");
 
 // export payments to excel
-const exportPaymentsExcel = async (req, res) => {
+const exportPaymentsExcel = async (req, res, next) => {
   try {
     const { chitId, memberId, paymentMode, status } = req.query;
 
     const matchStage = {};
-    if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
-      matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+    if (chitId) {
+      if (mongoose.Types.ObjectId.isValid(chitId)) {
+        matchStage.chitId = new mongoose.Types.ObjectId(chitId);
+      } else {
+        const chit = await Chit.findOne({ chitId }).select("_id");
+        if (chit) matchStage.chitId = chit._id;
+        else matchStage.chitId = new mongoose.Types.ObjectId();
+      }
     }
-    if (memberId && mongoose.Types.ObjectId.isValid(memberId)) {
-      matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+    if (memberId) {
+      if (mongoose.Types.ObjectId.isValid(memberId)) {
+        matchStage.memberId = new mongoose.Types.ObjectId(memberId);
+      } else {
+        const member = await Member.findOne({ memberId }).select("_id");
+        if (member) matchStage.memberId = member._id;
+        else matchStage.memberId = new mongoose.Types.ObjectId();
+      }
     }
     if (paymentMode) {
       matchStage.paymentMode = paymentMode;
@@ -717,19 +688,12 @@ const exportPaymentsExcel = async (req, res) => {
     return res.end(buffer);
   } catch (error) {
     console.error("Excel Export Error:", error);
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
 // get payment status for a member in a specific month
-const getPaymentStatus = async (req, res) => {
+const getPaymentStatus = async (req, res, next) => {
   try {
     const { chitId, memberId, paymentMonth } = req.query;
 
@@ -742,10 +706,26 @@ const getPaymentStatus = async (req, res) => {
       );
     }
 
+    let realMemberId = memberId;
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+      const member = await Member.findOne({ memberId }).select("_id");
+      if (member) realMemberId = member._id;
+    }
+
+    let realChitId = chitId;
+    if (!mongoose.Types.ObjectId.isValid(chitId)) {
+      const chit = await Chit.findOne({ chitId }).select("_id");
+      if (chit) realChitId = chit._id;
+    }
+
     const [chit, member, previousPayments] = await Promise.all([
-      Chit.findById(chitId).lean(),
-      Member.findById(memberId).lean(),
-      Payment.find({ chitId, memberId, paymentMonth }).lean(),
+      Chit.findById(realChitId).lean(),
+      Member.findById(realMemberId).lean(),
+      Payment.find({
+        chitId: realChitId,
+        memberId: realMemberId,
+        paymentMonth,
+      }).lean(),
     ]);
 
     if (!chit || !member) {
@@ -753,7 +733,9 @@ const getPaymentStatus = async (req, res) => {
     }
 
     const chitAssignment = member.chits?.find(
-      (c) => (c.chitId?._id || c.chitId).toString() === chitId.toString()
+      (c) =>
+        (c.chitId?._id || c.chitId).toString() ===
+        (chit._id || realChitId).toString()
     );
     const totalSlots = chitAssignment?.slots || 1;
 
@@ -773,14 +755,7 @@ const getPaymentStatus = async (req, res) => {
 
     return sendResponse(res, 200, "success", "Payment status fetched", status);
   } catch (error) {
-    return sendResponse(
-      res,
-      500,
-      "error",
-      "Internal Server Error",
-      null,
-      error.message
-    );
+    next(error);
   }
 };
 
@@ -791,6 +766,5 @@ module.exports = {
   getPaymentHistory,
   exportInvoicePdf,
   exportPaymentsExcel,
-  confirmPaymentByAdmin,
   getPaymentStatus,
 };
