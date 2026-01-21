@@ -51,40 +51,6 @@ const drawHeader = (doc) => {
   drawLine(doc, headerY + 55, "#000", 0.5);
 };
 
-const drawFooter = (doc) => {
-  const footerY = 750;
-  doc.save();
-  doc
-    .moveTo(50, footerY)
-    .lineTo(550, footerY)
-    .strokeColor("#000")
-    .lineWidth(0.5)
-    .stroke();
-  doc
-    .font("Helvetica")
-    .fontSize(8)
-    .fillColor("#000")
-    .text(
-      "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
-      50,
-      footerY + 10,
-      { align: "center", width: 500 },
-    );
-  doc.text(
-    "Page 1 of 1 | E. & O.E. | This is a system-generated document (v2.2)",
-    50,
-    footerY + 22,
-    { align: "center", width: 500 },
-  );
-  doc
-    .moveTo(50, footerY + 35)
-    .lineTo(550, footerY + 35)
-    .strokeColor("#000")
-    .lineWidth(0.5)
-    .stroke();
-  doc.restore();
-};
-
 exports.generateWelcomePDFBuffer = async (member, payments = []) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -249,63 +215,6 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
 
       doc.y = curY + 30;
 
-      // --- CHIT PHOTOS (NEW SECTION) ---
-      let hasImages = member.chits?.some((c) => c.chitId?.chitImage);
-      if (hasImages) {
-        if (doc.y > doc.page.height - 250) {
-          doc.addPage();
-          drawHeader(doc);
-          doc.y += 20;
-        }
-
-        doc.moveDown(1);
-
-        for (const c of member.chits) {
-          const chit = c.chitId || {};
-          if (chit.chitImage) {
-            const imageHeight = 150; // Larger image
-            const spacing = 40;
-
-            if (doc.y + imageHeight + spacing > doc.page.height - 80) {
-              doc.addPage();
-              drawHeader(doc);
-              doc.y += 20;
-            }
-
-            doc
-              .font("Helvetica-Bold")
-              .fontSize(9)
-              .fillColor("#1e293b")
-              .text(chit.chitName || "Chit Image", 50);
-            doc.moveDown(0.4);
-
-            try {
-              console.log(
-                `FETCHING LARGE IMAGE for ${chit.chitName}: ${chit.chitImage}`,
-              );
-              const res = await axios.get(chit.chitImage, {
-                responseType: "arraybuffer",
-                timeout: 10000,
-              });
-              doc.image(res.data, 50, doc.y, { width: 250 }); // Scaled to 250px width
-              doc.y += 160; // Approximate height after 250px scale (assuming 4:3 or similar)
-              doc.moveDown(1.5);
-            } catch (err) {
-              console.error(
-                `PDF LARGE IMG FAIL [${chit.chitName}]:`,
-                err.message,
-              );
-              doc
-                .font("Helvetica-Oblique")
-                .fontSize(8)
-                .fillColor("#ef4444")
-                .text("(Failed to load image)");
-              doc.moveDown(1);
-            }
-          }
-        }
-      }
-
       // --- PAYMENTS TABLE ---
       if (payments && payments.length > 0) {
         if (doc.y > doc.page.height - 150) {
@@ -370,7 +279,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         drawHeader(doc);
         doc.y += 20;
       }
-      doc.font("Helvetica-Bold").fontSize(10).text("TERMS AND CONDITIONS", 50);
+      doc.font("Helvetica-Bold").fontSize(12).text("TERMS AND CONDITIONS", 50);
       termsAndConditions.forEach((t, i) => {
         doc
           .font("Helvetica")
@@ -397,7 +306,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         .fontSize(9)
         .fillColor("#000")
         .text("FOR LNS CHITFUND", 400, doc.y, { align: "right", width: 150 });
-      doc.y += 12;
+      doc.y += 8; // Reduced from 12 to move image up
 
       // Signature image (right-aligned, compact)
       try {
@@ -405,7 +314,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         const rightEdge = 550;
         const signatureX = rightEdge - signatureWidth;
         doc.image(SIGNATURE_PATH, signatureX, doc.y, { width: signatureWidth });
-        doc.y += 32;
+        doc.y += 40; // Increased from 32 to push text down
       } catch (err) {
         console.error("Signature image fail:", err.message);
         doc.y += 12;
@@ -417,7 +326,71 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         .fontSize(8)
         .text("(Digitally Signed)", 400, doc.y, { align: "right", width: 150 });
 
-      drawFooter(doc);
+      // --- CHIT PHOTOS ON PAGE 2 ---
+      let hasImages = member.chits?.some((c) => c.chitId?.chitImage);
+      if (hasImages) {
+        // Always start on a new page for chit images
+        doc.addPage();
+        drawHeader(doc);
+        doc.y += 30;
+
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(12)
+          .fillColor("#1e293b")
+          .text("CHIT SCHEME PHOTOS", 50, doc.y, {
+            align: "center",
+            width: 500,
+          });
+        doc.moveDown(2);
+
+        for (const c of member.chits) {
+          const chit = c.chitId || {};
+          if (chit.chitImage) {
+            // Check if we need a new page for this image
+            const imageHeight = 350; // Larger images for page 2
+            if (doc.y + imageHeight + 80 > doc.page.height - 100) {
+              doc.addPage();
+              drawHeader(doc);
+              doc.y += 30;
+            }
+
+            // Chit name label
+            doc
+              .font("Helvetica-Bold")
+              .fontSize(11)
+              .fillColor("#1e293b")
+              .text(chit.chitName || "Chit Image", 50);
+            doc.moveDown(0.8);
+
+            try {
+              console.log(
+                `FETCHING LARGE IMAGE for ${chit.chitName}: ${chit.chitImage}`,
+              );
+              const res = await axios.get(chit.chitImage, {
+                responseType: "arraybuffer",
+                timeout: 10000,
+              });
+              // Display image full width (500px) centered
+              doc.image(res.data, 50, doc.y, { width: 500 });
+              doc.y += 360; // Space after image
+              doc.moveDown(2);
+            } catch (err) {
+              console.error(
+                `PDF LARGE IMG FAIL [${chit.chitName}]:`,
+                err.message,
+              );
+              doc
+                .font("Helvetica-Oblique")
+                .fontSize(9)
+                .fillColor("#ef4444")
+                .text("(Failed to load image)");
+              doc.moveDown(2);
+            }
+          }
+        }
+      }
+
       doc.end();
     } catch (e) {
       reject(e);
