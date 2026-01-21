@@ -194,10 +194,10 @@ const TransactionListPage = () => {
       // Fetch from both modules to give a complete "Payment History"
       const [transRes, payRes] = await Promise.all([
         apiRequest(
-          `/transaction/list?chitId=${chitId}&memberId=${memberId}&limit=5`
+          `/transaction/list?chitId=${chitId}&memberId=${memberId}&limit=5`,
         ),
         apiRequest(
-          `/payment/list?chitId=${chitId}&memberId=${memberId}&limit=5`
+          `/payment/list?chitId=${chitId}&memberId=${memberId}&limit=5`,
         ),
       ]);
 
@@ -213,7 +213,7 @@ const TransactionListPage = () => {
           displayAmount: p.paidAmount,
           type: "payment",
           paymentDate: p.paymentDate, // Both use paymentDate
-        })
+        }),
       );
 
       // Merge and sort by date descending, then take top 5
@@ -280,7 +280,7 @@ const TransactionListPage = () => {
               resolve(compressedFile);
             },
             "image/jpeg",
-            quality
+            quality,
           );
         };
       };
@@ -291,15 +291,15 @@ const TransactionListPage = () => {
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.floor(
-        Math.random() * 1000
+        Math.random() * 1000,
       )}.${fileExt}`;
       const filePath = `${Date.now()}-${Math.floor(
-        Math.random() * 1000
+        Math.random() * 1000,
       )}.${fileExt}`;
 
       console.log(
         "Attempting upload to Supabase bucket 'chitfunds':",
-        filePath
+        filePath,
       );
       const { data, error } = await supabase.storage
         .from("chitfunds")
@@ -376,7 +376,7 @@ const TransactionListPage = () => {
 
       console.log(
         "Sending transaction create request with body:",
-        JSON.stringify(transactionBody, null, 2)
+        JSON.stringify(transactionBody, null, 2),
       );
       await apiRequest("/transaction/create", "POST", transactionBody);
 
@@ -626,9 +626,7 @@ const TransactionListPage = () => {
                         : t.chitId?.chitName}
                     </TableCell>
                     <TableCell>
-                      {t.type === "transfer"
-                        ? t.transferToChit?.chitName
-                        : "-"}
+                      {t.type === "transfer" ? t.transferToChit?.chitName : "-"}
                     </TableCell>
                     <TableCell>
                       {t.type === "transfer"
@@ -703,7 +701,7 @@ const TransactionListPage = () => {
                       {
                         label: "Date",
                         value: new Date(
-                          selectedTransaction.paymentDate
+                          selectedTransaction.paymentDate,
                         ).toLocaleDateString(),
                       },
                       {
@@ -1182,17 +1180,13 @@ const TransactionListPage = () => {
               }
 
               const selectedFrom = fromMembers.find(
-                (m) => m._id === addForm.transferFrom
+                (m) => m._id === addForm.transferFrom,
               );
               const selectedTo = toMembers.find(
-                (m) => m._id === addForm.transferTo
+                (m) => m._id === addForm.transferTo,
               );
-              const selectedFromChit = chits.find(
-                (c) => c._id === fromChitId
-              );
-              const selectedToChit = chits.find(
-                (c) => c._id === toChitId
-              );
+              const selectedFromChit = chits.find((c) => c._id === fromChitId);
+              const selectedToChit = chits.find((c) => c._id === toChitId);
               setFinalPreviewData({
                 ...addForm,
                 type: "transfer", // Ensure type is set to transfer
@@ -1385,7 +1379,7 @@ const TransactionListPage = () => {
             ) : addLoading ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
-              "CONFIRM &amp; SAVE"
+              "CONFIRM & SAVE"
             )}
           </Button>
         </DialogActions>
