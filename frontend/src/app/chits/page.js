@@ -198,6 +198,7 @@ const ChitsPage = () => {
             dueDate: chit.dueDate,
             status: chit.status,
             location: chit.location,
+            chitImage: chit.chitImage,
           }))
         : [];
 
@@ -209,6 +210,68 @@ const ChitsPage = () => {
       showNotification("Failed to load chits", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const compressImage = async (file, { quality = 0.5, maxWidth = 1000 }) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              const compressedFile = new File([blob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            "image/jpeg",
+            quality,
+          );
+        };
+      };
+    });
+  };
+
+  const uploadImage = async (file) => {
+    const filePath = `chits/${Date.now()}-${Math.floor(Math.random() * 1000)}.jpeg`;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/chitfunds/${filePath}`;
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "image/jpeg",
+        "x-upsert": "true",
+      },
+      body: file,
+    });
+    if (!response.ok) throw new Error("Upload failed");
+    return `${supabaseUrl}/storage/v1/object/public/chitfunds/${filePath}`;
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setImagePreview(URL.createObjectURL(selectedFile));
     }
   };
 
