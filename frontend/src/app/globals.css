@@ -29,3 +29,147 @@ body {
   background-color: #1e1e2f;
 }
 
+/* Custom Calendar Icon Styling to match #1E1E2F theme */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(34%) sepia(85%) saturate(1900%) hue-rotate(190deg) brightness(95%) contrast(90%);
+}
+
+/* React International Phone Overrides */
+.react-international-phone-country-selector-dropdown {
+  z-index: 9999 !important;
+  max-width: 300px !important;
+  overflow-x: hidden !important;
+}
+
+.react-international-phone-country-selector-dropdown__list-item {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.react-international-phone-input:focus {
+  border-color: #1976d2 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px #1976d2 !important;
+}
+
+.react-international-phone-country-selector-button:focus-within {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 1px #1976d2 !important;
+}
+
+/* Global Card Hover Animation (Popup Effect) */
+.hover-card {
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.5s ease !important;
+}
+
+.hover-card:hover {
+  transform: translateY(-12px) scale(1.02) !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15) !important;
+  cursor: pointer !important;
+  z-index: 50 !important;
+}
+
+/* ==========================================================================
+   MOBILE-ONLY STYLES (Applies to screens < 1024px)
+   This ensures the website is fully responsive.
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  /* Page Padding for Mobile */
+  .mobile-page-padding {
+    padding: 12px 16px !important;
+  }
+
+  /* Main Content Area adjustments */
+  main.main-content-mobile {
+    padding: 16px !important;
+    padding-top: 10px !important;
+  }
+
+  /* Stats Grid: Always 2 columns on tablets, 1 on small phones */
+  .stats-grid-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Filter Cards: Stack elements vertically */
+  .filter-card-mobile {
+    padding: 16px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .filters-container-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .filters-container-mobile > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Tables: Enable horizontal scroll with rounded corners */
+  .table-container-mobile {
+    overflow-x: auto !important;
+    display: block !important;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    margin-top: 12px !important;
+  }
+
+  /* Modal/Dialog Adjustments for touch */
+  .MuiDialog-paper {
+    margin: 10px !important;
+    width: calc(100% - 20px) !important;
+    border-radius: 16px !important;
+  }
+
+  /* Form Elements: Full width on mobile */
+  .MuiFormControl-root, .MuiTextField-root {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Extra small devices (Phones < 640px) */
+@media (max-width: 640px) {
+  .stats-grid-mobile {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Hide less important columns on mobile if necessary */
+  .mobile-hide {
+    display: none !important;
+  }
+
+  /* Header adjustments */
+  h4 {
+    font-size: 1.5rem !important;
+    margin-bottom: 16px !important;
+  }
+
+  /* Button stacking */
+  .mobile-btn-group {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* Header/TopBar Adjustments */
+  header {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  header h2 {
+    font-size: 1.1rem !important;
+  }
+
+  header button {
+    padding: 6px 12px !important;
+    font-size: 0.85rem !important;
+  }
+}

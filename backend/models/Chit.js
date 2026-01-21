@@ -2,15 +2,22 @@ const mongoose = require("mongoose");
 
 const chitSchema = new mongoose.Schema(
   {
+    chitId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
     chitName: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     location: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     amount: {
       type: Number,
@@ -27,7 +34,10 @@ const chitSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
-    membersLimit: {
+    calculatedDueDate: {
+      type: Date,
+    },
+    totalSlots: {
       type: Number,
       required: true,
       min: 1,
@@ -36,7 +46,7 @@ const chitSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    cycleDay: {
+    dueDate: {
       type: Number,
       required: true,
       min: 1,
@@ -46,29 +56,48 @@ const chitSchema = new mongoose.Schema(
       type: String,
       enum: ["Upcoming", "Ongoing", "Active", "Closed", "Completed"],
       default: "Upcoming",
+      index: true,
+    },
+    chitImage: {
+      type: String,
+      default: "",
     },
   },
   {
     timestamps: true,
-    toJSON: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
-    toObject: {
-      virtuals: true,
-      transform: function (doc, ret) {
-        ret.id = ret._id;
-        delete ret._id;
-        delete ret.__v;
-      },
-    },
-  }
+  },
 );
 
-const Chit = mongoose.model("Chit", chitSchema);
+chitSchema.index({ createdAt: -1 });
 
-module.exports = Chit;
+// Pre-save hook to auto-generate chitId
+chitSchema.pre("save", async function (next) {
+  if (!this.chitId) {
+    try {
+      // Find the latest chit by chitId
+      const lastChit = await mongoose
+        .model("Chit")
+        .findOne({ chitId: { $exists: true } })
+        .sort({ chitId: -1 })
+        .select("chitId")
+        .lean();
+
+      let nextNumber = 1;
+      if (lastChit && lastChit.chitId) {
+        // Extract number from CID001 format
+        const match = lastChit.chitId.match(/CID(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+
+      // Generate new chitId with zero-padding
+      this.chitId = `CID${String(nextNumber).padStart(3, "0")}`;
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
+
+module.exports = mongoose.model("Chit", chitSchema);

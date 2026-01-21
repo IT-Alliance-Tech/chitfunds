@@ -8,6 +8,9 @@ const chitsRoutes = require("./routes/chitsRoutes");
 const memberRoutes = require("./routes/memberRoutes");
 const paymentRoutes = require("./routes/paymentsRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+const transactionRoutes = require("./routes/transactionRoutes");
 
 const app = express();
 
@@ -28,11 +31,14 @@ app.use("/api/chit", chitsRoutes);
 app.use("/api/member", memberRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/settings", settingsRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/transaction", transactionRoutes);
 
 // Health check
-const sendResponse = require("./utils/responseHandler");
+const sendResponse = require("./utils/response");
 app.get("/health", (req, res) => {
-  return sendResponse(res, 200, true, "OK", null);
+  return sendResponse(res, 200, "success", "OK", null);
 });
 
 // 404 & Error Handler

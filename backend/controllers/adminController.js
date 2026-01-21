@@ -1,141 +1,196 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const asyncHandler = require("express-async-handler");
 
 const Admin = require("../models/Admin");
 const AdminOTP = require("../models/AdminOTP");
 const generateOTP = require("../utils/generateOTP");
 const sendEmail = require("../utils/sendEmail");
-const sendResponse = require("../utils/responseHandler");
+const sendResponse = require("../utils/response");
+const { getOTPTemplate } = require("../utils/emailTemplates");
 
-const SALT_ROUNDS = Number(process.env.SALT_ROUNDS || 10);
-const JWT_SECRET = process.env.JWT_SECRET || "replace_me";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const {
+  SALT_ROUNDS,
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+} = require("../config/constants");
 
-// admin login
-const login = asyncHandler(async (req, res) => {
-  const { email, password, accessKey } = req.body;
+// 1. Admin Login
+const login = async (req, res, next) => {
+  try {
+    const { email, password, accessKey } = req.body;
 
-  const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
-  if (!admin) {
-    res.status(401);
-    throw new Error("Invalid credentials");
+    const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
+    if (!admin) {
+      return sendResponse(
+        res,
+        401,
+        "error",
+        "Invalid credentials",
+        null,
+        "Admin not found"
+      );
+    }
+
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+    if (!passwordMatch) {
+      return sendResponse(
+        res,
+        401,
+        "error",
+        "Invalid credentials",
+        null,
+        "Password mismatch"
+      );
+    }
+
+    if (accessKey !== admin.accessKey) {
+      return sendResponse(
+        res,
+        401,
+        "error",
+        "Invalid accessKey",
+        null,
+        "Access key mismatch"
+      );
+    }
+
+    const token = jwt.sign({ id: admin._id, email: admin.email }, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN,
+    });
+
+    return sendResponse(res, 200, "success", "Login successful", {
+      admin: {
+        _id: admin._id,
+        email: admin.email,
+        createdAt: admin.createdAt,
+        updatedAt: admin.updatedAt,
+      },
+      token,
+    });
+  } catch (error) {
+    next(error);
   }
+};
 
-  const passwordMatch = await bcrypt.compare(password, admin.password);
-  if (!passwordMatch) {
-    res.status(401);
-    throw new Error("Invalid credentials");
+// 2. Forgot Password
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
+    if (!admin) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Admin not found",
+        null,
+        "Email not registered"
+      );
+    }
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await AdminOTP.deleteMany({ email: admin.email });
+    await AdminOTP.create({
+      email: admin.email,
+      otp,
+      expiresAt,
+    });
+
+    await sendEmail({
+      to: admin.email,
+      subject: "Your OTP for Admin Password Reset",
+      text: `Your OTP is ${otp}. It expires in 5 minutes.`,
+      html: getOTPTemplate(otp, "5 minutes"),
+    });
+
+    return sendResponse(res, 200, "success", "OTP sent successfully");
+  } catch (error) {
+    next(error);
   }
+};
 
-  if (accessKey !== admin.accessKey) {
-    res.status(401);
-    throw new Error("Invalid accessKey");
+// 3. Verify OTP
+const verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    const otpRecord = await AdminOTP.findOne({
+      email: email.toLowerCase().trim(),
+      otp,
+      expiresAt: { $gte: new Date() },
+    });
+
+    if (!otpRecord) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "Invalid or expired OTP",
+        null,
+        "OTP verification failed"
+      );
+    }
+
+    otpRecord.isVerified = true;
+    await otpRecord.save();
+
+    return sendResponse(res, 200, "success", "OTP verified successfully");
+  } catch (error) {
+    next(error);
   }
+};
 
-  const token = jwt.sign({ id: admin._id, email: admin.email }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  });
+// 4. Reset Password
+const resetPassword = async (req, res, next) => {
+  try {
+    const { email, newPassword } = req.body;
 
-  const adminData = {
-    _id: admin._id,
-    email: admin.email,
-    createdAt: admin.createdAt,
-    updatedAt: admin.updatedAt,
-  };
+    const otpRecord = await AdminOTP.findOne({
+      email: email.toLowerCase().trim(),
+      isVerified: true,
+      expiresAt: { $gte: new Date() },
+    });
 
-  return sendResponse(res, 200, true, "Login successful", {
-    admin: adminData,
-    token,
-  });
-});
+    if (!otpRecord) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "OTP not verified or expired",
+        null,
+        "Reset password blocked"
+      );
+    }
 
-// forgot password
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
 
-  const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
-  if (!admin) {
-    res.status(404);
-    throw new Error("Admin not found");
+    const updatedAdmin = await Admin.findOneAndUpdate(
+      { email: email.toLowerCase().trim() },
+      { password: hashedPassword },
+      { new: true }
+    );
+
+    if (!updatedAdmin) {
+      return sendResponse(
+        res,
+        404,
+        "error",
+        "Admin not found",
+        null,
+        "Email missing during reset"
+      );
+    }
+
+    await AdminOTP.deleteMany({ email: email.toLowerCase().trim() });
+
+    return sendResponse(res, 200, "success", "Password reset successful");
+  } catch (error) {
+    next(error);
   }
-
-  const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); 
-
-  await AdminOTP.deleteMany({ email: admin.email });
-  await AdminOTP.create({
-    email: admin.email,
-    otp,
-    expiresAt,
-  });
-
-  const subject = "Your OTP for Admin Password Reset";
-  const text = `Your OTP for password reset is: ${otp}. It expires in 5 minutes.`;
-  const html = `<p>Your OTP for password reset is: <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`;
-
-  await sendEmail({ to: admin.email, subject, text, html });
-
-  return sendResponse(res, 200, true, "OTP sent successfully", null);
-});
-
-// verify otp
-const verifyOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-
-  const otpRecord = await AdminOTP.findOne({
-    email: email.toLowerCase().trim(),
-    otp,
-  });
-
-  if (!otpRecord) {
-    res.status(400);
-    throw new Error("Invalid OTP");
-  }
-
-  if (otpRecord.expiresAt < new Date()) {
-    res.status(400);
-    throw new Error("OTP expired");
-  }
-
-  return sendResponse(res, 200, true, "OTP verified successfully", null);
-});
-
-// reset password
-const resetPassword = asyncHandler(async (req, res) => {
-  const { email, newPassword } = req.body;
-
-  const otpRecord = await AdminOTP.findOne({
-    email: email.toLowerCase().trim(),
-  });
-
-  if (!otpRecord) {
-    res.status(400);
-    throw new Error("No OTP request found for this email");
-  }
-
-  if (otpRecord.expiresAt < new Date()) {
-    res.status(400);
-    throw new Error("OTP expired");
-  }
-
-  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-
-  const updatedAdmin = await Admin.findOneAndUpdate(
-    { email: email.toLowerCase().trim() },
-    { $set: { password: hashedPassword } },
-    { new: true }
-  );
-
-  if (!updatedAdmin) {
-    res.status(404);
-    throw new Error("Admin not found");
-  }
-
-  await AdminOTP.deleteMany({ email: email.toLowerCase().trim() });
-
-  return sendResponse(res, 200, true, "Password reset successful", null);
-});
+};
 
 module.exports = {
   login,
