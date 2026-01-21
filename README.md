@@ -1,73 +1,117 @@
-# LNS CHITFUND Management System
+# Chitfunds Management System
 
-A comprehensive Chit Fund management application built with Node.js, Express, MongoDB, and Next.js.
+A comprehensive web application designed to manage chit fund operations, including member management, scheme tracking, automated payment processing, and document generation.
 
-## Recent Refactoring & Optimizations
+## 🚀 Project Overview
 
-### Backend (Controllers & Utilities)
+This project consists of two main components:
+1. **Backend**: A robust API built with Node.js, Express, and MongoDB.
+2. **Frontend**: A modern, responsive user interface built with Next.js 15, Material UI, and Tailwind CSS.
 
-- **Consolidated Business Logic**: Business logic from the service layer has been moved directly into controllers for better maintainability and simpler structure.
-- **Improved Error Handling**: Standardized error handling using `next(error)` and a global error middleware.
-- **Centralized Constants**: Moved hardcoded values (JWT secrets, email credentials, company info) to `backend/config/constants.js`.
-- **Refactored Controllers**:
-  - `adminController.js`: Standardized response formats and error handling.
-  - `chitController.js`: Fixed deletion logic and standardized error propagation.
-  - `memberController.js`: Improved validation and error handling.
-  - `paymentsController.js`: Consolidated payment creation logic and fixed PDF buffer generation.
-  - `dashboardController.js`: Optimized aggregation pipeline and removed redundant logs.
-  - `reportController.js`: Standardized Excel export logic.
-  - `settingsController.js`: Simplified settings management.
-- **Graceful Shutdown**: Implemented signal listeners (SIGINT, SIGTERM) in `server.js` for clean server and database disconnection.
-- **Cleanup**: Removed unused scripts and debug logs.
+---
 
-### Frontend (UI & Components)
+## 🛠️ Backend (Express & MongoDB)
 
-- **CSS Consolidation**: Consolidated `mobile.css` into `globals.css` for better performance and easier styling management.
-- **Shared Components**: Created `src/components/shared/StatusPill.js` and `src/utils/statusUtils.js` to reduce code duplication across Chits, Members, and Payments pages.
-- **Responsive Design**: Maintained 100% desktop fidelity while ensuring full mobile responsiveness via consolidated media queries.
-- **API Optimization**: Standardized API request handling and removed redundant logs in `src/config/api.js`.
+The backend provides the core logic and data management for the system.
 
-## Tech Stack
+### Key Features
+- **Authentication**: JWT-based secure authentication with multiple roles.
+- **Member Management**: Track member details, profiles, and associated chits.
+- **Chit Management**: Create and manage different chit schemes.
+- **Payment Processing**: Handle online and cash payments with automated due date and status tracking.
+- **Document Generation**: Automated generation of Welcome Letters and Invoices using PDFKit.
+- **Reporting**: Export payment data to Excel using ExcelJS.
+- **Notifications**: Automated email notifications with PDF attachments via NodeMailer.
 
-- **Backend**: Node.js, Express.js, MongoDB (Mongoose)
-- **Frontend**: Next.js, React, Tailwind CSS, Material UI (MUI)
-- **Utilities**: PDFKit (Invoices/Reports), ExcelJS (Data Export), Gmail API (OAuth2 Email)
+### Tech Stack
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Database**: MongoDB (Mongoose ODM)
+- **Authentication**: JsonWebToken (JWT), Bcrypt
+- **PDF Generation**: PDFKit
+- **Excel Handling**: ExcelJS
+- **Validation**: Zod
+- **Logging/Monitoring**: Morgan, Helmet
 
-## Getting Started
-
-### Prerequisites
-- Node.js (v18+)
-- MongoDB (Local or Atlas)
-- Gmail API Credentials (for email notifications)
-
-### Installation
-
-1. **Clone the repository**
-2. **Setup Backend**:
+### Getting Started (Backend)
+1. Navigate to the `backend` directory.
+2. Install dependencies:
    ```bash
-   cd backend
    npm install
-   cp .env.example .env # Fill in your environment variables
-   npm run dev
    ```
-3. **Setup Frontend**:
+3. Create a `.env` file with the following variables:
+   ```env
+   PORT=5000
+   MONGO_URI=your_mongodb_connection_string
+   JWT_SECRET=your_secret_key
+   SMTP_HOST=your_smtp_host
+   SMTP_PORT=your_smtp_port
+   SMTP_USER=your_email
+   SMTP_PASS=your_password
+   ```
+4. Run the development server:
    ```bash
-   cd frontend
-   npm install
    npm run dev
    ```
 
-## Environment Variables (.env)
+---
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Backend server port |
-| `MONGO_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret key for JWT authentication |
-| `GOOGLE_CLIENT_ID` | Gmail API Client ID |
-| `GOOGLE_CLIENT_SECRET` | Gmail API Client Secret |
-| `GOOGLE_REFRESH_TOKEN` | Gmail API Refresh Token |
-| `FROM_EMAIL` | Sender email address |
+## 💻 Frontend (Next.js & MUI)
 
-## License
-MIT
+The frontend provides an intuitive dashboard for admins and employees to manage funds.
+
+### Key Features
+- **Responsive Dashboard**: At-a-glance view of transaction summaries and monthly collections.
+- **Member Directory**: Detailed member views with profile management and chit summaries.
+- **Chit Cards**: Visual representation of chit details including scheme images.
+- **Payment Portal**: Interface for processing and tracking payments.
+- **PDF Previews**: Direct links to view and download generated invoices and letters.
+- **Image Uploads**: Integration with Supabase Storage for transaction proofs and chit images.
+
+### Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **UI Library**: Material UI (MUI), Lucide Icons
+- **Styling**: Tailwind CSS
+- **State/Data**: React 19 Hooks, Axios
+- **Storage**: Supabase Client
+- **Animations**: Framer Motion / React CountUp
+
+### Getting Started (Frontend)
+1. Navigate to the `frontend` directory.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env.local` file with the following variables:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:5000/api
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 📂 Project Structure
+
+```
+chitfunds/
+├── backend/            # Express.js API
+│   ├── controllers/    # API controllers
+│   ├── models/         # Mongoose schemas
+│   ├── routes/         # Express routes
+│   └── utils/          # PDF/Excel/Email utilities
+├── frontend/           # Next.js Application
+│   ├── src/app/        # App router pages
+│   ├── src/components/ # Shared UI components
+│   └── src/config/     # External service configurations
+└── README.md           # Main documentation
+```
+
+---
+
+## 📄 License
+This project is licensed under the ISC License.

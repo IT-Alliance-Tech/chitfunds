@@ -368,9 +368,9 @@ const generateDocumentContent = async (doc, payment) => {
 
   // --- SUMMARY CALCULATION ---
   const subTotal = Number(payment.paidAmount || 0);
-  const penalty = Number(payment.penaltyAmount || 0);
-  const interest = 0;
-  const grandTotal = subTotal + penalty + interest;
+  const interestPercent = Number(payment.interestPercent || 0);
+  const interestAmount = (subTotal * interestPercent) / 100;
+  const grandTotal = subTotal + interestAmount;
 
   // --- TOTAL IN WORDS ---
   doc
@@ -397,8 +397,7 @@ const generateDocumentContent = async (doc, payment) => {
   };
 
   drawSummaryRow("Sub Total", subTotal);
-  drawSummaryRow("Interest", interest);
-  drawSummaryRow("Penalty Charges", penalty);
+  drawSummaryRow(`Interest (${interestPercent}%)`, interestAmount);
 
   y -= 5;
   doc
@@ -461,7 +460,7 @@ const generateDocumentContent = async (doc, payment) => {
   y += 35;
 
   // --- TERMS AND CONDITIONS ---
-  doc.font("Helvetica-Bold").fontSize(9).text("TERMS AND CONDITIONS", 50, y);
+  doc.font("Helvetica-Bold").fontSize(11).text("TERMS AND CONDITIONS", 50, y);
   y += 15;
   const terms = [
     "Payment should be made within the due date to avoid penalties.",
