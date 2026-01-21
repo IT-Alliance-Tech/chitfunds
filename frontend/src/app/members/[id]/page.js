@@ -115,7 +115,7 @@ export default function MemberDetailsPage() {
       } catch (err) {
         showNotification(
           err.message || "Failed to fetch member details",
-          "error"
+          "error",
         );
         console.error("Failed to fetch member details", err);
         setMember(null);
@@ -135,7 +135,7 @@ export default function MemberDetailsPage() {
 
     try {
       const res = await apiRequest(
-        `/payment/history?memberId=${id}&chitId=${chit.id}`
+        `/payment/history?memberId=${id}&chitId=${chit.id}`,
       );
       setPayments(res?.data?.payments || []);
     } catch (err) {
@@ -201,6 +201,7 @@ export default function MemberDetailsPage() {
           status: c.status,
           slots: c.slots || 1,
           monthlyPayableAmount: chitData.monthlyPayableAmount,
+          chitImage: chitData.chitImage,
         };
       }
       return null;
@@ -211,7 +212,7 @@ export default function MemberDetailsPage() {
     const token = localStorage.getItem("token");
     window.open(
       `${BASE_URL}/payment/invoice/${paymentId}?token=${token}`,
-      "_blank"
+      "_blank",
     );
   };
 
@@ -377,13 +378,37 @@ export default function MemberDetailsPage() {
                       mb: 1.5,
                     }}
                   >
-                    <Typography
-                      variant="subtitle1"
-                      fontWeight={800}
-                      sx={{ color: "#1e293b", fontSize: "1.05rem" }}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        flex: 1,
+                      }}
                     >
-                      {chit.name}
-                    </Typography>
+                      {chit.chitImage && (
+                        <Box
+                          component="img"
+                          src={chit.chitImage}
+                          alt={chit.name}
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: "8px",
+                            objectFit: "cover",
+                            border: "2px solid #e2e8f0",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={800}
+                        sx={{ color: "#1e293b", fontSize: "1.05rem" }}
+                      >
+                        {chit.name}
+                      </Typography>
+                    </Box>
                     <IconButton
                       size="small"
                       onClick={(e) => {
@@ -394,6 +419,7 @@ export default function MemberDetailsPage() {
                         color: "#166534",
                         backgroundColor: "#dcfce7",
                         "&:hover": { backgroundColor: "#bbf7d0" },
+                        flexShrink: 0,
                       }}
                     >
                       <PictureAsPdfIcon fontSize="small" />
@@ -487,7 +513,7 @@ export default function MemberDetailsPage() {
                     >
                       Total Monthly Payable:{" "}
                       {(chit.monthlyPayableAmount * chit.slots).toLocaleString(
-                        "en-IN"
+                        "en-IN",
                       )}
                     </Typography>
                   </Box>
@@ -559,7 +585,15 @@ export default function MemberDetailsPage() {
 
         <DialogContent sx={{ p: 0 }}>
           {paymentsLoading ? (
-            <Box sx={{ py: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <Box
+              sx={{
+                py: 12,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
               <CircularProgress size={40} thickness={4} />
               <Typography sx={{ color: "#64748b", fontWeight: 500 }}>
                 Loading payments...

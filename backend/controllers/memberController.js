@@ -40,7 +40,7 @@ const addMember = async (req, res, next) => {
         "error",
         "At least one chit must be selected",
         null,
-        "Bad Request"
+        "Bad Request",
       );
     }
 
@@ -58,7 +58,7 @@ const addMember = async (req, res, next) => {
           "error",
           "Invalid Chit ID",
           null,
-          "Bad Request"
+          "Bad Request",
         );
       }
 
@@ -70,7 +70,7 @@ const addMember = async (req, res, next) => {
           "error",
           "Chit not found",
           null,
-          "Resource Missing"
+          "Resource Missing",
         );
       }
 
@@ -78,7 +78,7 @@ const addMember = async (req, res, next) => {
       const membersInChit = await Member.find({ "chits.chitId": cid });
       const totalSlotsTaken = membersInChit.reduce((sum, m) => {
         const chitEntry = m.chits.find(
-          (c) => c.chitId.toString() === cid.toString()
+          (c) => c.chitId.toString() === cid.toString(),
         );
         return sum + (chitEntry?.slots || 1);
       }, 0);
@@ -90,7 +90,7 @@ const addMember = async (req, res, next) => {
           "error",
           "already slots are filled",
           null,
-          "Validation Error"
+          "Validation Error",
         );
       }
 
@@ -112,7 +112,7 @@ const addMember = async (req, res, next) => {
       setImmediate(async () => {
         try {
           const populatedMember = await Member.findById(member._id).populate(
-            "chits.chitId"
+            "chits.chitId",
           );
           const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
           const safeName = formatFileName(member.name);
@@ -169,7 +169,7 @@ const getMembers = async (req, res, next) => {
       Member.find(query)
         .populate(
           "chits.chitId",
-          "chitName location amount duration totalSlots monthlyPayableAmount"
+          "chitName location amount duration totalSlots monthlyPayableAmount chitImage",
         )
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -206,7 +206,7 @@ const getMemberById = async (req, res, next) => {
 
     const member = await Member.findOne(query).populate(
       "chits.chitId",
-      "chitName location amount duration totalSlots monthlyPayableAmount"
+      "chitName location amount duration totalSlots monthlyPayableAmount chitImage",
     );
 
     if (!member) {
@@ -216,7 +216,7 @@ const getMemberById = async (req, res, next) => {
         "error",
         "Member not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -225,7 +225,7 @@ const getMemberById = async (req, res, next) => {
       200,
       "success",
       "Member details fetched successfully",
-      { member }
+      { member },
     );
   } catch (error) {
     next(error);
@@ -262,7 +262,7 @@ const updateMember = async (req, res, next) => {
         "error",
         "Member not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -281,7 +281,7 @@ const updateMember = async (req, res, next) => {
             "error",
             "Invalid Chit ID",
             null,
-            "Bad Request"
+            "Bad Request",
           );
         }
 
@@ -293,7 +293,7 @@ const updateMember = async (req, res, next) => {
             "error",
             "Chit not found",
             null,
-            "Resource Missing"
+            "Resource Missing",
           );
         }
 
@@ -305,7 +305,7 @@ const updateMember = async (req, res, next) => {
 
         const totalOtherSlots = otherMembersInChit.reduce((sum, m) => {
           const chitEntry = m.chits.find(
-            (c) => c.chitId.toString() === cid.toString()
+            (c) => c.chitId.toString() === cid.toString(),
           );
           return sum + (chitEntry?.slots || 1);
         }, 0);
@@ -317,7 +317,7 @@ const updateMember = async (req, res, next) => {
             "error",
             "already slots are filled",
             null,
-            "Validation Error"
+            "Validation Error",
           );
         }
 
@@ -345,7 +345,7 @@ const updateMember = async (req, res, next) => {
       setImmediate(async () => {
         try {
           const populatedMember = await Member.findById(member._id).populate(
-            "chits.chitId"
+            "chits.chitId",
           );
           const pdfBuffer = await generateWelcomePDFBuffer(populatedMember);
           const safeName = formatFileName(member.name);
@@ -394,7 +394,7 @@ const deleteMember = async (req, res, next) => {
         "error",
         "Member not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -421,7 +421,7 @@ const getMemberReport = async (req, res, next) => {
 
     const member = await Member.findOne(query).populate(
       "chits.chitId",
-      "chitName location amount duration startDate totalSlots monthlyPayableAmount"
+      "chitName location amount duration startDate totalSlots monthlyPayableAmount chitImage",
     );
 
     if (!member) {
@@ -431,7 +431,7 @@ const getMemberReport = async (req, res, next) => {
     // Filter chits if chitId is provided
     if (chitId && mongoose.Types.ObjectId.isValid(chitId)) {
       member.chits = member.chits.filter(
-        (c) => c.chitId._id.toString() === chitId.toString()
+        (c) => c.chitId._id.toString() === chitId.toString(),
       );
     }
 
@@ -457,7 +457,7 @@ const getMemberReport = async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename=Member_Report_${safeName}.pdf`
+      `inline; filename=Member_Report_${safeName}.pdf`,
     );
     res.send(pdfBuffer);
   } catch (error) {

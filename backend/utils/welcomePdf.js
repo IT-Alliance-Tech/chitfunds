@@ -3,93 +3,88 @@ const path = require("path");
 const axios = require("axios");
 const Settings = require("../models/Settings");
 
-/**
- * Format date to DD-MM-YYYY
- */
 const formatDate = (date) => {
   if (!date) return "N/A";
   const d = new Date(date);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
 };
 
-/**
- * Helper to draw a table row with borders
- */
-const drawTableRow = (doc, y, columns, options = {}) => {
-  const {
-    height = 18,
-    fontSize = 9,
-    font = "Helvetica",
-    fillColor = "#333",
-    backgroundColor = null,
-    showBorders = true,
-    borderBottom = true,
-  } = options;
-
-  if (backgroundColor) {
-    doc.rect(50, y, 500, height).fill(backgroundColor);
-  }
-
-  doc.fontSize(fontSize).font(font).fillColor(fillColor);
-
-  columns.forEach((col) => {
-    doc.text(col.text || "", col.x, y + (height - fontSize) / 2, {
-      width: col.width,
-      align: col.align || "left",
-      lineBreak: false,
-    });
-  });
-
-  if (showBorders && borderBottom) {
-    doc
-      .moveTo(50, y + height)
-      .lineTo(550, y + height)
-      .strokeColor("#ccc")
-      .lineWidth(0.5)
-      .stroke();
-  }
-
-  return y + height;
-};
-
-// Layout Constants
-const PRIMARY_COLOR = "#000000";
-const SECONDARY_COLOR = "#444444";
-const LIGHT_GREY = "#f9f9f9";
 const LOGO_PATH = path.join(__dirname, "logo.png");
+const SIGNATURE_PATH = path.join(__dirname, "signature.jpg");
 
-// Internal shared branding helpers
+// Branding Helpers
+const drawLine = (doc, y, color = "#000", width = 1) => {
+  doc.moveTo(50, y).lineTo(550, y).strokeColor(color).lineWidth(width).stroke();
+};
+
+const drawTableFrame = (doc, y, height) => {
+  doc.rect(50, y, 500, height).strokeColor("#94a3b8").lineWidth(0.6).stroke();
+};
+
 const drawHeader = (doc) => {
-  doc.save();
+  const headerY = 45;
   try {
-    doc.image(LOGO_PATH, 50, 40, { width: 55 });
-  } catch (err) {
-    console.error("Logo image not found for PDF:", err);
-  }
+    doc.image(LOGO_PATH, 50, headerY - 10, { width: 60 });
+  } catch (err) {}
+
   doc
-    .fontSize(16)
     .font("Helvetica-Bold")
-    .fillColor(PRIMARY_COLOR)
-    .text("LNS CHITFUND", 115, 55, { align: "left" });
+    .fontSize(22)
+    .fillColor("#000")
+    .text("LNS CHITFUND", 200, headerY, { align: "right", width: 350 });
+
   doc
-    .fontSize(9)
     .font("Helvetica")
-    .fillColor(SECONDARY_COLOR)
-    .text("Expert Chit Fund Management & Financial Services", 115, 73, {
-      align: "left",
-    });
+    .fontSize(10)
+    .fillColor("#444")
+    .text(
+      "Expert Chit Fund Management & Financial Services",
+      200,
+      headerY + 25,
+      {
+        align: "right",
+        width: 350,
+      },
+    );
+
+  doc.fillColor("#000");
+  drawLine(doc, headerY + 55, "#000", 0.5);
+};
+
+const drawFooter = (doc) => {
+  const footerY = 750;
+  doc.save();
+  doc
+    .moveTo(50, footerY)
+    .lineTo(550, footerY)
+    .strokeColor("#000")
+    .lineWidth(0.5)
+    .stroke();
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#000")
+    .text(
+      "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
+      50,
+      footerY + 10,
+      { align: "center", width: 500 },
+    );
+  doc.text(
+    "Page 1 of 1 | E. & O.E. | This is a system-generated document (v2.2)",
+    50,
+    footerY + 22,
+    { align: "center", width: 500 },
+  );
+  doc
+    .moveTo(50, footerY + 35)
+    .lineTo(550, footerY + 35)
+    .strokeColor("#000")
+    .lineWidth(0.5)
+    .stroke();
   doc.restore();
 };
 
-/**
- * Generates a Welcome PDF and returns it as a Buffer
- * @param {Object} member - Member object with populated chits
- * @param {Array} payments - Optional payment history array
- * @returns {Promise<Buffer>}
- */
 exports.generateWelcomePDFBuffer = async (member, payments = []) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -117,271 +112,302 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", (err) => reject(err));
 
-      // --- HEADER ---
-      try {
-        doc.image(LOGO_PATH, 50, 40, { width: 50 });
-      } catch (err) {
-        console.error("Logo not found");
-      }
-      doc
-        .fontSize(16)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("LNS CHITFUND", 115, 45);
-      doc
-        .fontSize(9)
-        .font("Helvetica")
-        .fillColor(SECONDARY_COLOR)
-        .text("Expert Chit Fund Management & Financial Services", 115, 65);
+      drawHeader(doc);
+      doc.moveDown(4);
 
-      doc.moveDown(3);
-
-      /* ================= TITLE ================= */
-      const isSingleChit = member.chits?.length === 1;
+      // --- TITLE ---
       doc
-        .fontSize(12)
         .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text(
-          isSingleChit
-            ? "MEMBER CHIT ASSIGNMENT & PAYMENT SUMMARY"
-            : "MEMBERSHIP & CHIT ASSIGNMENT DETAILS",
-          { align: "center" },
-        );
+        .fontSize(14)
+        .text("MEMBER CHIT ASSIGNMENT & PAYMENT SUMMARY", 50, doc.y, {
+          align: "center",
+          width: 500,
+        });
       doc.moveDown(2);
 
-      /* ================= WELCOME MESSAGE ================= */
+      // --- PROFILE ---
+      const rightColX = 320;
+      let startY = doc.y;
       doc
-        .fontSize(10)
-        .font("Helvetica")
-        .fillColor(PRIMARY_COLOR)
-        .text(`Dear ${member.name},`);
-      doc.moveDown(0.5);
-      doc.text(
-        "Thank you for choosing LNS CHITFUND. We are pleased to welcome you as a valued member. Below are the details of your membership and assigned chits for your reference.",
-      );
-      doc.moveDown(1.5);
-
-      /* ================= MEMBER PROFILE ================= */
-      doc
-        .fontSize(9)
         .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("MEMBER PROFILE", 100);
-      doc.moveDown(0.2);
+        .fontSize(10)
+        .text(`Dear ${member.name},`, 50, startY);
+      doc.moveDown(0.5);
+      doc
+        .font("Helvetica")
+        .fontSize(9)
+        .fillColor("#475569")
+        .text(
+          "We are pleased to welcome you as a valued member. Below are your membership details.",
+          50,
+          doc.y,
+          { width: 250 },
+        );
 
-      const startX = 100;
-      const keyWidth = 120;
-      const valueX = startX + keyWidth + 10;
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .fillColor("#000")
+        .text("MEMBER PROFILE", rightColX, startY);
+      doc
+        .moveTo(rightColX, startY + 12)
+        .lineTo(rightColX + 150, startY + 12)
+        .strokeColor("#cbd5e1")
+        .lineWidth(0.5)
+        .stroke();
 
       const profile = [
-        [
-          "Member ID",
-          `:   ${
-            member._id ? member._id.toString().slice(-8).toUpperCase() : "N/A"
-          }`,
-        ],
-        ["Full Name", `:   ${member.name || "N/A"}`],
-        ["Phone", `:   ${member.phone || "N/A"}`],
-        ["Email", `:   ${member.email || "N/A"}`],
-        ["Address", `:   ${member.address || "N/A"}`],
+        ["Member ID", member.memberId || "N/A"],
+        ["Phone", member.phone || "N/A"],
+        ["Email", member.email || "N/A"],
+        ["Address", (member.address || "N/A").slice(0, 40)],
       ];
-
-      profile.forEach((row) => {
-        const y = doc.y;
+      let pY = startY + 22;
+      profile.forEach(([l, v]) => {
         doc
-          .fontSize(9)
+          .font("Helvetica-Bold")
+          .fontSize(8)
+          .fillColor("#1e293b")
+          .text(l, rightColX, pY, { width: 50 });
+        doc
           .font("Helvetica")
-          .fillColor(SECONDARY_COLOR)
-          .text(row[0], startX, y, { width: keyWidth });
-        doc.text(row[1], valueX, y);
-        doc.moveDown(0.5);
+          .fillColor("#475569")
+          .text(`: ${v}`, rightColX + 50, pY, { width: 180 });
+        pY += 14;
       });
 
-      doc.moveDown(1);
-      doc
-        .moveTo(startX, doc.y)
-        .lineTo(500, doc.y)
-        .strokeColor("#e0e0e0")
-        .stroke();
-      doc.moveDown(1);
+      doc.y = Math.max(doc.y, pY) + 20;
+      drawLine(doc, doc.y, "#eee", 1);
+      doc.moveDown(2);
 
-      /* ================= ASSIGNED CHITS ================= */
+      // --- CHITS TABLE ---
       doc
-        .fontSize(9)
         .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
+        .fontSize(10)
+        .fillColor("#000")
         .text("ASSIGNED CHITS / INVESTMENT DETAILS", 50);
-      doc.moveDown(0.5);
+      doc.moveDown(0.6);
 
-      const gridCols = [
-        { x: 50, width: 140, text: "CHIT NAME", align: "left" },
-        { x: 190, width: 90, text: "LOCATION", align: "left" },
-        { x: 280, width: 80, text: "AMOUNT", align: "right" },
-        { x: 370, width: 60, text: "SLOTS", align: "right" },
-        { x: 440, width: 110, text: "START DATE", align: "right" },
-      ];
+      let tY = doc.y;
+      const hH = 22;
+      doc.rect(50, tY, 500, hH).fill("#f1f5f9");
+      doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(9);
+      doc.text("Chit Name", 65, tY + 7);
+      doc.text("Location", 220, tY + 7);
+      doc.text("Amount", 310, tY + 7, { width: 60, align: "right" });
+      doc.text("Slots", 400, tY + 7, { width: 30, align: "right" });
+      doc.text("Start Date", 460, tY + 7, { width: 80, align: "right" });
 
-      let currentY = drawTableRow(doc, doc.y, gridCols, {
-        font: "Helvetica-Bold",
-        backgroundColor: LIGHT_GREY,
-        fillColor: PRIMARY_COLOR,
-        height: 20,
-      });
+      let curY = tY + hH;
+      doc.font("Helvetica").fontSize(8.5).fillColor("#000");
 
       if (member.chits && member.chits.length > 0) {
         for (const c of member.chits) {
           const chit = c.chitId || {};
-          if (currentY > doc.page.height - 120) {
+          const rowH = 28; // Standard height without image in row
+
+          if (curY + rowH > doc.page.height - 100) {
+            drawTableFrame(doc, tY, curY - tY);
+            [210, 300, 390, 450].forEach((lx) =>
+              doc
+                .moveTo(lx, tY)
+                .lineTo(lx, curY)
+                .strokeColor("#94a3b8")
+                .stroke(),
+            );
             doc.addPage();
-            currentY = doc.y;
+            drawHeader(doc);
+            tY = doc.y + 20;
+            doc.rect(50, tY, 500, hH).fill("#f1f5f9");
+            curY = tY + hH;
           }
 
-          // Fetch and Draw Image if available
-          if (chit.chitImage) {
-            try {
-              const imageResponse = await axios.get(chit.chitImage, {
-                responseType: "arraybuffer",
-                timeout: 5000,
-              });
-              doc.image(imageResponse.data, 50, currentY + 2, {
-                width: 40,
-                height: 40,
-              });
-            } catch (imgError) {
-              console.error("Failed to fetch chit image for PDF:", imgError);
-            }
-          }
-
-          const rowStartX = chit.chitImage ? 100 : 50;
-          const nameWidth = chit.chitImage ? 90 : 140;
-
-          currentY = drawTableRow(
-            doc,
-            currentY,
-            [
-              {
-                x: rowStartX,
-                width: nameWidth,
-                text: chit.chitName || "N/A",
-                align: "left",
-              },
-              {
-                x: 190,
-                width: 90,
-                text: (chit.location || "N/A").slice(0, 15),
-                align: "left",
-              },
-              {
-                x: 280,
-                width: 80,
-                text: `INR ${Number(chit.amount || 0).toLocaleString("en-IN")}`,
-                align: "right",
-              },
-              { x: 370, width: 60, text: `${c.slots || 1}`, align: "right" },
-              {
-                x: 440,
-                width: 110,
-                text: formatDate(chit.startDate),
-                align: "right",
-              },
-            ],
-            { height: chit.chitImage ? 45 : 20 },
+          doc.text(chit.chitName || "N/A", 65, curY + 10, { width: 140 });
+          doc.text((chit.location || "N/A").slice(0, 15), 220, curY + 10);
+          doc.text(
+            Number(chit.amount || 0).toLocaleString("en-IN"),
+            310,
+            curY + 10,
+            { width: 60, align: "right" },
           );
+          doc.text(`${c.slots || 1}`, 400, curY + 10, {
+            width: 30,
+            align: "right",
+          });
+          doc.text(formatDate(chit.startDate), 460, curY + 10, {
+            width: 80,
+            align: "right",
+          });
+          curY += rowH;
         }
       }
-      doc.moveDown(1.5);
 
-      /* ================= PAYMENT HISTORY (Summary) ================= */
-      if (payments && payments.length > 0) {
-        if (doc.y > doc.page.height - 150) doc.addPage();
-        doc
-          .fontSize(9)
-          .font("Helvetica-Bold")
-          .fillColor(PRIMARY_COLOR)
-          .text("RECENT TRANSACTIONS (LAST 10)", 50);
-        doc.moveDown(0.5);
+      drawTableFrame(doc, tY, curY - tY);
+      [210, 300, 390, 450].forEach((lx) =>
+        doc.moveTo(lx, tY).lineTo(lx, curY).strokeColor("#94a3b8").stroke(),
+      );
 
-        const payCols = [
-          { x: 50, width: 100, text: "DATE", align: "left" },
-          { x: 150, width: 150, text: "CHIT NAME", align: "left" },
-          { x: 300, width: 100, text: "SLOT #", align: "left" },
-          { x: 400, width: 150, text: "TOTAL PAID", align: "right" },
-        ];
+      doc.y = curY + 30;
 
-        currentY = drawTableRow(doc, doc.y, payCols, {
-          font: "Helvetica-Bold",
-          backgroundColor: LIGHT_GREY,
-          fillColor: PRIMARY_COLOR,
-          height: 20,
-        });
+      // --- CHIT PHOTOS (NEW SECTION) ---
+      let hasImages = member.chits?.some((c) => c.chitId?.chitImage);
+      if (hasImages) {
+        if (doc.y > doc.page.height - 250) {
+          doc.addPage();
+          drawHeader(doc);
+          doc.y += 20;
+        }
 
-        payments.slice(0, 10).forEach((p) => {
-          if (currentY > doc.page.height - 80) {
-            doc.addPage();
-            currentY = doc.y;
+        doc.moveDown(1);
+
+        for (const c of member.chits) {
+          const chit = c.chitId || {};
+          if (chit.chitImage) {
+            const imageHeight = 150; // Larger image
+            const spacing = 40;
+
+            if (doc.y + imageHeight + spacing > doc.page.height - 80) {
+              doc.addPage();
+              drawHeader(doc);
+              doc.y += 20;
+            }
+
+            doc
+              .font("Helvetica-Bold")
+              .fontSize(9)
+              .fillColor("#1e293b")
+              .text(chit.chitName || "Chit Image", 50);
+            doc.moveDown(0.4);
+
+            try {
+              console.log(
+                `FETCHING LARGE IMAGE for ${chit.chitName}: ${chit.chitImage}`,
+              );
+              const res = await axios.get(chit.chitImage, {
+                responseType: "arraybuffer",
+                timeout: 10000,
+              });
+              doc.image(res.data, 50, doc.y, { width: 250 }); // Scaled to 250px width
+              doc.y += 160; // Approximate height after 250px scale (assuming 4:3 or similar)
+              doc.moveDown(1.5);
+            } catch (err) {
+              console.error(
+                `PDF LARGE IMG FAIL [${chit.chitName}]:`,
+                err.message,
+              );
+              doc
+                .font("Helvetica-Oblique")
+                .fontSize(8)
+                .fillColor("#ef4444")
+                .text("(Failed to load image)");
+              doc.moveDown(1);
+            }
           }
-          currentY = drawTableRow(
-            doc,
-            currentY,
-            [
-              {
-                x: 50,
-                width: 100,
-                text: formatDate(p.paymentDate),
-                align: "left",
-              },
-              {
-                x: 150,
-                width: 150,
-                text: (p.chitId?.chitName || "N/A").slice(0, 20),
-                align: "left",
-              },
-              {
-                x: 300,
-                width: 100,
-                text: `Slot ${p.slotNumber || 1}`,
-                align: "left",
-              },
-              {
-                x: 400,
-                width: 150,
-                text: `INR ${Number(p.paidAmount || 0).toLocaleString(
-                  "en-IN",
-                )}`,
-                align: "right",
-              },
-            ],
-            { height: 20 },
-          );
-        });
-        doc.moveDown(1.5);
+        }
       }
 
-      /* ================= TERMS ================= */
-      if (doc.y > doc.page.height - 150) doc.addPage();
-      doc
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .fillColor(PRIMARY_COLOR)
-        .text("TERMS AND CONDITIONS", 50);
-      doc.moveDown(0.3);
-      termsAndConditions.forEach((term, i) => {
-        if (doc.y > doc.page.height - 60) doc.addPage();
+      // --- PAYMENTS TABLE ---
+      if (payments && payments.length > 0) {
+        if (doc.y > doc.page.height - 150) {
+          doc.addPage();
+          drawHeader(doc);
+          doc.y += 20;
+        }
+
         doc
-          .fontSize(8)
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .fillColor("#000")
+          .text("RECENT TRANSACTIONS", 50);
+        doc.moveDown(0.5);
+        let pTY = doc.y;
+        doc.rect(50, pTY, 500, hH).fill("#f1f5f9");
+        doc.fillColor("#1e293b").font("Helvetica-Bold").fontSize(9);
+        doc.text("Date", 65, pTY + 7);
+        doc.text("Chit Name", 160, pTY + 7);
+        doc.text("Amount", 460, pTY + 7, { width: 80, align: "right" });
+        let pY = pTY + hH;
+        payments.slice(0, 10).forEach((p) => {
+          if (pY + 20 > doc.page.height - 80) {
+            drawTableFrame(doc, pTY, pY - pTY);
+            [150, 450].forEach((lx) =>
+              doc
+                .moveTo(lx, pTY)
+                .lineTo(lx, pY)
+                .strokeColor("#94a3b8")
+                .stroke(),
+            );
+            doc.addPage();
+            drawHeader(doc);
+            pTY = doc.y + 20;
+            doc.rect(50, pTY, 500, hH).fill("#f1f5f9");
+            pY = pTY + hH;
+          }
+          doc
+            .font("Helvetica")
+            .fontSize(8)
+            .fillColor("#000")
+            .text(formatDate(p.paymentDate), 65, pY + 8);
+          doc.text(p.chitId?.chitName || "N/A", 160, pY + 8);
+          doc.text(
+            Number(p.paidAmount || 0).toLocaleString("en-IN"),
+            460,
+            pY + 8,
+            { width: 80, align: "right" },
+          );
+          pY += 20;
+        });
+        drawTableFrame(doc, pTY, pY - pTY);
+        [150, 450].forEach((lx) =>
+          doc.moveTo(lx, pTY).lineTo(lx, pY).strokeColor("#94a3b8").stroke(),
+        );
+        doc.y = pY + 30;
+      }
+
+      // --- T&C ---
+      if (doc.y > doc.page.height - 150) {
+        doc.addPage();
+        drawHeader(doc);
+        doc.y += 20;
+      }
+      doc.font("Helvetica-Bold").fontSize(10).text("TERMS AND CONDITIONS", 50);
+      termsAndConditions.forEach((t, i) => {
+        doc
           .font("Helvetica")
-          .fillColor(SECONDARY_COLOR)
-          .text(`${i + 1}. ${term}`, 50, doc.y + 2, { width: 500 });
+          .fontSize(7)
+          .fillColor("#475569")
+          .text(`${i + 1}. ${t}`, 50, doc.y + 5, { width: 500 });
       });
+
       doc.moveDown(2);
 
+      // Company name
       doc
-        .fontSize(8)
-        .font("Helvetica")
-        .fillColor("#888")
-        .text("This is an electronically generated document.", 50);
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .fillColor("#000")
+        .text("FOR LNS CHITFUND", 400, doc.y, { align: "right", width: 150 });
+      doc.y += 20;
 
+      // Signature image (right-aligned)
+      try {
+        const signatureWidth = 70;
+        const rightEdge = 550; // Page right margin
+        const signatureX = rightEdge - signatureWidth; // Calculate right-aligned X position
+        doc.image(SIGNATURE_PATH, signatureX, doc.y, { width: signatureWidth });
+        doc.y += 45;
+      } catch (err) {
+        console.error("Signature image fail:", err.message);
+        doc.y += 20;
+      }
+
+      // Digitally signed text
+      doc
+        .font("Helvetica-Oblique")
+        .fontSize(8)
+        .text("(Digitally Signed)", 400, doc.y, { align: "right", width: 150 });
+
+      drawFooter(doc);
       doc.end();
     } catch (e) {
       reject(e);
