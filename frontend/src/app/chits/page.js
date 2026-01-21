@@ -28,6 +28,7 @@ import {
   Box,
   Snackbar,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
@@ -501,52 +502,65 @@ const ChitsPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {chits.map((chit) => (
-                  <TableRow
-                    key={chit.id}
-                    sx={{
-                      "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
-                      "&:hover": { backgroundColor: "#f1f5f9" },
-                    }}
-                  >
-                    <TableCell sx={{ color: "#64748b", fontWeight: 500 }}>
-                      {chit.chitId ||
-                        (chit.id ? chit.id.slice(-6).toUpperCase() : "N/A")}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
-                      {chit.name}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>
-                      ₹{chit.amount?.toLocaleString("en-IN")}
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      sx={{ fontWeight: 600, color: "#0284c7" }}
-                    >
-                      ₹{chit.monthlyAmount?.toLocaleString("en-IN")}
-                    </TableCell>
-                    <TableCell align="center">{chit.durationMonths}</TableCell>
-                    <TableCell align="center">{chit.totalSlots}</TableCell>
-                    <TableCell sx={{ color: "#64748b" }}>
-                      {chit.startDate}
-                    </TableCell>
-                    <TableCell>{chit.location}</TableCell>
-                    <TableCell align="center">
-                      <StatusPill status={chit.status} />
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        onClick={(e) => openActions(e, chit)}
-                        size="small"
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} align="center" sx={{ py: 10 }}>
+                      <CircularProgress size={40} thickness={4} />
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 2, color: "#64748b", fontWeight: 500 }}
                       >
-                        <MoreVertIcon sx={{ fontSize: 20 }} />
-                      </IconButton>
+                        Loading chits...
+                      </Typography>
                     </TableCell>
                   </TableRow>
-                ))}
-                {chits.length === 0 && !loading && (
+                ) : chits.length > 0 ? (
+                  chits.map((chit) => (
+                    <TableRow
+                      key={chit.id}
+                      sx={{
+                        "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                        "&:hover": { backgroundColor: "#f1f5f9" },
+                      }}
+                    >
+                      <TableCell sx={{ color: "#64748b", fontWeight: 500 }}>
+                        {chit.chitId ||
+                          (chit.id ? chit.id.slice(-6).toUpperCase() : "N/A")}
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                        {chit.name}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700 }}>
+                        ₹{chit.amount?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{ fontWeight: 600, color: "#0284c7" }}
+                      >
+                        ₹{chit.monthlyAmount?.toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell align="center">{chit.durationMonths}</TableCell>
+                      <TableCell align="center">{chit.totalSlots}</TableCell>
+                      <TableCell sx={{ color: "#64748b" }}>
+                        {chit.startDate}
+                      </TableCell>
+                      <TableCell>{chit.location}</TableCell>
+                      <TableCell align="center">
+                        <StatusPill status={chit.status} />
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          onClick={(e) => openActions(e, chit)}
+                          size="small"
+                        >
+                          <MoreVertIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
                   <TableRow>
-                    <TableCell colSpan={10} align="center">
+                    <TableCell colSpan={10} align="center" sx={{ py: 8 }}>
                       No chits found
                     </TableCell>
                   </TableRow>

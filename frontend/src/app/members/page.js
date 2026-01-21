@@ -43,6 +43,21 @@ import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 import StatusPill from "@/components/shared/StatusPill";
 import { tableHeaderSx } from "@/utils/statusUtils";
+import CircularProgress from "@mui/material/CircularProgress";
+
+const FullPageLoader = () => (
+  <Box
+    sx={{
+      minHeight: "70vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <CircularProgress size={48} thickness={4} />
+  </Box>
+);
+
 
 const animatedComponents = makeAnimated();
 
@@ -607,53 +622,66 @@ const MembersPage = () => {
                 </TableHead>
 
                 <TableBody>
-                  {members.map((m) => (
-                    <TableRow
-                      key={m.id}
-                      sx={{
-                        "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
-                        "&:hover": { backgroundColor: "#f1f5f9" },
-                      }}
-                    >
-                      <TableCell
-                        sx={{
-                          fontWeight: 700,
-                          color: "#64748b",
-                          fontSize: "11px",
-                        }}
-                      >
-                        {m.memberId || `#${m.id.slice(-6).toUpperCase()}`}
-                      </TableCell>
-                      <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
-                        {m.name}
-                      </TableCell>
-                      <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
-                        {m.phone}
-                      </TableCell>
-                      <TableCell sx={{ color: "#64748b", fontSize: "13px" }}>
-                        {m.address}
-                      </TableCell>
-                      <TableCell align="center">
-                        <StatusPill status={m.status} />
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <IconButton
-                          onClick={(e) => handleMenuOpen(e, m)}
-                          sx={{
-                            color: "#64748b",
-                            "&:hover": {
-                              color: "#1e293b",
-                              backgroundColor: "#f1f5f9",
-                            },
-                          }}
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
+                        <CircularProgress size={40} thickness={4} />
+                        <Typography
+                          variant="body2"
+                          sx={{ mt: 2, color: "#64748b", fontWeight: 500 }}
                         >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
+                          Loading members...
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {members.length === 0 && !loading && (
+                  ) : members.length > 0 ? (
+                    members.map((m) => (
+                      <TableRow
+                        key={m.id}
+                        sx={{
+                          "&:nth-of-type(even)": { backgroundColor: "#f8fafc" },
+                          "&:hover": { backgroundColor: "#f1f5f9" },
+                        }}
+                      >
+                        <TableCell
+                          sx={{
+                            fontWeight: 700,
+                            color: "#64748b",
+                            fontSize: "11px",
+                          }}
+                        >
+                          {m.memberId || `#${m.id.slice(-6).toUpperCase()}`}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 600, color: "#1e293b" }}>
+                          {m.name}
+                        </TableCell>
+                        <TableCell sx={{ color: "#475569", fontWeight: 500 }}>
+                          {m.phone}
+                        </TableCell>
+                        <TableCell sx={{ color: "#64748b", fontSize: "13px" }}>
+                          {m.address}
+                        </TableCell>
+                        <TableCell align="center">
+                          <StatusPill status={m.status} />
+                        </TableCell>
+
+                        <TableCell align="center">
+                          <IconButton
+                            onClick={(e) => handleMenuOpen(e, m)}
+                            sx={{
+                              color: "#64748b",
+                              "&:hover": {
+                                color: "#1e293b",
+                                backgroundColor: "#f1f5f9",
+                              },
+                            }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell
                         colSpan={6}

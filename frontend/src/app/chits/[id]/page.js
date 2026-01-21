@@ -16,6 +16,7 @@ import {
   Box,
   Snackbar,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
@@ -123,9 +124,25 @@ export default function ChitDetailsPage() {
   /* ================= LOADING / ERROR ================= */
   if (loading) {
     return (
-      <main className="p-10 text-center">
-        <Typography variant="h6">Loading chit details...</Typography>
-      </main>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+          backgroundColor: "#f8fafc",
+        }}
+      >
+        <CircularProgress size={48} thickness={4} />
+        <Typography
+          variant="body1"
+          sx={{ color: "#64748b", fontWeight: 600, letterSpacing: "0.025em" }}
+        >
+          Loading chit details...
+        </Typography>
+      </Box>
     );
   }
 

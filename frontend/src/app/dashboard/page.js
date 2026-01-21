@@ -52,6 +52,22 @@ const getStatusColor = (status) => {
 };
 
 /* ================= MAIN DASHBOARD COMPONENT ================= */
+
+const FullPageLoader = () => {
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f8fafc",
+      }}
+    >
+      <CircularProgress size={50} thickness={4} />
+    </Box>
+  );
+};
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -148,7 +164,7 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) return <Box sx={{ p: 4, textAlign: "center" }}>Loading...</Box>;
+  if (loading) return <FullPageLoader />;
   if (!data)
     return <Box sx={{ p: 4, textAlign: "center" }}>Failed to load data.</Box>;
 
