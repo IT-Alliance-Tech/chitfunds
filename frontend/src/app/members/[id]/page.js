@@ -22,6 +22,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  CircularProgress,
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
@@ -153,9 +154,25 @@ export default function MemberDetailsPage() {
 
   if (loading) {
     return (
-      <main className="p-10 text-center">
-        <Typography>Loading member details...</Typography>
-      </main>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 2,
+          backgroundColor: "#f8fafc",
+        }}
+      >
+        <CircularProgress size={48} thickness={4} />
+        <Typography
+          variant="body1"
+          sx={{ color: "#64748b", fontWeight: 600, letterSpacing: "0.025em" }}
+        >
+          Loading member details...
+        </Typography>
+      </Box>
     );
   }
 
@@ -542,8 +559,9 @@ export default function MemberDetailsPage() {
 
         <DialogContent sx={{ p: 0 }}>
           {paymentsLoading ? (
-            <Box className="py-12 text-center">
-              <Typography sx={{ color: "#64748b" }}>
+            <Box sx={{ py: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+              <CircularProgress size={40} thickness={4} />
+              <Typography sx={{ color: "#64748b", fontWeight: 500 }}>
                 Loading payments...
               </Typography>
             </Box>
