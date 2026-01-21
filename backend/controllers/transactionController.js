@@ -3,9 +3,6 @@ const sendResponse = require("../utils/response");
 const Chit = require("../models/Chit");
 const Member = require("../models/Member");
 
-// @desc    Create new transaction
-// @route   POST /api/transaction/create
-// @access  Private
 exports.createTransaction = async (req, res) => {
   try {
     const {
@@ -37,7 +34,7 @@ exports.createTransaction = async (req, res) => {
           "error",
           `Missing fields for transaction: ${!chitId ? "chitId " : ""}${
             !memberId ? "memberId " : ""
-          }${!amount ? "amount " : ""}${!paymentMode ? "paymentMode " : ""}`
+          }${!amount ? "amount " : ""}${!paymentMode ? "paymentMode " : ""}`,
         );
       }
     } else if (transactionType === "transfer") {
@@ -63,7 +60,7 @@ exports.createTransaction = async (req, res) => {
             !paymentMode ? "paymentMode " : ""
           }${!description ? "description " : ""}${
             !imageProofUrl ? "imageProofUrl " : ""
-          }`
+          }`,
         );
       }
     } else {
@@ -71,7 +68,7 @@ exports.createTransaction = async (req, res) => {
         res,
         400,
         "error",
-        `Invalid transaction type: ${transactionType}`
+        `Invalid transaction type: ${transactionType}`,
       );
     }
 
@@ -100,7 +97,7 @@ exports.createTransaction = async (req, res) => {
       "Transaction created successfully",
       {
         transaction,
-      }
+      },
     );
   } catch (error) {
     console.error("Create Transaction Error:", error);
@@ -108,9 +105,6 @@ exports.createTransaction = async (req, res) => {
   }
 };
 
-// @desc    Get all transactions with filters
-// @route   GET /api/transaction/list
-// @access  Private
 exports.getTransactions = async (req, res) => {
   try {
     const {
@@ -163,7 +157,7 @@ exports.getTransactions = async (req, res) => {
           currentPage: parseInt(page),
           limit: parseInt(limit),
         },
-      }
+      },
     );
   } catch (error) {
     console.error("Get Transactions Error:", error);

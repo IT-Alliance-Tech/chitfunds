@@ -264,7 +264,10 @@ const ChitsPage = () => {
       startDate: "",
       dueDate: "",
       status: "Active",
+      chitImage: "",
     });
+    setFile(null);
+    setImagePreview(null);
     setOpenModal(true);
   };
 
@@ -282,7 +285,10 @@ const ChitsPage = () => {
       startDate: chit.startDate,
       dueDate: chit.dueDate,
       status: chit.status,
+      chitImage: chit.chitImage || "",
     });
+    setFile(null);
+    setImagePreview(chit.chitImage || null);
     setOpenModal(true);
     closeActions();
   };
@@ -298,31 +304,48 @@ const ChitsPage = () => {
       return;
     }
 
-    try {
-      const payload = {
-        chitName: formData.chitName,
-        location: formData.location,
-        amount: Number(formData.amount),
-        monthlyPayableAmount: Number(formData.monthlyPayableAmount),
-        duration: Number(formData.duration),
-        totalSlots: Number(formData.totalSlots),
-        startDate: formData.startDate,
-        dueDate: Number(formData.dueDate),
-        status: formData.status,
-      };
+    const payload = {
+      chitName: formData.chitName,
+      location: formData.location,
+      amount: Number(formData.amount),
+      monthlyPayableAmount: Number(formData.monthlyPayableAmount),
+      duration: Number(formData.duration),
+      totalSlots: Number(formData.totalSlots),
+      startDate: formData.startDate,
+      dueDate: Number(formData.dueDate),
+      status: formData.status,
+      chitImage: formData.chitImage,
+    };
 
-      if (isEditMode && formData.id) {
+    if (file) {
+      setUploading(true);
+      try {
+        const compressed = await compressImage(file, { quality: 0.5 });
+        const imageUrl = await uploadImage(compressed);
+        payload.chitImage = imageUrl;
+      } catch (uploadErr) {
+        showNotification("Failed to upload image", "error");
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    setLoading(true);
+    try {
+      if (isEditMode) {
         await apiRequest(`/chit/update/${formData.id}`, "PUT", payload);
         showNotification("Chit updated successfully");
       } else {
         await apiRequest("/chit/create", "POST", payload);
         showNotification("Chit created successfully");
       }
-
       setOpenModal(false);
       fetchChits();
     } catch (error) {
       showNotification(error.message || "Operation failed", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -780,6 +803,88 @@ const ChitsPage = () => {
             inputProps={{ min: 1, max: 31 }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
           />
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              Chit Image (Optional)
+            </Typography>
+            <Box
+              sx={{
+                border: "2px dashed #e2e8f0",
+                borderRadius: "12px",
+                p: 2,
+                textAlign: "center",
+                cursor: "pointer",
+                "&:hover": { borderColor: "#3b82f6", bgcolor: "#f8fafc" },
+                position: "relative",
+              }}
+              onClick={() =>
+                document.getElementById("chit-image-input").click()
+              }
+            >
+              <input
+                type="file"
+                id="chit-image-input"
+                hidden
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+              {imagePreview ? (
+                <Box sx={{ position: "relative" }}>
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "150px",
+                      borderRadius: "8px",
+                      display: "block",
+                      margin: "0 auto",
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    Click to change image
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    py: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 40, color: "#94a3b8" }} />
+                  <Typography variant="body2" sx={{ color: "#64748b" }}>
+                    Click to upload chit image
+                  </Typography>
+                </Box>
+              )}
+              {uploading && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    bgcolor: "rgba(255,255,255,0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "12px",
+                  }}
+                >
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
           <Button
