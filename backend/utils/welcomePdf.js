@@ -379,7 +379,17 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
           .text(`${i + 1}. ${t}`, 50, doc.y + 5, { width: 500 });
       });
 
-      doc.moveDown(2);
+      doc.moveDown(1);
+
+      // Check if signature section will overlap with footer (footer starts at y=750)
+      // Signature section needs ~56px, so check if current y + 56 > 750
+      const signatureSectionHeight = 56;
+      const footerStartY = 750;
+      if (doc.y + signatureSectionHeight > footerStartY) {
+        doc.addPage();
+        drawHeader(doc);
+        doc.y += 20;
+      }
 
       // Company name
       doc
@@ -387,18 +397,18 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         .fontSize(9)
         .fillColor("#000")
         .text("FOR LNS CHITFUND", 400, doc.y, { align: "right", width: 150 });
-      doc.y += 20;
+      doc.y += 12;
 
-      // Signature image (right-aligned)
+      // Signature image (right-aligned, compact)
       try {
-        const signatureWidth = 70;
-        const rightEdge = 550; // Page right margin
-        const signatureX = rightEdge - signatureWidth; // Calculate right-aligned X position
+        const signatureWidth = 55;
+        const rightEdge = 550;
+        const signatureX = rightEdge - signatureWidth;
         doc.image(SIGNATURE_PATH, signatureX, doc.y, { width: signatureWidth });
-        doc.y += 45;
+        doc.y += 32;
       } catch (err) {
         console.error("Signature image fail:", err.message);
-        doc.y += 20;
+        doc.y += 12;
       }
 
       // Digitally signed text
