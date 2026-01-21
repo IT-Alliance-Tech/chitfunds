@@ -108,7 +108,7 @@ export default function ChitDetailsPage() {
       } catch (err) {
         showNotification(
           err.message || "Failed to fetch chit details",
-          "error"
+          "error",
         );
         console.error("Failed to fetch chit details", err);
         setChit(null);
@@ -170,19 +170,57 @@ export default function ChitDetailsPage() {
           width: "100%",
         }}
       >
-        <Typography
-          variant="h4"
-          fontWeight={800}
+        <Box
           sx={{
-            color: "#1e293b",
-            fontSize: { xs: "1.25rem", sm: "2.125rem" },
-            textTransform: "capitalize",
-            flex: 1,
-            textAlign: "left",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 2,
+            width: "100%",
           }}
         >
-          {chit.chitName}
-        </Typography>
+          {chit.chitImage && (
+            <Box
+              component="a"
+              href={chit.chitImage}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                flexShrink: 0,
+                cursor: "pointer",
+                transition: "transform 0.2s",
+                "&:hover": { transform: "scale(1.05)" },
+              }}
+            >
+              <Box
+                component="img"
+                src={chit.chitImage}
+                alt={chit.chitName}
+                sx={{
+                  width: { xs: "60px", sm: "100px" },
+                  height: { xs: "60px", sm: "100px" },
+                  borderRadius: "12px",
+                  objectFit: "cover",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  border: "2px solid white",
+                }}
+              />
+            </Box>
+          )}
+          <Typography
+            variant="h4"
+            fontWeight={800}
+            sx={{
+              color: "#1e293b",
+              fontSize: { xs: "1.25rem", sm: "2.125rem" },
+              textTransform: "capitalize",
+              flex: 1,
+              textAlign: "left",
+            }}
+          >
+            {chit.chitName}
+          </Typography>
+        </Box>
         <Button
           variant="outlined"
           onClick={() => router.back()}
@@ -221,7 +259,7 @@ export default function ChitDetailsPage() {
           icon={<GroupsIcon sx={{ fontSize: 34, color: "#ea580c" }} />}
           value={`${members.reduce((sum, m) => {
             const entry = m.chits?.find(
-              (c) => c.chitId === id || c.chitId?._id === id
+              (c) => c.chitId === id || c.chitId?._id === id,
             );
             return sum + (entry?.slots || 1);
           }, 0)}/${chit.totalSlots}`}
@@ -316,7 +354,7 @@ export default function ChitDetailsPage() {
               <Typography sx={{ fontWeight: 700 }}>
                 {members.reduce((sum, m) => {
                   const entry = m.chits?.find(
-                    (c) => c.chitId === id || c.chitId?._id === id
+                    (c) => c.chitId === id || c.chitId?._id === id,
                   );
                   return sum + (entry?.slots || 1);
                 }, 0)}{" "}
@@ -401,7 +439,7 @@ export default function ChitDetailsPage() {
             Slots Summary (
             {members.reduce((sum, m) => {
               const entry = m.chits?.find(
-                (c) => c.chitId === id || c.chitId?._id === id
+                (c) => c.chitId === id || c.chitId?._id === id,
               );
               return sum + (entry?.slots || 1);
             }, 0)}{" "}
@@ -454,7 +492,7 @@ export default function ChitDetailsPage() {
                       sx={{ fontWeight: 700, color: "#1e293b" }}
                     >
                       {m.chits?.find(
-                        (c) => c.chitId === id || c.chitId?._id === id
+                        (c) => c.chitId === id || c.chitId?._id === id,
                       )?.slots || 1}
                     </TableCell>
                     <TableCell align="center">

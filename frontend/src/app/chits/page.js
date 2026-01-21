@@ -33,8 +33,52 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import { apiRequest } from "@/config/api";
-import StatusPill from "@/components/shared/StatusPill";
-import { tableHeaderSx } from "@/utils/statusUtils";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+
+const getStatusColor = (status) => {
+  const s = status?.toLowerCase();
+  if (["active", "paid"].includes(s)) return { bg: "#dcfce7", text: "#166534" }; // Green
+  if (["inactive", "overdue", "closed", "completed"].includes(s))
+    return { bg: "#fee2e2", text: "#991b1b" }; // Red
+  if (["partial", "upcoming", "pending"].includes(s))
+    return { bg: "#fef3c7", text: "#92400e" }; // Orange/Amber
+  return { bg: "#f1f5f9", text: "#475569" }; // Default Gray
+};
+
+const StatusPill = ({ status }) => {
+  const { bg, text } = getStatusColor(status);
+  return (
+    <Box
+      sx={{
+        display: "inline-block",
+        px: 1.5,
+        py: 0.5,
+        borderRadius: "12px",
+        backgroundColor: bg,
+        color: text,
+        fontSize: "11px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        textAlign: "center",
+        minWidth: "70px",
+      }}
+    >
+      {status}
+    </Box>
+  );
+};
+
+const tableHeaderSx = {
+  backgroundColor: "#e2e8f0",
+  "& th": {
+    fontWeight: 700,
+    fontSize: "12px",
+    color: "#1e293b",
+    textTransform: "uppercase",
+    py: 1.5,
+    borderBottom: "1px solid #cbd5e1",
+  },
+};
 
 const STATUS_OPTIONS = ["Active", "Closed", "Upcoming"];
 
@@ -88,7 +132,12 @@ const ChitsPage = () => {
     startDate: "",
     dueDate: "",
     status: "Active",
+    chitImage: "",
   });
+
+  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   /* ===================== EFFECTS ====================== */
 
@@ -149,6 +198,7 @@ const ChitsPage = () => {
             dueDate: chit.dueDate,
             status: chit.status,
             location: chit.location,
+            chitImage: chit.chitImage,
           }))
         : [];
 
@@ -160,6 +210,68 @@ const ChitsPage = () => {
       showNotification("Failed to load chits", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const compressImage = async (file, { quality = 0.5, maxWidth = 1000 }) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              const compressedFile = new File([blob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            "image/jpeg",
+            quality,
+          );
+        };
+      };
+    });
+  };
+
+  const uploadImage = async (file) => {
+    const filePath = `chits/${Date.now()}-${Math.floor(Math.random() * 1000)}.jpeg`;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/chitfunds/${filePath}`;
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        "Content-Type": "image/jpeg",
+        "x-upsert": "true",
+      },
+      body: file,
+    });
+    if (!response.ok) throw new Error("Upload failed");
+    return `${supabaseUrl}/storage/v1/object/public/chitfunds/${filePath}`;
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setImagePreview(URL.createObjectURL(selectedFile));
     }
   };
 
@@ -215,7 +327,10 @@ const ChitsPage = () => {
       startDate: "",
       dueDate: "",
       status: "Active",
+      chitImage: "",
     });
+    setFile(null);
+    setImagePreview(null);
     setOpenModal(true);
   };
 
@@ -233,7 +348,10 @@ const ChitsPage = () => {
       startDate: chit.startDate,
       dueDate: chit.dueDate,
       status: chit.status,
+      chitImage: chit.chitImage || "",
     });
+    setFile(null);
+    setImagePreview(chit.chitImage || null);
     setOpenModal(true);
     closeActions();
   };
@@ -249,31 +367,48 @@ const ChitsPage = () => {
       return;
     }
 
-    try {
-      const payload = {
-        chitName: formData.chitName,
-        location: formData.location,
-        amount: Number(formData.amount),
-        monthlyPayableAmount: Number(formData.monthlyPayableAmount),
-        duration: Number(formData.duration),
-        totalSlots: Number(formData.totalSlots),
-        startDate: formData.startDate,
-        dueDate: Number(formData.dueDate),
-        status: formData.status,
-      };
+    const payload = {
+      chitName: formData.chitName,
+      location: formData.location,
+      amount: Number(formData.amount),
+      monthlyPayableAmount: Number(formData.monthlyPayableAmount),
+      duration: Number(formData.duration),
+      totalSlots: Number(formData.totalSlots),
+      startDate: formData.startDate,
+      dueDate: Number(formData.dueDate),
+      status: formData.status,
+      chitImage: formData.chitImage,
+    };
 
-      if (isEditMode && formData.id) {
+    if (file) {
+      setUploading(true);
+      try {
+        const compressed = await compressImage(file, { quality: 0.5 });
+        const imageUrl = await uploadImage(compressed);
+        payload.chitImage = imageUrl;
+      } catch (uploadErr) {
+        showNotification("Failed to upload image", "error");
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    setLoading(true);
+    try {
+      if (isEditMode) {
         await apiRequest(`/chit/update/${formData.id}`, "PUT", payload);
         showNotification("Chit updated successfully");
       } else {
         await apiRequest("/chit/create", "POST", payload);
         showNotification("Chit created successfully");
       }
-
       setOpenModal(false);
       fetchChits();
     } catch (error) {
       showNotification(error.message || "Operation failed", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -539,7 +674,9 @@ const ChitsPage = () => {
                       >
                         ₹{chit.monthlyAmount?.toLocaleString("en-IN")}
                       </TableCell>
-                      <TableCell align="center">{chit.durationMonths}</TableCell>
+                      <TableCell align="center">
+                        {chit.durationMonths}
+                      </TableCell>
                       <TableCell align="center">{chit.totalSlots}</TableCell>
                       <TableCell sx={{ color: "#64748b" }}>
                         {chit.startDate}
@@ -729,6 +866,88 @@ const ChitsPage = () => {
             inputProps={{ min: 1, max: 31 }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px" } }}
           />
+
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              Chit Image (Optional)
+            </Typography>
+            <Box
+              sx={{
+                border: "2px dashed #e2e8f0",
+                borderRadius: "12px",
+                p: 2,
+                textAlign: "center",
+                cursor: "pointer",
+                "&:hover": { borderColor: "#3b82f6", bgcolor: "#f8fafc" },
+                position: "relative",
+              }}
+              onClick={() =>
+                document.getElementById("chit-image-input").click()
+              }
+            >
+              <input
+                type="file"
+                id="chit-image-input"
+                hidden
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+              {imagePreview ? (
+                <Box sx={{ position: "relative" }}>
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "150px",
+                      borderRadius: "8px",
+                      display: "block",
+                      margin: "0 auto",
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: 1, display: "block" }}
+                  >
+                    Click to change image
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    py: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 40, color: "#94a3b8" }} />
+                  <Typography variant="body2" sx={{ color: "#64748b" }}>
+                    Click to upload chit image
+                  </Typography>
+                </Box>
+              )}
+              {uploading && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    bgcolor: "rgba(255,255,255,0.7)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "12px",
+                  }}
+                >
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
           <Button

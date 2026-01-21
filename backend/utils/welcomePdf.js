@@ -1,5 +1,6 @@
 const PDFDocument = require("pdfkit");
 const path = require("path");
+const axios = require("axios");
 const Settings = require("../models/Settings");
 
 /**
@@ -145,7 +146,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
           isSingleChit
             ? "MEMBER CHIT ASSIGNMENT & PAYMENT SUMMARY"
             : "MEMBERSHIP & CHIT ASSIGNMENT DETAILS",
-          { align: "center" }
+          { align: "center" },
         );
       doc.moveDown(2);
 
@@ -157,7 +158,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         .text(`Dear ${member.name},`);
       doc.moveDown(0.5);
       doc.text(
-        "Thank you for choosing LNS CHITFUND. We are pleased to welcome you as a valued member. Below are the details of your membership and assigned chits for your reference."
+        "Thank you for choosing LNS CHITFUND. We are pleased to welcome you as a valued member. Below are the details of your membership and assigned chits for your reference.",
       );
       doc.moveDown(1.5);
 
@@ -229,19 +230,39 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
       });
 
       if (member.chits && member.chits.length > 0) {
-        member.chits.forEach((c) => {
+        for (const c of member.chits) {
           const chit = c.chitId || {};
-          if (currentY > doc.page.height - 100) {
+          if (currentY > doc.page.height - 120) {
             doc.addPage();
             currentY = doc.y;
           }
+
+          // Fetch and Draw Image if available
+          if (chit.chitImage) {
+            try {
+              const imageResponse = await axios.get(chit.chitImage, {
+                responseType: "arraybuffer",
+                timeout: 5000,
+              });
+              doc.image(imageResponse.data, 50, currentY + 2, {
+                width: 40,
+                height: 40,
+              });
+            } catch (imgError) {
+              console.error("Failed to fetch chit image for PDF:", imgError);
+            }
+          }
+
+          const rowStartX = chit.chitImage ? 100 : 50;
+          const nameWidth = chit.chitImage ? 90 : 140;
+
           currentY = drawTableRow(
             doc,
             currentY,
             [
               {
-                x: 50,
-                width: 140,
+                x: rowStartX,
+                width: nameWidth,
                 text: chit.chitName || "N/A",
                 align: "left",
               },
@@ -265,9 +286,9 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
                 align: "right",
               },
             ],
-            { height: 20 }
+            { height: chit.chitImage ? 45 : 20 },
           );
-        });
+        }
       }
       doc.moveDown(1.5);
 
@@ -326,12 +347,12 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
                 x: 400,
                 width: 150,
                 text: `INR ${Number(p.paidAmount || 0).toLocaleString(
-                  "en-IN"
+                  "en-IN",
                 )}`,
                 align: "right",
               },
             ],
-            { height: 20 }
+            { height: 20 },
           );
         });
         doc.moveDown(1.5);
