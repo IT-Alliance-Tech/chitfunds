@@ -58,10 +58,14 @@ const chitSchema = new mongoose.Schema(
       default: "Upcoming",
       index: true,
     },
+    chitImage: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 chitSchema.index({ createdAt: -1 });
