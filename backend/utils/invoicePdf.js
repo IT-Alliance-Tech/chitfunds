@@ -10,7 +10,7 @@ const formatDate = (date) => {
   if (!date) return "N/A";
   const d = new Date(date);
   return `${String(d.getDate()).padStart(2, "0")}-${String(
-    d.getMonth() + 1
+    d.getMonth() + 1,
   ).padStart(2, "0")}-${d.getFullYear()}`;
 };
 
@@ -125,14 +125,14 @@ const drawFooter = (doc) => {
       "LNS CHITFUND | www.lnschitfund.com | contact@lnschitfund.com",
       50,
       footerY + 10,
-      { align: "center", width: 500 }
+      { align: "center", width: 500 },
     );
 
   doc.text(
     "Page 1 of 1 | E. & O.E. | This is a system-generated document.",
     50,
     footerY + 22,
-    { align: "center", width: 500 }
+    { align: "center", width: 500 },
   );
 
   // Bottom line
@@ -182,7 +182,7 @@ const generateDocumentContent = async (doc, payment) => {
       {
         align: "right",
         width: 350,
-      }
+      },
     );
 
   doc.fillColor("#000");
@@ -200,7 +200,7 @@ const generateDocumentContent = async (doc, payment) => {
       `TAX INVOICE / PAYMENT RECEIPT - SLOT ${payment.slotNumber || 1}`,
       50,
       y,
-      { align: "center", width: 500 }
+      { align: "center", width: 500 },
     );
 
   y += 35;
@@ -227,7 +227,7 @@ const generateDocumentContent = async (doc, payment) => {
   drawDetailRow(
     "Payment Mode",
     (payment.paymentMode || "online").toUpperCase(),
-    rightColX
+    rightColX,
   );
 
   y = detailsY + 30;
@@ -428,15 +428,31 @@ const generateDocumentContent = async (doc, payment) => {
       "I/We hereby certify that my/our registration certificate under the Goods and Service Tax Act 2017 is in force on the date on which the supply of the services specified in this tax invoice is made by me/us and that the transaction of service covered by this tax invoice has been effected by me/us and it shall be accounted for in the turnover while filing of return and the due tax, if any, payable on the service has been paid or shall be paid.",
       50,
       y,
-      { width: 500, align: "justify" }
+      { width: 500, align: "justify" },
     );
   doc.fillColor("#000");
   y += 40;
+
+  // Company name
   doc
     .font("Helvetica-Bold")
     .fontSize(9)
     .text("FOR LNS CHITFUND", 400, y, { align: "right", width: 150 });
-  y += 15;
+  y += 20;
+
+  // Signature image (right-aligned)
+  try {
+    const SIGNATURE_PATH = path.join(__dirname, "signature.jpg");
+    const signatureWidth = 70;
+    const rightEdge = 550; // Page right margin
+    const signatureX = rightEdge - signatureWidth; // Calculate right-aligned X position
+    doc.image(SIGNATURE_PATH, signatureX, y, { width: signatureWidth });
+    y += 45;
+  } catch (err) {
+    y += 20;
+  }
+
+  // Digitally signed text
   doc
     .font("Helvetica-Oblique")
     .fontSize(8)
@@ -482,7 +498,7 @@ exports.generateInvoicePDF = async (res, payment) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-    `inline; filename=receipt-${payment.invoiceNumber}.pdf`
+    `inline; filename=receipt-${payment.invoiceNumber}.pdf`,
   );
 
   doc.pipe(res);
