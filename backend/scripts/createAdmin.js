@@ -68,8 +68,12 @@ async function run() {
 
     const existing = await Admin.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
-      console.log("[OK] Admin already exists:", existing.email);
-      console.log("    _id:", existing._id.toString());
+      console.log("[INFO] Admin already exists. Updating credentials...");
+      const hashed = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+      existing.password = hashed;
+      existing.accessKey = accessKey;
+      await existing.save();
+      console.log("[SUCCESS] Admin credentials updated:", existing.email);
       await mongoose.disconnect();
       process.exit(0);
     }
