@@ -27,7 +27,7 @@ const login = async (req, res, next) => {
         "error",
         "Invalid credentials",
         null,
-        "Admin not found"
+        "Admin not found",
       );
     }
 
@@ -39,7 +39,7 @@ const login = async (req, res, next) => {
         "error",
         "Invalid credentials",
         null,
-        "Password mismatch"
+        "Password mismatch",
       );
     }
 
@@ -50,7 +50,7 @@ const login = async (req, res, next) => {
         "error",
         "Invalid accessKey",
         null,
-        "Access key mismatch"
+        "Access key mismatch",
       );
     }
 
@@ -85,7 +85,7 @@ const forgotPassword = async (req, res, next) => {
         "error",
         "Admin not found",
         null,
-        "Email not registered"
+        "Email not registered",
       );
     }
 
@@ -130,7 +130,7 @@ const verifyOTP = async (req, res, next) => {
         "error",
         "Invalid or expired OTP",
         null,
-        "OTP verification failed"
+        "OTP verification failed",
       );
     }
 
@@ -161,7 +161,7 @@ const resetPassword = async (req, res, next) => {
         "error",
         "OTP not verified or expired",
         null,
-        "Reset password blocked"
+        "Reset password blocked",
       );
     }
 
@@ -170,7 +170,7 @@ const resetPassword = async (req, res, next) => {
     const updatedAdmin = await Admin.findOneAndUpdate(
       { email: email.toLowerCase().trim() },
       { password: hashedPassword },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedAdmin) {
@@ -180,7 +180,7 @@ const resetPassword = async (req, res, next) => {
         "error",
         "Admin not found",
         null,
-        "Email missing during reset"
+        "Email missing during reset",
       );
     }
 
@@ -192,9 +192,44 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+// 5. Test Email Configuration
+const testEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return sendResponse(res, 400, "error", "Recipient email is required");
+    }
+
+    await sendEmail({
+      to: email,
+      subject: "LNS Chitfunds - Email System Test",
+      text: "This is a test email from the LNS Chitfunds Management System. If you are receiving this, your Gmail API configuration is working correctly.",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #2563eb;">Email System Test</h2>
+          <p>This is a test email from the <strong>LNS Chitfunds Management System</strong>.</p>
+          <p>If you are receiving this, your Gmail API configuration is working correctly.</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #64748b;">Sent at: ${new Date().toLocaleString()}</p>
+        </div>
+      `,
+    });
+
+    return sendResponse(
+      res,
+      200,
+      "success",
+      `Test email sent successfully to ${email}`,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   forgotPassword,
   verifyOTP,
   resetPassword,
+  testEmail,
 };

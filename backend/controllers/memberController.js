@@ -119,17 +119,22 @@ const addMember = async (req, res, next) => {
           const safeName = formatFileName(member.name);
           await sendEmail({
             to: member.email,
-            subject: "Welcome to IT ALLIANCE TECH - Chit Assignment Details",
+            subject: "Welcome to LNS Chitfunds - Chit Assignment Details",
             html: `
               <p>Dear ${member.name},</p>
-              <p>Welcome to IT ALLIANCE TECH! We are pleased to have you as a member of our Chit Fund.</p>
+              <p>Welcome to LNS Chitfunds We are pleased to have you as a member of our Chit Fund.</p>
               <p>Please find attached your membership details and the information regarding the chits assigned to you.</p>
-              <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+              <p>Best Regards,<br/> Team</p>
             `,
             attachments: [{ filename: `${safeName}.pdf`, content: pdfBuffer }],
           });
+          console.log(`[SUCCESS] Welcome email sent for member: ${member._id}`);
         } catch (delayedError) {
-          console.error("Background welcome email failed:", delayedError);
+          console.error(
+            `[ERROR] Background welcome email failed for member ${member._id}:`,
+            delayedError.message,
+          );
+          if (delayedError.stack) console.error(delayedError.stack);
         }
       });
     }
@@ -352,17 +357,22 @@ const updateMember = async (req, res, next) => {
           const safeName = formatFileName(member.name);
           await sendEmail({
             to: member.email,
-            subject: "Updated Membership Details - IT ALLIANCE TECH",
+            subject: "Updated Membership Details - LNS Chitfunds",
             html: `
               <p>Dear ${member.name},</p>
-              <p>Your membership details at IT ALLIANCE TECH have been updated.</p>
+              <p>Your membership details at LNS Chitfunds have been updated.</p>
               <p>Please find attached the updated information regarding all chits currently assigned to you.</p>
-              <p>Best Regards,<br/>IT ALLIANCE TECH Team</p>
+              <p>Best Regards,<br/>LNS Chitfunds Team</p>
             `,
             attachments: [{ filename: `${safeName}.pdf`, content: pdfBuffer }],
           });
+          console.log(`[SUCCESS] Update email sent for member: ${member._id}`);
         } catch (delayedError) {
-          console.error("Background update email failed:", delayedError);
+          console.error(
+            `[ERROR] Background update email failed for member ${member._id}:`,
+            delayedError.message,
+          );
+          if (delayedError.stack) console.error(delayedError.stack);
         }
       });
     }
