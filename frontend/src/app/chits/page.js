@@ -34,6 +34,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import { apiRequest } from "@/config/api";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import { supabase } from "@/config/supabase";
 
 const getStatusColor = (status) => {
   const s = status?.toLowerCase();
@@ -249,22 +250,27 @@ const ChitsPage = () => {
   };
 
   const uploadImage = async (file) => {
-    const filePath = `chits/${Date.now()}-${Math.floor(Math.random() * 1000)}.jpeg`;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const uploadUrl = `${supabaseUrl}/storage/v1/object/chitfunds/${filePath}`;
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-        "Content-Type": "image/jpeg",
-        "x-upsert": "true",
-      },
-      body: file,
-    });
-    if (!response.ok) throw new Error("Upload failed");
-    return `${supabaseUrl}/storage/v1/object/public/chitfunds/${filePath}`;
+    try {
+      const filePath = `chits/${Date.now()}-${Math.floor(Math.random() * 1000)}.jpeg`;
+
+      const { data, error } = await supabase.storage
+        .from("chitfunds")
+        .upload(filePath, file, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("chitfunds").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw new Error("Failed to upload image");
+    }
   };
 
   const handleFileChange = (e) => {
