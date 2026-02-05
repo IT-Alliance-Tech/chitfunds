@@ -29,7 +29,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response Interceptor: Handle Errors
@@ -55,16 +55,16 @@ api.interceptors.response.use(
     }
 
     return Promise.reject({ message, status: error.response?.status });
-  }
+  },
 );
 
 // Unified Request Helper
 export const apiRequest = async (
   url,
   method = "GET",
-  data = null,
+  data = undefined,
   config = {},
-  params = {}
+  params = {},
 ) => {
   try {
     const response = await api({

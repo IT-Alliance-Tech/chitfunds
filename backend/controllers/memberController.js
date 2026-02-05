@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Member = require("../models/Member");
 const Chit = require("../models/Chit");
 const Payment = require("../models/Payment");
+const Transaction = require("../models/Transaction");
 const sendResponse = require("../utils/response");
 const sendEmail = require("../utils/sendEmail");
 const { generateWelcomePDFBuffer } = require("../utils/welcomePdf");
@@ -398,7 +399,30 @@ const deleteMember = async (req, res, next) => {
       );
     }
 
-    await Member.deleteOne({ _id: id });
+    // CHECK FOR DEPENDENCIES BEFORE DELETING
+    const [hasPayments, hasTransactions] = await Promise.all([
+      Payment.exists({ memberId: member._id }),
+      Transaction.exists({
+        $or: [
+          { memberId: member._id },
+          { transferFrom: member._id },
+          { transferTo: member._id },
+        ],
+      }),
+    ]);
+
+    if (hasPayments || hasTransactions) {
+      return sendResponse(
+        res,
+        400,
+        "error",
+        "Member cannot be deleted because they have associated payments or transactions. Please deactivate them instead.",
+        null,
+        "Dependency Error",
+      );
+    }
+
+    await Member.deleteOne({ _id: member._id });
 
     return sendResponse(res, 200, "success", "Member deleted successfully");
   } catch (error) {
