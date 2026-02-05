@@ -7,7 +7,7 @@ const {
   generateInvoicePDFBuffer,
 } = require("../utils/invoicePdf");
 const sendResponse = require("../utils/response");
-const sendEmailUtil = require("../utils/sendEmail");
+const sendEmail = require("../utils/sendEmail");
 const { generatePaymentsExcel } = require("../utils/excelExport");
 
 // Helper: Normalize Date to 00:00:00
@@ -23,7 +23,7 @@ const getMonthYear = (date = new Date()) => {
   return {
     paymentMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
       2,
-      "0"
+      "0",
     )}`,
     paymentYear: d.getFullYear(),
   };
@@ -133,7 +133,7 @@ const createPayment = async (req, res, next) => {
 
             const pdfBuffer = await generateInvoicePDFBuffer(populatedPayment);
 
-            await sendEmailUtil({
+            await sendEmail({
               to: member.email,
               subject: `Payment Invoice - ${chit.chitName} - Slot ${slotNumber}`,
               html: `
@@ -164,7 +164,7 @@ const createPayment = async (req, res, next) => {
       {
         count: createdPayments.length,
         payments: createdPayments,
-      }
+      },
     );
   } catch (error) {
     next(error);
@@ -395,7 +395,7 @@ const getPaymentById = async (req, res, next) => {
     const payment = await Payment.findOne(query)
       .populate(
         "chitId",
-        "chitName amount duration monthlyPayableAmount location"
+        "chitName amount duration monthlyPayableAmount location",
       )
       .populate("memberId", "name phone address");
 
@@ -406,7 +406,7 @@ const getPaymentById = async (req, res, next) => {
         "error",
         "Payment not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -443,7 +443,7 @@ const getPaymentHistory = async (req, res, next) => {
         "error",
         "memberId and chitId are required",
         null,
-        "Validation Error"
+        "Validation Error",
       );
     }
 
@@ -467,7 +467,7 @@ const getPaymentHistory = async (req, res, next) => {
         "error",
         "Chit not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -508,7 +508,7 @@ const getPaymentHistory = async (req, res, next) => {
       "Payment history fetched successfully",
       {
         payments: enrichedPayments,
-      }
+      },
     );
   } catch (error) {
     next(error);
@@ -538,7 +538,7 @@ const exportInvoicePdf = async (req, res, next) => {
         "error",
         "Payment not found",
         null,
-        "Resource Missing"
+        "Resource Missing",
       );
     }
 
@@ -678,11 +678,11 @@ const exportPaymentsExcel = async (req, res, next) => {
 
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=" + `Payments_Report_${Date.now()}.xlsx`
+      "attachment; filename=" + `Payments_Report_${Date.now()}.xlsx`,
     );
 
     return res.end(buffer);
@@ -702,7 +702,7 @@ const getPaymentStatus = async (req, res, next) => {
         res,
         400,
         "error",
-        "chitId, memberId, and paymentMonth are required"
+        "chitId, memberId, and paymentMonth are required",
       );
     }
 
@@ -735,7 +735,7 @@ const getPaymentStatus = async (req, res, next) => {
     const chitAssignment = member.chits?.find(
       (c) =>
         (c.chitId?._id || c.chitId).toString() ===
-        (chit._id || realChitId).toString()
+        (chit._id || realChitId).toString(),
     );
     const totalSlots = chitAssignment?.slots || 1;
 

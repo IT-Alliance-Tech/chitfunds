@@ -6,7 +6,18 @@ const { GMAIL_CREDENTIALS } = require("../config/constants");
 
 /**
  * Sends an email using the Gmail API (OAuth2)
- * @param {Object} options - { to, subject, text, html, attachments }
+ *
+ * This function handles the complex MIME structure (using nodemailer's streamTransport)
+ * and encodes it for the Google Gmail API. It supports HTML, text, and attachments.
+ *
+ * @param {Object} options - Email options
+ * @param {string} options.to - Recipient email address
+ * @param {string} options.subject - Email subject line
+ * @param {string} [options.text] - Plain text body
+ * @param {string} [options.html] - HTML body
+ * @param {Array<Object>} [options.attachments] - Array of attachment objects { filename, content/path }
+ * @returns {Promise<Object>} - The result from the Gmail API
+ * @throws {Error} - If credentials are missing or API call fails
  */
 async function sendEmail({ to, subject, text, html, attachments }) {
   try {
@@ -18,16 +29,18 @@ async function sendEmail({ to, subject, text, html, attachments }) {
 
     if (missing.length > 0) {
       console.error(
-        "❌ [ERROR] Gmail API credentials missing:",
-        missing.join(", ")
+        "❌ [EMAIL ERROR] Gmail API credentials missing:",
+        missing.join(", "),
       );
       throw new Error(`Missing email credentials: ${missing.join(", ")}`);
     }
 
+    console.log(`[DEBUG] Gmail: Sending "${subject}" to ${to}`);
+
     const oauth2Client = new google.auth.OAuth2(
       credentials.clientId,
       credentials.clientSecret,
-      credentials.redirectUri
+      credentials.redirectUri,
     );
 
     oauth2Client.setCredentials({
@@ -37,7 +50,6 @@ async function sendEmail({ to, subject, text, html, attachments }) {
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     // Build the raw MIME message using nodemailer's stream transport
-    // This handles complex headers and attachments automatically
     const transporter = nodemailer.createTransport({
       streamTransport: true,
       newline: "unix",
@@ -69,29 +81,27 @@ async function sendEmail({ to, subject, text, html, attachments }) {
       },
     });
 
-    console.log(
-      "✅ [SUCCESS] Email sent successfully via Gmail API. ID:",
-      result.data.id
-    );
+    console.log(`✅ [EMAIL SUCCESS] Sent to ${to}. ID: ${result.data.id}`);
     return result.data;
   } catch (error) {
-    console.error("❌ [GMAIL ERROR] Full details:");
+    console.error(`❌ [EMAIL FAILURE] To: ${to} | Error: ${error.message}`);
+
     if (error.response) {
-      console.error("   Status:", error.response.status);
-      console.error("   Data:", JSON.stringify(error.response.data, null, 2));
-    } else {
-      console.error("   Message:", error.message);
-      console.error("   Stack:", error.stack);
-    }
-    // Specific hint for common OAuth2 issues
-    if (
-      error.message?.includes("invalid_grant") ||
-      JSON.stringify(error.response?.data)?.includes("invalid_grant")
-    ) {
       console.error(
-        "   💡 [HINT] 'invalid_grant' usually means the Refresh Token is invalid or has expired. Try generating a new one in the Google OAuth Playground."
+        "   Details:",
+        JSON.stringify(error.response.data, null, 2),
       );
     }
+
+    // Specific hint for common OAuth2 issues
+    const errorString =
+      error.message + JSON.stringify(error.response?.data || "");
+    if (errorString.includes("invalid_grant")) {
+      console.error(
+        "   💡 [HINT] 'invalid_grant' usually means the Refresh Token is invalid or expired. Update it in .env",
+      );
+    }
+
     throw error;
   }
 }
