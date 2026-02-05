@@ -126,7 +126,7 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
         ["Member ID", member.memberId || "N/A"],
         ["Phone", member.phone || "N/A"],
         ["Email", member.email || "N/A"],
-        ["Address", (member.address || "N/A").slice(0, 40)],
+        ["Address", member.address || "N/A"],
       ];
       let pY = startY + 22;
       profile.forEach(([l, v]) => {
@@ -135,11 +135,23 @@ exports.generateWelcomePDFBuffer = async (member, payments = []) => {
           .fontSize(8)
           .fillColor("#1e293b")
           .text(l, rightColX, pY, { width: 50 });
+
+        const valueX = rightColX + 50;
+        const valueWidth = 180;
+
+        // Calculate dynamic height for this value
+        const currentHeight = doc
+          .font("Helvetica")
+          .fontSize(8)
+          .heightOfString(`: ${v}`, { width: valueWidth });
+
         doc
           .font("Helvetica")
           .fillColor("#475569")
-          .text(`: ${v}`, rightColX + 50, pY, { width: 180 });
-        pY += 14;
+          .text(`: ${v}`, valueX, pY, { width: valueWidth });
+
+        // Move pY down by at least 14 units or the calculated text height + some padding
+        pY += Math.max(14, currentHeight + 2);
       });
 
       doc.y = Math.max(doc.y, pY) + 20;
