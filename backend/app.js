@@ -14,6 +14,27 @@ const transactionRoutes = require("./routes/transactionRoutes");
 
 const app = express();
 
+// ✅ Parse allowed origins from .env
+const allowedOrigins = process.env.FRONTEND_URI
+  ? process.env.FRONTEND_URI.split(",")
+  : [];
+
+// ✅ Custom CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman, mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      const msg = `CORS policy: This origin (${origin}) is not allowed`;
+      callback(new Error(msg), false);
+    }
+  },
+  credentials: true,
+};
+
 // Middleware
 app.use(helmet());
 app.use(cors());
